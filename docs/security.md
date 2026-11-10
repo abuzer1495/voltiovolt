@@ -221,3 +221,16 @@ WARNING: An error in the Vault can expose all user Secrets.
 3. hash = lowercase hex of SHA-256(prev_hash || canonical JSON of the row without the hash). Canonical JSON: the fields in a fixed order, the keys of details sorted, no spaces. prev_hash of the first row is 64 "0" characters.
 4. Details never contain a Secret. Before a write, each text value in details goes through the redaction rules of section 5. A value of type redact.Secret is written as "[REDACTED]".
 5. At each start, vltd verifies the full chain. If the chain is broken (a changed row, a deleted row or a wrong prev_hash), vltd writes a log entry and an audit entry with the action "audit_chain_broken", and continues.
+
+## 9. SEC-091 check: no test DEK provider in vltd (VLT-IS-003 TASK 03-00-00-008)
+
+Test DEK providers and test auditors have names that start with "testOnly" and are only in _test.go files. The check:
+
+    rg -l 'testOnly' --glob '*.go' --glob '!*_test.go' .      # must print nothing
+    CGO_ENABLED=0 GOOS=linux   go build -o /tmp/vltd-linux   ./cmd/vltd
+    CGO_ENABLED=0 GOOS=windows go build -o /tmp/vltd-windows.exe ./cmd/vltd
+    go tool nm /tmp/vltd-linux       | rg -c testOnly          # must print nothing (rg exit code 1: 0 matches)
+    go tool nm /tmp/vltd-windows.exe | rg -c testOnly          # must print nothing (rg exit code 1: 0 matches)
+
+CI runs the same check in the job build-test (ubuntu-latest), step "SEC-091 check".
+

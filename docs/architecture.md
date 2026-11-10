@@ -91,3 +91,34 @@ Before a PIN is set, only system.hello, system.status, auth.status and auth.set_
 
 No method returns a Secret value. The test TestAllMethodsNoSecretInResponses calls each method and checks all response bytes.
 
+## 6. vltd start and stop (VLT-IS-003 TASK 03-00-00-008)
+
+### 6.1 Start sequence
+
+1. Logging (Linux: standard error to the journal; Windows: %ProgramData%\VoltioVolt\logs\vltd.log, 10 MiB, 5 files). All records go through the redaction handler.
+2. Data directory and permission check (Linux /var/lib/vltd, Windows %ProgramData%\VoltioVolt). If the check fails, vltd stops and writes the reason to the log.
+3. Store (SQLite, migrations). Then the permission check of the database files.
+4. Vault. If the host binding fails, vltd continues (SEC-090). The Vault state is then "locked" or "not configured".
+5. Audit chain verification. A broken chain gives the audit entry "audit_chain_broken". vltd continues.
+6. IPC server (section 5).
+7. Ready signal: Linux sd_notify READY=1 (Type=notify, github.com/coreos/go-systemd/v22/daemon); Windows service state "running" (golang.org/x/sys/windows/svc).
+
+### 6.2 Stop sequence
+
+The reverse order, 10 seconds maximum: Linux STOPPING=1 or Windows "stop pending", IPC server (all connections closed), Store, logging.
+
+### 6.3 Vault states
+
+| State | Cause | Secrets | Settings |
+|-------|-------|---------|----------|
+| available | DEK loaded, canary correct, key mode host+tpm2 or tpm2 (Linux) or dpapi (Windows) | read and write | read and write (MAC checked) |
+| reduced protection | as "available", but the key mode is host, or /etc/vltd/key-mode is missing or not valid (SEC-005) | read and write | read and write |
+| locked | DEK cannot be loaded or the canary is not correct (for example a data directory copied to another computer, SEC-006) | no access | default values, no writes |
+| not configured | no DEK (Linux: no credential; Windows: never, vltd makes the DEK) | no access | default values, no writes |
+
+Recovery from "locked": vault.reset with the confirmation "RESET VAULT" deletes all Secrets and, on Windows, makes a new DEK.
+
+### 6.4 Command-line flags
+
+vltd has one flag: --version. It prints the version and exits.
+

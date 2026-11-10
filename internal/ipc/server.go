@@ -51,6 +51,8 @@ type Backend struct {
 
 	// VLT-IS-006 TASK 03-00-00-004. A nil field gives "unavailable".
 	Ports PortScanner
+	// VLT-IS-006 TASK 03-00-00-007. A nil field gives "unavailable".
+	UPS UPSControl
 }
 
 // PeerCheck accepts or refuses a new connection and returns the peer
@@ -314,6 +316,11 @@ var methodAccess = map[string]access{
 	// VLT-IS-006 TASK 03-00-00-004 step 3.3.
 	wire.MethodDevicePorts: readOnly,
 	wire.MethodDeviceScan:  elevated,
+	// VLT-IS-006 TASK 03-00-00-007.
+	wire.MethodUPSControlCaps: readOnly,
+	wire.MethodUPSTestStart:   elevated,
+	wire.MethodUPSTestCancel:  elevated,
+	wire.MethodUPSBeeperSet:   elevated,
 }
 
 func (cn *conn) idle(ctx context.Context) time.Duration {
@@ -609,6 +616,9 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 			res.Next = r.Seq
 		}
 		return res, nil
+
+	case wire.MethodUPSControlCaps, wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet:
+		return cn.dispatchUPS(ctx, req, elev)
 
 	default:
 		return cn.dispatchLive(ctx, req)

@@ -273,3 +273,42 @@ func TestUPSOffIntegration(t *testing.T) {
 		}
 	}
 }
+
+// TestUPSControlVltd: ups.control.capabilities and ups.beeper.set through
+// vltd with the simulator (VLT-IS-006 TASK 03-00-00-007).
+func TestUPSControlVltd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("about 10 seconds")
+	}
+	ctx := context.Background()
+	m := sim.NewModel(sim.ProfileQ1)
+	s := sim.New(m)
+	ex := &fakeExecutor{ch: make(chan string, 4)}
+	_, addr := startTestDaemon(t, dataDir(t), &testOnlyDEKProvider{dek: testOnlyDEK()}, withSim(s, ex))
+	c := dialTest(t, addr)
+	if err := c.SetPIN(ctx, pin1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Login(ctx, pin1); err != nil {
+		t.Fatal(err)
+	}
+	if caps, err := c.UPSControlCapabilities(ctx); err != nil || caps.Connected {
+		t.Fatalf("capabilities before the port selection: %+v %v", caps, err)
+	}
+	if err := c.SetDeviceSettings(ctx, map[string]any{"device.transport": "serial", "device.serial_port": "/dev/ttySIM0"}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, 30*time.Second, "capabilities", func() bool {
+		caps, err := c.UPSControlCapabilities(ctx)
+		return err == nil && caps.Connected && len(caps.Functions) == 5
+	})
+	// Wait for a status of the Poller.
+	time.Sleep(3 * time.Second)
+	r, err := c.UPSBeeperSet(ctx, false)
+	if err != nil || !r.Verified || m.BeeperOn() {
+		t.Fatalf("beeper off: %+v %v", r, err)
+	}
+	if got := m.Controls(); len(got) != 1 || got[0] != "Q" {
+		t.Fatalf("controls %v", got)
+	}
+}

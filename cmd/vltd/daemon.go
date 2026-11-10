@@ -139,6 +139,9 @@ func (d *daemon) Start(ctx context.Context) (err error) {
 		Version: d.cfg.Version, Log: d.log, Policy: d.live.pol, Hub: d.live.hub}
 	if d.live.mgr != nil {
 		b.Device = d.live.mgr
+		// VLT-IS-006 TASK 03-00-00-007: UPS Control (test, cancel test,
+		// beeper). The Controller gets a Link only while a UPS is connected.
+		b.UPS = d.live.ctl
 	}
 	if d.cfg.Scanner != nil {
 		b.Ports = d.cfg.Scanner

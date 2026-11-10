@@ -14,3 +14,4 @@ This register lists each source that the VLT project uses for protocol facts, te
 | R-08 | Contributor Covenant 2.1, official repository EthicalSource/contributor_covenant, branch "release", commit 5794f441d325aac3f5e263c0154c0fe897f8dbd2, file content/version/2/1/code_of_conduct.md | https://github.com/EthicalSource/contributor_covenant | CODE_OF_CONDUCT.md | Full text; only the contact placeholder is changed | 2026-11-10 |
 | R-09 | Developer Certificate of Origin | https://developercertificate.org/ | DCO sign-off rule | Reference | 2026-11-10 |
 | R-10 | go.bug.st/serial v1.8.0 source (module proxy) | https://pkg.go.dev/go.bug.st/serial | Read timeout behavior (Read returns 0 bytes on timeout) | API facts | 2026-11-10 |
+| R-11 | GitHub documentation: download workflow artifacts | https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts | docs/user/probe.md | Facts only | 2026-11-10 |

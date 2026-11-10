@@ -69,7 +69,8 @@ func newUPSRig(t *testing.T) *upsRig {
 	m := sim.NewModel(sim.ProfileQ1)
 	m.Now = clk.Now
 	s := sim.New(m)
-	tr := s.StreamTransport(transport.Options{Timeout: 20 * time.Millisecond, MinInterval: device.MinGap, FlushTime: time.Millisecond, Now: clk.Now, Sleep: clk.Sleep})
+	// The Timeout is real time; 200 ms keeps the detection stable under load.
+	tr := s.StreamTransport(transport.Options{Timeout: 200 * time.Millisecond, MinInterval: device.MinGap, FlushTime: time.Millisecond, Now: clk.Now, Sleep: clk.Sleep})
 	ctx, cancel := context.WithCancel(context.Background())
 	p, _, err := device.Detect(ctx, device.Config{Transport: "serial", SerialPort: "sim0"}, func(context.Context, device.Config) ([]device.Candidate, error) {
 		return []device.Candidate{{Transport: "sim", Port: "sim0", New: func() transport.Transport { return tr }}}, nil

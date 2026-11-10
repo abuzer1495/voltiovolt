@@ -2,7 +2,7 @@
 
 English first. Turkish: section T below.
 
-WARNING: This is a development install, not a package. vltd does not talk to a UPS yet. Use a test computer.
+WARNING: This is a development install, not a package. Use a test computer. Since VLT-IS-004, vltd finds and polls a connected UPS (READ commands only). The Shutdown Policy is inactive until a Simulation passes and an operator activates it (policy.activate). An active policy can turn off the computer.
 
 ## E. English
 
@@ -90,6 +90,8 @@ Linux note: if systemd cannot decrypt the credential, vltd.service stops with 24
 - Windows (as Administrator): `.\dev-uninstall.ps1`. vlt-setup stops and removes the service, removes the user right SeShutdownPrivilege, removes vltd.exe, deletes the group "VLT Operators" only if it has no members, and asks before it deletes the data directory.
 
 ## T. Türkçe
+
+UYARI: Bu bir geliştirme kurulumudur, paket değildir. Bir test bilgisayarı kullanın. VLT-IS-004 ile vltd bağlı bir UPS'i bulur ve sorgular (yalnızca READ komutları). Kapatma Politikası, bir Simülasyon başarılı olana ve bir operatör onu etkinleştirene (policy.activate) kadar etkin değildir. Etkin bir politika bilgisayarı kapatabilir.
 
 ### T.1 Derleme
 

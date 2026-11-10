@@ -20,8 +20,12 @@ import (
 
 	"github.com/abuzer1495/voltiovolt/internal/audit"
 	"github.com/abuzer1495/voltiovolt/internal/auth"
+	"github.com/abuzer1495/voltiovolt/internal/device"
+	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
+	"github.com/abuzer1495/voltiovolt/internal/policy"
+	"github.com/abuzer1495/voltiovolt/internal/redact"
 	"github.com/abuzer1495/voltiovolt/internal/store"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
 )
@@ -84,6 +88,10 @@ type env struct {
 	ln  *pipeListener
 	st  *store.Store
 	au  *audit.Log
+	dev *fakeDevice
+	hub *Hub
+	pol *policy.Service
+	dry *policy.DryRun
 }
 
 func quiet() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
@@ -103,7 +111,16 @@ func newEnv(t *testing.T) *env {
 	if s := v.Status(); s.State != vault.StateAvailable {
 		t.Fatalf("vault: %+v", s)
 	}
-	srv := NewServer(Backend{Store: st, Vault: v, Auth: auth.New(st, au, quiet()), Audit: au, Version: "test", Log: quiet()})
+	dry := &policy.DryRun{}
+	pol, err := policy.NewService(ctx, st, au, dry, nil, quiet())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dev := &fakeDevice{status: device.Status{State: device.StateConnected, Profile: &device.Profile{
+		Transport: device.TransportSerial, Port: "sim0", Dialect: dialect.DialectVoltronic, SerialNumber: redact.Redacted}}}
+	hub := NewHub()
+	srv := NewServer(Backend{Store: st, Vault: v, Auth: auth.New(st, au, quiet()), Audit: au, Version: "test", Log: quiet(),
+		Device: dev, Policy: pol, Hub: hub})
 	ln := newPipeListener()
 	done := make(chan error, 1)
 	go func() { done <- srv.Serve(ln, nil) }()
@@ -113,8 +130,18 @@ func newEnv(t *testing.T) *env {
 			t.Errorf("Serve: %v", err)
 		}
 	})
-	return &env{srv: srv, ln: ln, st: st, au: au}
+	return &env{srv: srv, ln: ln, st: st, au: au, dev: dev, hub: hub, pol: pol, dry: dry}
 }
+
+// fakeDevice is a fake Device Manager (SEC-091: only in _test.go).
+type fakeDevice struct {
+	mu       sync.Mutex
+	status   device.Status
+	restarts int
+}
+
+func (d *fakeDevice) Status() device.Status { d.mu.Lock(); defer d.mu.Unlock(); return d.status }
+func (d *fakeDevice) Restart()              { d.mu.Lock(); d.restarts++; d.mu.Unlock() }
 
 // recorder keeps all response bytes for the Secret check.
 type recorder struct {
@@ -138,6 +165,9 @@ const testPIN = "7a3k9zQ2"
 func TestAllMethodsNoSecretInResponses(t *testing.T) {
 	ctx := context.Background()
 	e := newEnv(t)
+	// This test sends more than 20 requests in one second. The rate limit
+	// has its own test (TestRateLimit).
+	e.srv.rate = 10000
 	rec := &recorder{Conn: e.ln.dial(t)}
 	c := client.New(rec)
 	secret := "S3cr3tValue-" + strings.Repeat("q", 20) + "-ZZZZ"
@@ -212,6 +242,7 @@ func TestAllMethodsNoSecretInResponses(t *testing.T) {
 	if err := c.Login(ctx, "9q8w7e6r"); err != nil {
 		t.Fatal(err)
 	}
+	liveMethods(t, ctx, e, c, secret)
 	if err := c.ResetVault(ctx, "reset vault"); client.Code(err) != wire.CodeInvalid {
 		t.Fatalf("reset with wrong text: %v", err)
 	}

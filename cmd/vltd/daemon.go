@@ -16,7 +16,9 @@ import (
 
 	"github.com/abuzer1495/voltiovolt/internal/audit"
 	"github.com/abuzer1495/voltiovolt/internal/auth"
+	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/ipc"
+	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/store"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
 )
@@ -38,6 +40,12 @@ type config struct {
 	Log        *slog.Logger
 	LogCloser  io.Closer
 	Version    string
+
+	// VLT-IS-004 TASK 03-00-00-008. main gives device.OSLister and the OS
+	// executor (internal/shutdown). Tests give the simulator and a fake
+	// executor; a nil Lister starts no Device Manager.
+	Lister       device.Lister
+	MakeExecutor func(forceClose func() bool, au *audit.Log) policy.Executor
 }
 
 // daemon runs the start sequence and the stop sequence of step 1 and 2.
@@ -49,6 +57,7 @@ type daemon struct {
 	au        *audit.Log
 	vt        *vault.Vault
 	srv       *ipc.Server
+	live      *live
 	serveDone chan error
 	stopOnce  sync.Once
 	stopErr   error
@@ -63,7 +72,8 @@ func newDaemon(cfg config) *daemon {
 }
 
 // Start: 1 logging (in cfg.Log), 2 data directory check, 3 Store, 4 Vault
-// (continue on failure, SEC-090), 5 audit chain verification, 6 IPC.
+// (continue on failure, SEC-090), 5 audit chain verification, 5a Device
+// Manager, Event Engine and Policy Engine (VLT-IS-004), 6 IPC.
 // The ready signal (7) is sent by platform.Run after Start.
 func (d *daemon) Start(ctx context.Context) (err error) {
 	d.log.Info("vltd start", "version", d.cfg.Version, "data_dir", d.cfg.DataDir)
@@ -114,12 +124,20 @@ func (d *daemon) Start(ctx context.Context) (err error) {
 	vr := d.au.VerifyAtStart(ctx)
 	d.log.Info("audit chain verification", "ok", vr.OK, "rows", vr.Rows)
 
+	if err := d.startLive(ctx); err != nil {
+		return err
+	}
+
 	ln, check, err := d.cfg.Listen()
 	if err != nil {
 		return fmt.Errorf("ipc: %w", err)
 	}
-	d.srv = ipc.NewServer(ipc.Backend{Store: st, Vault: d.vt, Auth: auth.New(st, d.au, d.log), Audit: d.au,
-		Version: d.cfg.Version, Log: d.log})
+	b := ipc.Backend{Store: st, Vault: d.vt, Auth: auth.New(st, d.au, d.log), Audit: d.au,
+		Version: d.cfg.Version, Log: d.log, Policy: d.live.pol, Hub: d.live.hub}
+	if d.live.mgr != nil {
+		b.Device = d.live.mgr
+	}
+	d.srv = ipc.NewServer(b)
 	d.serveDone = make(chan error, 1)
 	go func() { d.serveDone <- d.srv.Serve(ln, check) }()
 	d.log.Info("ipc server started", "addr", ln.Addr().String())
@@ -163,6 +181,11 @@ func (d *daemon) closeAll() error {
 		}
 		d.srv = nil
 		d.log.Info("ipc server stopped")
+	}
+	if d.live != nil {
+		d.live.stop()
+		d.live = nil
+		d.log.Info("device manager and policy engine stopped")
 	}
 	if d.st != nil {
 		if err := d.st.Close(); err != nil {

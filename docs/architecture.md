@@ -88,6 +88,21 @@ Before a PIN is set, only system.hello, system.status, auth.status and auth.set_
 | secret.delete | Yes | id | ok |
 | vault.reset | Yes, and confirmation "RESET VAULT" | confirmation | ok |
 | audit.list | Yes | after (seq), limit (1 to 500, default 100) | rows, next |
+| device.status | No | none | state, since, config, profile (serial_number "[REDACTED]") |
+| device.settings.set | Yes | settings {device.transport, device.serial_port, device.serial_dtr, device.serial_rts} | ok; detection starts again |
+| status.subscribe | No | none | ok; then push frames |
+| status.unsubscribe | No | none | ok |
+| measurements.query | No | name, from, to (RFC 3339), step (raw, 1m, 1h) | name, unit, step, rows [ts, min, max, mean, count, source] |
+| events.list | No | before (id, 0 = newest), limit (1 to 500, default 100) | events [id, ts, type, severity, data], next |
+| policy.get | No | none | settings, version, active, last_simulation |
+| policy.set | Yes | settings {key: value} (short or full policy keys) | the new policy (inactive) |
+| policy.simulate | Yes | none | Simulation result |
+| policy.activate | Yes | none | ok, or "no_simulation" |
+| policy.deactivate | Yes | none | ok |
+| shutdown.status | No | none | countdown {active, trigger, started, ends, remaining_seconds, action, cancelable, requested} |
+| shutdown.cancel | Yes | none | ok, or "low_battery" (LOW_BATTERY active), or "not_found" (no countdown) |
+
+"No" in the table means that a PIN must be set, but the elevated state is not necessary. A method of a vltd part that does not run gives "unavailable". No method calls the shutdown executor (SEC-092); shutdown.cancel can only stop a countdown.
 
 No method returns a Secret value. The test TestAllMethodsNoSecretInResponses calls each method and checks all response bytes.
 
@@ -239,3 +254,23 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 4. Audit actions: os_shutdown_request, os_hibernate_request (success or failure, with the error) and os_hibernate_fallback.
 5. Other OS: ErrNotSupported.
 6. SEC-092 test (`TestOnlyPolicyCallsExecutor`, go/ast): only cmd/vltd imports internal/shutdown; only internal/policy calls `Shutdown(ctx, reason)` or `Hibernate(ctx, reason)`; only internal/shutdown uses godbus, the login1 names and the Windows shutdown functions.
+
+## 12. Push messages and the vltd wiring (VLT-IS-004 TASK 03-00-00-008)
+
+### 12.1 Push messages
+
+1. Frame: `{"v":1,"push":text,"data":object}`, with no id. A connection gets push frames only after status.subscribe, until status.unsubscribe or the end of the connection.
+2. Types:
+    1. "status", every 2 seconds: ts, device (device.status), ups (on_battery, low_battery, comm_lost, active Events), measurements (the last value of each name), countdown, policy_active.
+    2. "event", one for each Event (ts, type, severity, data).
+    3. "countdown", every second during a countdown (shutdown.status data).
+3. The server keeps 64 push frames for each connection. If a client is slow and the queue is full, new push frames for that client are dropped; requests and other clients are not blocked. Responses and push frames are written one at a time on the connection.
+4. The client (internal/ipc/client) reads all frames in one goroutine. Responses go to the waiting call; push frames go to `Pushes()` (256 frames; more are dropped and counted).
+
+### 12.2 vltd wiring
+
+1. Start step 5a: Event Engine (thresholds from the Settings), Policy Service (with the OS executor from main, SEC-092), Device Manager with device.OSLister, the hourly Measurement job, and a 1-second tick.
+2. Each poll cycle: Measurements (one transaction), Event Engine, then a Policy tick. A connection state change (comm lost, connected) goes to the Event Engine (COMM_LOST, COMM_RESTORED) and to the Policy Engine.
+3. The 1-second tick runs the Policy Engine (on battery time, countdown end) and sends the push messages.
+4. Stop: IPC, then the Device Manager, the Poller and the tick, then the Store.
+5. Integration test TestPowerFailureIntegration (cmd/vltd): vltd with the simulator Transport (Q1 profile) and a fake executor. The test sets the PIN, sets countdown_seconds to 10, runs the Simulation, activates the policy, subscribes, and sets mains off and charge 15 % in the simulator. It checks the ON_BATTERY and LOW_BATTERY Events, the countdown and status push frames, the refused cancel, one fake executor call, the stored Events and Measurements, and that the simulator got only READ commands. It runs on Linux and Windows. No real shutdown.

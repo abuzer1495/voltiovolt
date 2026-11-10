@@ -11,22 +11,43 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/device"
+	"github.com/abuzer1495/voltiovolt/internal/event"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
+	"github.com/abuzer1495/voltiovolt/internal/measure"
+	"github.com/abuzer1495/voltiovolt/internal/policy"
 )
 
 // Client is one IPC connection. It is safe for concurrent use; requests
-// are sent one at a time.
+// are sent one at a time. A reader goroutine reads all frames: responses
+// go to the waiting call, push frames go to Pushes.
 type Client struct {
-	mu     sync.Mutex
+	callMu sync.Mutex // one request at a time
 	c      net.Conn
 	nextID int64
+
+	mu      sync.Mutex
+	waiting chan wire.Frame
+	done    chan struct{}
+	err     error
+	pushes  chan wire.Push
+	dropped int64
 }
 
+// PushBuffer is the number of push messages that the Client keeps. When
+// the buffer is full, new push messages are dropped.
+const PushBuffer = 256
+
 // New returns a Client on an open connection.
-func New(c net.Conn) *Client { return &Client{c: c} }
+func New(c net.Conn) *Client {
+	cl := &Client{c: c, done: make(chan struct{}), pushes: make(chan wire.Push, PushBuffer)}
+	go cl.read()
+	return cl
+}
 
 // Dial connects to the vltd endpoint. An empty address gives the default
 // (Linux: /run/vltd/vltd.sock, Windows: \\.\pipe\vltd).
@@ -41,14 +62,60 @@ func Dial(ctx context.Context, addr string) (*Client, error) {
 // Close closes the connection.
 func (c *Client) Close() error { return c.c.Close() }
 
+// Pushes returns the push messages (after status.subscribe). The channel
+// is closed when the connection ends.
+func (c *Client) Pushes() <-chan wire.Push { return c.pushes }
+
+// Dropped returns the number of push messages that were dropped.
+func (c *Client) Dropped() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.dropped
+}
+
 // ErrProtocol is returned for a response that is not valid.
 var ErrProtocol = errors.New("ipc client: response is not valid")
+
+func (c *Client) read() {
+	defer close(c.pushes)
+	for {
+		b, err := wire.ReadFrame(c.c)
+		if err != nil {
+			c.mu.Lock()
+			c.err = err
+			c.mu.Unlock()
+			close(c.done)
+			return
+		}
+		var f wire.Frame
+		if err := json.Unmarshal(b, &f); err != nil {
+			f = wire.Frame{V: -1}
+		}
+		if f.Push != "" && f.Error == nil && f.Result == nil {
+			select {
+			case c.pushes <- wire.Push{V: f.V, Push: f.Push, Data: f.Data}:
+			default:
+				c.mu.Lock()
+				c.dropped++
+				c.mu.Unlock()
+			}
+			continue
+		}
+		c.mu.Lock()
+		w := c.waiting
+		c.waiting = nil
+		c.mu.Unlock()
+		if w != nil {
+			w <- f
+		}
+	}
+}
 
 // Call sends one request and decodes the result into out (can be nil). An
 // error response gives a *wire.Error.
 func (c *Client) Call(ctx context.Context, method string, params, out any) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.callMu.Lock()
+	defer c.callMu.Unlock()
 	if params == nil {
 		params = wire.NoParams{}
 	}
@@ -62,19 +129,41 @@ func (c *Client) Call(ctx context.Context, method string, params, out any) error
 	if !ok {
 		dl = time.Now().Add(60 * time.Second)
 	}
-	if err := c.c.SetDeadline(dl); err != nil {
+	ch := make(chan wire.Frame, 1)
+	c.mu.Lock()
+	if c.err != nil {
+		err := c.err
+		c.mu.Unlock()
+		return err
+	}
+	c.waiting = ch
+	c.mu.Unlock()
+	if err := c.c.SetWriteDeadline(dl); err != nil {
 		return err
 	}
 	if err := wire.WriteFrame(c.c, wire.Request{V: wire.Version, ID: &id, Method: method, Params: p}); err != nil {
 		return err
 	}
-	b, err := wire.ReadFrame(c.c)
-	if err != nil {
+	timer := time.NewTimer(time.Until(dl))
+	defer timer.Stop()
+	var r wire.Frame
+	select {
+	case r = <-ch:
+	case <-c.done:
+		c.mu.Lock()
+		err := c.err
+		c.mu.Unlock()
 		return err
+	case <-timer.C:
+		// The connection state is not known now; close it.
+		c.c.Close()
+		return fmt.Errorf("ipc client: %s: %w", method, os.ErrDeadlineExceeded)
+	case <-ctx.Done():
+		c.c.Close()
+		return ctx.Err()
 	}
-	var r wire.Response
-	if err := json.Unmarshal(b, &r); err != nil {
-		return fmt.Errorf("%w: %v", ErrProtocol, err)
+	if r.V == -1 {
+		return ErrProtocol
 	}
 	if r.Error != nil {
 		return r.Error
@@ -160,4 +249,94 @@ func (c *Client) ResetVault(ctx context.Context, confirmation string) error {
 func (c *Client) Audit(ctx context.Context, after int64, limit int) (r wire.AuditListResult, err error) {
 	err = c.Call(ctx, wire.MethodAuditList, wire.AuditListParams{After: after, Limit: limit}, &r)
 	return
+}
+
+// VLT-IS-004 TASK 03-00-00-008 methods.
+
+func (c *Client) DeviceStatus(ctx context.Context) (r device.Status, err error) {
+	err = c.Call(ctx, wire.MethodDeviceStatus, nil, &r)
+	return
+}
+
+func (c *Client) SetDeviceSettings(ctx context.Context, values map[string]any) error {
+	m, err := rawMap(values)
+	if err != nil {
+		return err
+	}
+	return c.Call(ctx, wire.MethodDeviceSettingsSet, wire.SettingsMapParams{Settings: m}, nil)
+}
+
+func (c *Client) Subscribe(ctx context.Context) error {
+	return c.Call(ctx, wire.MethodSubscribe, nil, nil)
+}
+
+func (c *Client) Unsubscribe(ctx context.Context) error {
+	return c.Call(ctx, wire.MethodUnsubscribe, nil, nil)
+}
+
+func (c *Client) Measurements(ctx context.Context, name string, from, to time.Time, step string) (unit string, rows []measure.Row, err error) {
+	var r wire.MeasurementsResult
+	err = c.Call(ctx, wire.MethodMeasurements, wire.MeasurementsParams{Name: name,
+		From: from.UTC().Format(time.RFC3339Nano), To: to.UTC().Format(time.RFC3339Nano), Step: step}, &r)
+	if err == nil {
+		err = json.Unmarshal(r.Rows, &rows)
+	}
+	return r.Unit, rows, err
+}
+
+func (c *Client) Events(ctx context.Context, before int64, limit int) (list []event.Stored, next int64, err error) {
+	var r wire.EventsListResult
+	err = c.Call(ctx, wire.MethodEventsList, wire.EventsListParams{Before: before, Limit: limit}, &r)
+	if err == nil {
+		err = json.Unmarshal(r.Events, &list)
+	}
+	return list, r.Next, err
+}
+
+func (c *Client) Policy(ctx context.Context) (r policy.Info, err error) {
+	err = c.Call(ctx, wire.MethodPolicyGet, nil, &r)
+	return
+}
+
+func (c *Client) SetPolicy(ctx context.Context, values map[string]any) (r policy.Info, err error) {
+	m, err := rawMap(values)
+	if err != nil {
+		return r, err
+	}
+	err = c.Call(ctx, wire.MethodPolicySet, wire.SettingsMapParams{Settings: m}, &r)
+	return
+}
+
+func (c *Client) Simulate(ctx context.Context) (r policy.Result, err error) {
+	err = c.Call(ctx, wire.MethodPolicySimulate, nil, &r)
+	return
+}
+
+func (c *Client) ActivatePolicy(ctx context.Context) error {
+	return c.Call(ctx, wire.MethodPolicyActivate, nil, nil)
+}
+
+func (c *Client) DeactivatePolicy(ctx context.Context) error {
+	return c.Call(ctx, wire.MethodPolicyDeactivate, nil, nil)
+}
+
+func (c *Client) ShutdownStatus(ctx context.Context) (r policy.Countdown, err error) {
+	err = c.Call(ctx, wire.MethodShutdownStatus, nil, &r)
+	return
+}
+
+func (c *Client) CancelShutdown(ctx context.Context) error {
+	return c.Call(ctx, wire.MethodShutdownCancel, nil, nil)
+}
+
+func rawMap(values map[string]any) (map[string]json.RawMessage, error) {
+	m := make(map[string]json.RawMessage, len(values))
+	for k, v := range values {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		m[k] = b
+	}
+	return m, nil
 }

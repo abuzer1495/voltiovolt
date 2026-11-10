@@ -44,17 +44,21 @@ func testOnlyDEK() []byte {
 }
 
 // startTestDaemon starts vltd in the test process (step 7.1).
-func startTestDaemon(t *testing.T, dir string, p vault.KeyProvider) (*daemon, string) {
+func startTestDaemon(t *testing.T, dir string, p vault.KeyProvider, opts ...func(*config)) (*daemon, string) {
 	t.Helper()
 	listen, addr := testListen(t)
-	d := newDaemon(config{
+	cfg := config{
 		DataDir:    dir,
 		CheckPerms: runtime.GOOS != "windows", // Windows: the ACL check needs the installer (vlt-setup dev-install)
 		Provider:   func(string, []byte) vault.KeyProvider { return p },
 		Listen:     listen,
 		Log:        slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Version:    "test",
-	})
+	}
+	for _, o := range opts {
+		o(&cfg)
+	}
+	d := newDaemon(cfg)
 	if err := d.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}

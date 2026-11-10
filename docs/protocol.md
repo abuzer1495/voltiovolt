@@ -126,3 +126,22 @@ Format (sample): `(209.7 50.0 219.7 50.0 000.8 019 374.9 374.3 041.8 ---.- 023.3
 |-----|------|------|--------|--------|
 | P-120 | 2400 bit/s, 8 data bits, no parity, 1 stop bit. | `transport.NewSerial` | IS2 03-00-00-006 step 4 | UNVERIFIED for the Reference UPS |
 | P-121 | DTR on and RTS off at open time. | `transport.DefaultSerialOptions` | IS2 03-00-00-006 step 4 | UNVERIFIED for the Reference UPS |
+
+## 8. Status bits and Events (VLT-IS-004 TASK 03-00-00-005)
+
+Source: [M] Megatec protocol document (<https://networkupstools.org/protocols/megatec.html>), Q1 status byte `b7b6b5b4b3b2b1b0`. The QS response uses the same byte (VLT-IS-002 03-50-01). Bit 7 is the first character. UNVERIFIED for the Reference UPS.
+
+| Bit | Condition [M] | Event | Code |
+|-----|---------------|-------|------|
+| 7 = 1 | Utility fail | ON_BATTERY (WARNING). Back to 0: ONLINE (INFO). | `event.Engine.Observe` |
+| 6 = 1 | Battery low | LOW_BATTERY (CRITICAL) | `event.Engine.Observe` |
+| 5 = 1 and bit 3 = 0 | Bypass active (on-line type) | BYPASS_ACTIVE (WARNING) | `event.Engine.Observe` |
+| 5 = 1 and bit 3 = 1 | Boost or buck active (standby type) | AVR_ACTIVE (INFO) | `event.Engine.Observe` |
+| 4 = 1 | UPS failed | UPS_FAULT (CRITICAL) | `event.Engine.Observe` |
+| 2 = 1 | Test in progress | TEST_STARTED (INFO) | `event.Engine.Observe` |
+| 1 = 1 | Shutdown active | UPS_SHUTDOWN_ACTIVE (CRITICAL) | `event.Engine.Observe` |
+
+1. Bit 3 alone (UPS type) and bit 0 (beeper on) make no Event.
+2. QMOD and the QGS status bits are UNVERIFIED. vltd records them as data only and makes no Event from them. A change of the QWS value (2 polls in sequence) makes UPS_WARNING_BITS_CHANGED (INFO) with the old and the new value. The first QWS value makes no Event.
+3. If one cycle has QS and Q1, the QS bits are used.
+4. NOTE: with the Voltronic Dialect, QS is in the slow group (30 s). Thus ON_BATTERY and LOW_BATTERY can come up to 30 seconds after the change.

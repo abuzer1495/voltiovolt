@@ -84,3 +84,17 @@ func (c *Client) ShutdownStatus(ctx context.Context) (r policy.Countdown, err er
 	err = c.Call(ctx, wire.MethodShutdownStatus, nil, &r)
 	return
 }
+
+// DevicePorts calls device.ports. It opens no port.
+func (c *Client) DevicePorts(ctx context.Context) ([]wire.SerialPort, error) {
+	var r wire.DevicePortsResult
+	err := c.Call(ctx, wire.MethodDevicePorts, nil, &r)
+	return r.Ports, err
+}
+
+// DeviceScan calls device.scan (elevated, confirmation "SCAN PORTS").
+func (c *Client) DeviceScan(ctx context.Context, ports []string, confirmation string) ([]wire.ScanPortResult, error) {
+	var r wire.DeviceScanResult
+	err := c.Call(ctx, wire.MethodDeviceScan, wire.DeviceScanParams{Ports: ports, Confirmation: confirmation}, &r)
+	return r.Results, err
+}

@@ -50,10 +50,15 @@ const (
 	SettingLanguage           = "ui.language"
 
 	// Device Settings (VLT-IS-004 TASK 03-00-00-003 step 1).
-	SettingDeviceTransport = "device.transport"   // auto, hid or serial
-	SettingDeviceSerial    = "device.serial_port" // empty: all serial ports
+	// VLT-IS-006 TASK 03-00-00-004: transport default "not_configured";
+	// DTR and RTS "unchanged", "on" or "off".
+	SettingDeviceTransport = "device.transport"   // not_configured, auto, hid or serial
+	SettingDeviceSerial    = "device.serial_port" // the serial port that the user selected
 	SettingDeviceDTR       = "device.serial_dtr"
 	SettingDeviceRTS       = "device.serial_rts"
+	// SettingDeviceAllowedPorts: the serial ports that "auto" can probe.
+	// Default: empty (SEC-099).
+	SettingDeviceAllowedPorts = "device.serial.allowed_ports"
 
 	// Event thresholds (VLT-IS-004 TASK 03-00-00-005 step 3).
 	SettingEventOverload   = "event.overload_percent"
@@ -90,6 +95,34 @@ func serialPort(v json.RawMessage) error {
 	}
 	if !serialPortName.MatchString(s) {
 		return errors.New("value must be empty, /dev/<name> or COM<n>")
+	}
+	return nil
+}
+
+// MaxAllowedPorts is the maximum number of names in
+// device.serial.allowed_ports.
+const MaxAllowedPorts = 16
+
+func serialPortList(v json.RawMessage) error {
+	var l []string
+	if err := strictJSON(v, &l); err != nil {
+		return fmt.Errorf("value must be a list of texts: %w", err)
+	}
+	if l == nil {
+		return errors.New("value must be a list (use [] for no port)")
+	}
+	if len(l) > MaxAllowedPorts {
+		return fmt.Errorf("value must have %d names or fewer", MaxAllowedPorts)
+	}
+	seen := map[string]bool{}
+	for _, s := range l {
+		if s == "" || !serialPortName.MatchString(s) {
+			return errors.New("each name must be /dev/<name> or COM<n>")
+		}
+		if seen[s] {
+			return errors.New("a name is in the list two times")
+		}
+		seen[s] = true
 	}
 	return nil
 }
@@ -157,10 +190,11 @@ func strictJSON(v json.RawMessage, out any) error {
 
 // Go types of Setting values.
 var (
-	TypeInt    = reflect.TypeOf(0)
-	TypeString = reflect.TypeOf("")
-	TypeBool   = reflect.TypeOf(false)
-	TypeFloat  = reflect.TypeOf(0.0)
+	TypeInt     = reflect.TypeOf(0)
+	TypeString  = reflect.TypeOf("")
+	TypeBool    = reflect.TypeOf(false)
+	TypeFloat   = reflect.TypeOf(0.0)
+	TypeStrings = reflect.TypeOf([]string(nil))
 )
 
 // ErrSecretSetting is returned for a Setting with the Secret type.
@@ -232,12 +266,15 @@ func DefaultSettings() []SettingDef {
 		// VLT-IS-003 TASK 03-00-00-005 step 7.2: 10 minutes without a request.
 		{Key: SettingSessionIdleMinutes, Type: TypeInt, Default: json.RawMessage(`10`), Check: intRange(1, 120)},
 		{Key: SettingLanguage, Type: TypeString, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
-		// VLT-IS-004 TASK 03-00-00-003 step 1. DTR on and RTS off are the
-		// defaults of VLT-IS-002 (transport.DefaultSerialOptions).
-		{Key: SettingDeviceTransport, Type: TypeString, Default: json.RawMessage(`"auto"`), Check: oneOf("auto", "hid", "serial")},
+		// VLT-IS-004 TASK 03-00-00-003 step 1, changed by VLT-IS-006 TASK
+		// 03-00-00-004: default transport "not_configured" (OD-27, SEC-099),
+		// DTR and RTS "unchanged" (VLT-REF-001 section 2). A stored value of
+		// the old type (true or false) fails the check and gives the default.
+		{Key: SettingDeviceTransport, Type: TypeString, Default: json.RawMessage(`"not_configured"`), Check: oneOf("not_configured", "auto", "hid", "serial")},
 		{Key: SettingDeviceSerial, Type: TypeString, Default: json.RawMessage(`""`), Check: serialPort},
-		{Key: SettingDeviceDTR, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
-		{Key: SettingDeviceRTS, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
+		{Key: SettingDeviceDTR, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},
+		{Key: SettingDeviceRTS, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},
+		{Key: SettingDeviceAllowedPorts, Type: TypeStrings, Default: json.RawMessage(`[]`), Check: serialPortList},
 
 		// VLT-IS-004 TASK 03-00-00-005 step 3.
 		{Key: SettingEventOverload, Type: TypeInt, Default: json.RawMessage(`100`), Check: intRange(50, 150)},

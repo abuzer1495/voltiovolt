@@ -48,6 +48,9 @@ type Backend struct {
 	Device DeviceControl
 	Policy PolicyControl
 	Hub    *Hub
+
+	// VLT-IS-006 TASK 03-00-00-004. A nil field gives "unavailable".
+	Ports PortScanner
 }
 
 // PeerCheck accepts or refuses a new connection and returns the peer
@@ -307,6 +310,10 @@ var methodAccess = map[string]access{
 	wire.MethodPolicyDeactivate:  elevated,
 	wire.MethodShutdownStatus:    readOnly,
 	wire.MethodShutdownCancel:    elevated,
+
+	// VLT-IS-006 TASK 03-00-00-004 step 3.3.
+	wire.MethodDevicePorts: readOnly,
+	wire.MethodDeviceScan:  elevated,
 }
 
 func (cn *conn) idle(ctx context.Context) time.Duration {

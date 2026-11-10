@@ -75,6 +75,22 @@ func (a *API) SetDeviceSettings(values map[string]any) error {
 	return err
 }
 
+// ScanConfirmation is the text that the user types for a port scan.
+const ScanConfirmation = wire.ScanConfirmation
+
+// DevicePorts calls device.ports: the serial ports of the OS with the USB
+// data. vltd opens no port.
+func (a *API) DevicePorts() (json.RawMessage, error) { return a.raw(wire.MethodDevicePorts, nil) }
+
+// DeviceScan calls device.scan (elevated) with the marked ports. vltd
+// sends only "Q1" CR to each marked port (VLT-IS-006 TASK 03-00-00-004).
+func (a *API) DeviceScan(ports []string, confirmation string) (json.RawMessage, error) {
+	if confirmation != ScanConfirmation || len(ports) == 0 {
+		return nil, &Error{Code: wire.CodeInvalid}
+	}
+	return a.raw(wire.MethodDeviceScan, wire.DeviceScanParams{Ports: ports, Confirmation: confirmation})
+}
+
 // Step lengths of measurements.query.
 var stepLen = map[string]time.Duration{"raw": 2 * time.Second, "1m": time.Minute, "1h": time.Hour}
 

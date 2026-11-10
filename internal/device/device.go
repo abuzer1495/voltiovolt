@@ -25,6 +25,12 @@ import (
 
 // Transport names of the Device Settings.
 const (
+	// TransportNotConfigured is the default (VLT-IS-006 TASK 03-00-00-004
+	// step 3.1, OD-27): vltd sends no byte until the user selects a
+	// Transport.
+	TransportNotConfigured = "not_configured"
+	// TransportAuto: HID VID 0665 PID 5161 devices and only the serial
+	// ports in device.serial.allowed_ports.
 	TransportAuto   = "auto"
 	TransportHID    = "hid"
 	TransportSerial = "serial"
@@ -45,28 +51,35 @@ var ProbeList = []string{"Q1", "F", "I", "QS", "QGS", "QMOD", "QBV", "QWS", "QFL
 // ErrNoDevice is returned when no Transport gives a known Dialect.
 var ErrNoDevice = errors.New("device: no UPS found")
 
+// ErrPortBusy is returned when no Transport gives a known Dialect and a
+// serial port could not open because another program uses it.
+var ErrPortBusy = fmt.Errorf("device: %w", transport.ErrPortBusy)
+
 // Config is the Device Settings.
 type Config struct {
-	Transport  string `json:"transport"`
-	SerialPort string `json:"serial_port"`
-	DTR        bool   `json:"serial_dtr"`
-	RTS        bool   `json:"serial_rts"`
+	Transport    string         `json:"transport"`
+	SerialPort   string         `json:"serial_port"`
+	DTR          transport.Line `json:"serial_dtr"`
+	RTS          transport.Line `json:"serial_rts"`
+	AllowedPorts []string       `json:"allowed_ports"`
 }
 
-// DefaultConfig is the default of the Device Settings.
+// DefaultConfig is the default of the Device Settings: not configured,
+// DTR and RTS unchanged, no allowed serial port.
 func DefaultConfig() Config {
 	so := transport.DefaultSerialOptions()
-	return Config{Transport: TransportAuto, DTR: so.DTR, RTS: so.RTS}
+	return Config{Transport: TransportNotConfigured, DTR: so.DTR, RTS: so.RTS, AllowedPorts: []string{}}
 }
 
 // ConfigFromStore reads the Device Settings.
 func ConfigFromStore(ctx context.Context, st *store.Store) (Config, error) {
 	c := DefaultConfig()
 	for key, out := range map[string]any{
-		store.SettingDeviceTransport: &c.Transport,
-		store.SettingDeviceSerial:    &c.SerialPort,
-		store.SettingDeviceDTR:       &c.DTR,
-		store.SettingDeviceRTS:       &c.RTS,
+		store.SettingDeviceTransport:    &c.Transport,
+		store.SettingDeviceSerial:       &c.SerialPort,
+		store.SettingDeviceDTR:          &c.DTR,
+		store.SettingDeviceRTS:          &c.RTS,
+		store.SettingDeviceAllowedPorts: &c.AllowedPorts,
 	} {
 		s, err := st.GetSetting(ctx, key)
 		if err != nil {
@@ -264,10 +277,14 @@ func Detect(ctx context.Context, c Config, list Lister, clock Clock, log *slog.L
 	if err != nil {
 		return Profile{}, nil, err
 	}
+	busy := false
 	for _, cand := range cands {
 		tr := cand.New()
 		if err := tr.Open(ctx); err != nil {
 			log.Info("device: cannot open", "transport", cand.Transport, "port", cand.Port, "err", err)
+			if errors.Is(err, transport.ErrPortBusy) {
+				busy = true
+			}
 			continue
 		}
 		s := &Sender{T: tr, Clock: clock}
@@ -285,6 +302,9 @@ func Detect(ctx context.Context, c Config, list Lister, clock Clock, log *slog.L
 		p := makeProfile(cand, vals, supported, d)
 		log.Info("device: UPS found", "transport", p.Transport, "port", p.Port, "dialect", string(p.Dialect), "supported", p.Supported)
 		return p, tr, nil
+	}
+	if busy {
+		return Profile{}, nil, ErrPortBusy
 	}
 	return Profile{}, nil, ErrNoDevice
 }

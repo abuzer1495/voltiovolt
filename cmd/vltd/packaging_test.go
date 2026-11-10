@@ -54,6 +54,11 @@ func TestSystemdUnits(t *testing.T) {
 			t.Errorf("vltd.service [Service]: no %q", l)
 		}
 	}
+	// VLT-IS-006 TASK 03-00-00-004 step 4: group dialout for the serial
+	// ports (both units; the loop below checks the fallback unit).
+	if !has(p["[Service]"], "SupplementaryGroups=dialout") {
+		t.Error("vltd.service: no SupplementaryGroups=dialout")
+	}
 	if !has(f["[Unit]"], "Conflicts=vltd.service") {
 		t.Error("fallback: no Conflicts=vltd.service")
 	}

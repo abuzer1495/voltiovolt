@@ -28,6 +28,9 @@ ExecStart=/usr/local/bin/vltd
 User=vltd
 Group=vltd
 SupplementaryGroups=vlt
+# VLT-IS-006 TASK 03-00-00-004 step 4: access to /dev/ttyUSB* and /dev/ttyACM*.
+# The lines are added to the list (systemd).
+SupplementaryGroups=dialout
 LoadCredentialEncrypted=vlt-dek:/etc/credstore.encrypted/vlt-dek
 StateDirectory=vltd
 StateDirectoryMode=0700

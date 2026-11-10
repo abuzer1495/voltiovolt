@@ -19,6 +19,11 @@ const (
 	StateConnected = "connected"
 	StateCommLost  = "comm lost"
 	StateStopped   = "stopped"
+	// StateNotConfigured: the user did not select a Transport. vltd sends
+	// no byte (VLT-IS-006 TASK 03-00-00-004 step 3.1).
+	StateNotConfigured = "not configured"
+	// StatePortBusy: another program uses the serial port (step 2.1).
+	StatePortBusy = "port busy"
 )
 
 // Backoff is the wait list for a new detection and for a reconnect
@@ -67,7 +72,7 @@ func (m *Manager) setStatus(state string, p *Profile, c *Config) {
 		m.status.Since = m.Clock.Now()
 	}
 	m.status.State = state
-	if p != nil || state == StateDetecting || state == StateNoDevice {
+	if p != nil || state == StateDetecting || state == StateNoDevice || state == StateNotConfigured || state == StatePortBusy {
 		m.status.Profile = p
 	}
 	if c != nil {
@@ -123,16 +128,31 @@ func (m *Manager) Run(ctx context.Context) error {
 			m.Log.Error("device: cannot read the Device Settings; use the defaults", "err", err)
 			cfg = DefaultConfig()
 		}
+		if cfg.Transport == TransportNotConfigured || cfg.Transport == "" {
+			// No detection and no byte until the user selects a Transport.
+			m.setStatus(StateNotConfigured, nil, &cfg)
+			select {
+			case <-restart:
+				attempt = 0
+				continue
+			case <-ctx.Done():
+				return nil
+			}
+		}
 		m.setStatus(StateDetecting, nil, &cfg)
 		p, tr, err := Detect(ctx, cfg, m.List, m.Clock, m.Log)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
-			if !errors.Is(err, ErrNoDevice) {
+			state := StateNoDevice
+			switch {
+			case errors.Is(err, ErrPortBusy):
+				state = StatePortBusy
+			case !errors.Is(err, ErrNoDevice):
 				m.Log.Error("device: detection failed", "err", err)
 			}
-			m.setStatus(StateNoDevice, nil, nil)
+			m.setStatus(state, nil, nil)
 			wctx, cancel := context.WithCancel(ctx)
 			go func() {
 				select {

@@ -93,6 +93,18 @@ func TestPowerFailureIntegration(t *testing.T) {
 	if err := c.Login(ctx, pin1); err != nil {
 		t.Fatal(err)
 	}
+	// VLT-IS-006 TASK 03-00-00-004 step 3.1: the default is "not
+	// configured"; the simulator gets no byte until the user selects it.
+	waitFor(t, 10*time.Second, "not configured", func() bool {
+		ds, err := c.DeviceStatus(ctx)
+		return err == nil && ds.State == device.StateNotConfigured
+	})
+	if n := len(s.Received()); n != 0 {
+		t.Fatalf("%d commands before the port selection", n)
+	}
+	if err := c.SetDeviceSettings(ctx, map[string]any{"device.transport": "serial", "device.serial_port": "/dev/ttySIM0"}); err != nil {
+		t.Fatal(err)
+	}
 	// Policy: countdown 10 s (the minimum). Simulation, then activation.
 	if err := c.ActivatePolicy(ctx); client.Code(err) != wire.CodeNoSimulation {
 		t.Fatalf("activate before the Simulation: %v", err)

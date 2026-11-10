@@ -62,6 +62,7 @@ func run() int {
 		LogCloser:  closer,
 		Version:    version,
 		Lister:     device.OSLister(transport.Options{Timeout: device.ResponseTimeout}),
+		Scanner:    device.RealScanner(),
 		// SEC-092: the OS executor goes only to the Policy Engine.
 		MakeExecutor: func(forceClose func() bool, au *audit.Log) policy.Executor {
 			return shutdown.New(shutdown.Options{ForceClose: forceClose, Audit: au, Log: log})

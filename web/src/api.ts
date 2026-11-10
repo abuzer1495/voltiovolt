@@ -142,10 +142,29 @@ export interface TrayTexts {
   quit: string;
 }
 
+/** Line is the wanted state of DTR or RTS (VLT-IS-006 TASK 03-00-00-004). */
+export type Line = 'unchanged' | 'on' | 'off';
+
+/** SerialPort is one serial port of the OS (device.ports). */
+export interface SerialPort {
+  name: string;
+  is_usb: boolean;
+  vid?: string;
+  pid?: string;
+  product?: string;
+}
+
+/** ScanResult is the device.scan result of one marked port. */
+export interface ScanResult {
+  name: string;
+  result: 'response' | 'no response' | 'busy' | 'error';
+  valid_q1: boolean;
+}
+
 export interface DeviceStatus {
   state: string;
   since: string;
-  config: { transport: string; serial_port: string; serial_dtr: boolean; serial_rts: boolean };
+  config: { transport: string; serial_port: string; serial_dtr: Line; serial_rts: Line; allowed_ports: string[] | null };
   profile?: {
     transport: string;
     port: string;
@@ -214,6 +233,9 @@ export const api = {
   setTrayTexts: (tx: TrayTexts) => call<void>('SetTrayTexts', tx),
   deviceStatus: () => call<DeviceStatus>('DeviceStatus'),
   setDeviceSettings: (v: Record<string, unknown>) => call<void>('SetDeviceSettings', v),
+  devicePorts: () => call<{ ports: SerialPort[] }>('DevicePorts'),
+  /** deviceScan sends only "Q1" CR to each marked port (elevated). */
+  deviceScan: (ports: string[], confirmation: string) => call<{ results: ScanResult[] }>('DeviceScan', ports, confirmation),
   setPolicy: (v: Record<string, unknown>) => call<PolicyInfo>('SetPolicy', v),
   simulate: () => call<SimResult>('Simulate'),
   activatePolicy: () => call<void>('ActivatePolicy'),

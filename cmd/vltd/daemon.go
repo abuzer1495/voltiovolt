@@ -44,7 +44,10 @@ type config struct {
 	// VLT-IS-004 TASK 03-00-00-008. main gives device.OSLister and the OS
 	// executor (internal/shutdown). Tests give the simulator and a fake
 	// executor; a nil Lister starts no Device Manager.
-	Lister       device.Lister
+	Lister device.Lister
+	// Scanner serves device.ports and device.scan (VLT-IS-006). main gives
+	// device.RealScanner; nil gives "unavailable".
+	Scanner      ipc.PortScanner
 	MakeExecutor func(forceClose func() bool, au *audit.Log) policy.Executor
 }
 
@@ -136,6 +139,9 @@ func (d *daemon) Start(ctx context.Context) (err error) {
 		Version: d.cfg.Version, Log: d.log, Policy: d.live.pol, Hub: d.live.hub}
 	if d.live.mgr != nil {
 		b.Device = d.live.mgr
+	}
+	if d.cfg.Scanner != nil {
+		b.Ports = d.cfg.Scanner
 	}
 	d.srv = ipc.NewServer(b)
 	d.serveDone = make(chan error, 1)

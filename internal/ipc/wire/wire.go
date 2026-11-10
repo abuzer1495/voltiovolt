@@ -188,7 +188,16 @@ const (
 	MethodPolicyDeactivate  = "policy.deactivate"
 	MethodShutdownStatus    = "shutdown.status"
 	MethodShutdownCancel    = "shutdown.cancel"
+
+	// VLT-IS-006 TASK 03-00-00-004 step 3 (OD-27, SEC-099).
+	// device.ports lists the serial ports and opens no port. device.scan
+	// sends only "Q1" CR to each marked port.
+	MethodDevicePorts = "device.ports"
+	MethodDeviceScan  = "device.scan"
 )
+
+// ScanConfirmation is the confirmation text of device.scan.
+const ScanConfirmation = "SCAN PORTS"
 
 // Methods lists all methods.
 var Methods = []string{
@@ -198,6 +207,7 @@ var Methods = []string{
 	MethodDeviceStatus, MethodDeviceSettingsSet, MethodSubscribe, MethodUnsubscribe, MethodMeasurements,
 	MethodEventsList, MethodPolicyGet, MethodPolicySet, MethodPolicySimulate, MethodPolicyActivate,
 	MethodPolicyDeactivate, MethodShutdownStatus, MethodShutdownCancel,
+	MethodDevicePorts, MethodDeviceScan,
 }
 
 // Push messages (VLT-IS-004 TASK 03-00-00-008 step 1). The server sends
@@ -259,6 +269,10 @@ type (
 		From string `json:"from"` // RFC 3339
 		To   string `json:"to"`   // RFC 3339
 		Step string `json:"step"` // raw, 1m or 1h
+	}
+	DeviceScanParams struct {
+		Ports        []string `json:"ports"`
+		Confirmation string   `json:"confirmation"`
 	}
 	EventsListParams struct {
 		Before int64 `json:"before"` // 0: the newest
@@ -334,6 +348,28 @@ type (
 		Unit string          `json:"unit"`
 		Step string          `json:"step"`
 		Rows json.RawMessage `json:"rows"`
+	}
+	// SerialPort is one serial port of the OS (device.ports). It has no
+	// USB serial number.
+	SerialPort struct {
+		Name    string `json:"name"`
+		IsUSB   bool   `json:"is_usb"`
+		VID     string `json:"vid,omitempty"`
+		PID     string `json:"pid,omitempty"`
+		Product string `json:"product,omitempty"`
+	}
+	DevicePortsResult struct {
+		Ports []SerialPort `json:"ports"`
+	}
+	// ScanPortResult is the result of one marked port: "response",
+	// "no response", "busy" or "error".
+	ScanPortResult struct {
+		Name    string `json:"name"`
+		Result  string `json:"result"`
+		ValidQ1 bool   `json:"valid_q1"`
+	}
+	DeviceScanResult struct {
+		Results []ScanPortResult `json:"results"`
 	}
 	EventsListResult struct {
 		Events json.RawMessage `json:"events"`

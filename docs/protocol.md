@@ -50,6 +50,8 @@ Source keys (refer to `docs/references.md`):
 | P-028 | "QS", "QGS", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD", "QMOD" are queries in an extended Dialect. | registry | A; QMD, QMOD, QRI, QVFW also in M (21st century chapter) | UNVERIFIED |
 | P-029 | The Dialect assignment of each READ command in the registry (Q1, Voltronic-QS, Voltronic). | registry `Dialects` | Builder inference from A and M | UNVERIFIED |
 
+NOTE: vltd polls in two groups (later instruction). Fast group: 2 commands or fewer, every 2 seconds. Slow group: all other READ commands, every 30 seconds. Source: VLT-IS-003 01-30-00 (VLT-IS-001 Revision 02, 03-20-00).
+
 ## 3. Q1 and QS response
 
 Format: `(MMM.M NNN.N PPP.P QQQ RR.R S.SS|SS.S TT.T b7b6b5b4b3b2b1b0`

@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// Package wire is the vltd IPC protocol, version 1 (VLT-IS-003 TASK
+// 03-00-00-007): frames, requests, responses and the method parameter and
+// result types. The server (internal/ipc) and the client
+// (internal/ipc/client) use it.
+//
+// Frame: a 4-byte big-endian length, then JSON. Maximum frame size: 1 MiB.
+// The decoder rejects unknown fields.
+package wire
+
+import (
+	"bytes"
+	"encoding/binary"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+)
+
+// Version is the protocol version.
+const Version = 1
+
+// MaxFrame is the maximum frame size (JSON bytes) in bytes.
+const MaxFrame = 1 << 20
+
+// Errors.
+var (
+	ErrFrameTooLarge = errors.New("ipc: frame is larger than 1 MiB")
+	ErrEmptyFrame    = errors.New("ipc: empty frame")
+)
+
+// WriteFrame writes v as one frame.
+func WriteFrame(w io.Writer, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	if len(b) > MaxFrame {
+		return ErrFrameTooLarge
+	}
+	buf := make([]byte, 4+len(b))
+	binary.BigEndian.PutUint32(buf, uint32(len(b)))
+	copy(buf[4:], b)
+	_, err = w.Write(buf)
+	return err
+}
+
+// ReadLength returns the frame length from the 4 header bytes.
+func ReadLength(h [4]byte) (int, error) {
+	n := binary.BigEndian.Uint32(h[:])
+	if n == 0 {
+		return 0, ErrEmptyFrame
+	}
+	if n > MaxFrame {
+		return 0, ErrFrameTooLarge
+	}
+	return int(n), nil
+}
+
+// ReadFrame reads one frame. It does not set deadlines.
+func ReadFrame(r io.Reader) ([]byte, error) {
+	var h [4]byte
+	if _, err := io.ReadFull(r, h[:]); err != nil {
+		return nil, err
+	}
+	n, err := ReadLength(h)
+	if err != nil {
+		return nil, err
+	}
+	b := make([]byte, n)
+	if _, err := io.ReadFull(r, b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// Strict decodes one JSON value into out. Unknown fields and extra data
+// are errors.
+func Strict(b []byte, out any) error {
+	d := json.NewDecoder(bytes.NewReader(b))
+	d.DisallowUnknownFields()
+	if err := d.Decode(out); err != nil {
+		return err
+	}
+	if _, err := d.Token(); err != io.EOF {
+		return errors.New("extra data after the JSON value")
+	}
+	return nil
+}
+
+// Request is {"v":1,"id":number,"method":text,"params":object}.
+type Request struct {
+	V      int             `json:"v"`
+	ID     *int64          `json:"id"`
+	Method string          `json:"method"`
+	Params json.RawMessage `json:"params,omitempty"`
+}
+
+// DecodeRequest decodes and checks a request frame.
+func DecodeRequest(b []byte) (Request, error) {
+	var r Request
+	if err := Strict(b, &r); err != nil {
+		return r, fmt.Errorf("ipc: bad request: %w", err)
+	}
+	if r.V != Version {
+		return r, fmt.Errorf("ipc: protocol version %d is not supported", r.V)
+	}
+	if r.ID == nil {
+		return r, errors.New("ipc: request has no id")
+	}
+	if r.Method == "" {
+		return r, errors.New("ipc: request has no method")
+	}
+	p := bytes.TrimSpace(r.Params)
+	if len(p) == 0 || string(p) == "null" {
+		r.Params = json.RawMessage(`{}`)
+	} else if p[0] != '{' {
+		return r, errors.New("ipc: params must be an object")
+	}
+	return r, nil
+}
+
+// Error is the error object of a response.
+type Error struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (e *Error) Error() string { return "ipc: " + e.Code + ": " + e.Message }
+
+// Response is {"v":1,"id":number,"result":object} or
+// {"v":1,"id":number,"error":{"code":text,"message":text}}.
+type Response struct {
+	V      int             `json:"v"`
+	ID     int64           `json:"id"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  *Error          `json:"error,omitempty"`
+}
+
+// Error codes.
+const (
+	CodeBadRequest       = "bad_request"
+	CodeUnknownMethod    = "unknown_method"
+	CodePINNotSet        = "pin_not_set"
+	CodeNotElevated      = "not_elevated"
+	CodePINIncorrect     = "pin_incorrect"
+	CodeBlocked          = "blocked"
+	CodeVaultUnavailable = "vault_unavailable"
+	CodeNotFound         = "not_found"
+	CodeInvalid          = "invalid"
+	CodeRateLimited      = "rate_limited"
+	CodeFrameTooLarge    = "frame_too_large"
+	CodeInternal         = "internal"
+)
+
+// Methods of protocol version 1.
+const (
+	MethodHello        = "system.hello"
+	MethodStatus       = "system.status"
+	MethodAuthStatus   = "auth.status"
+	MethodSetPIN       = "auth.set_pin"
+	MethodLogin        = "auth.login"
+	MethodLogout       = "auth.logout"
+	MethodSettingsList = "settings.list"
+	MethodSettingsSet  = "settings.set"
+	MethodSecretStatus = "secret.status"
+	MethodSecretSet    = "secret.set"
+	MethodSecretDelete = "secret.delete"
+	MethodVaultReset   = "vault.reset"
+	MethodAuditList    = "audit.list"
+)
+
+// Methods lists all methods.
+var Methods = []string{
+	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodLogin, MethodLogout,
+	MethodSettingsList, MethodSettingsSet, MethodSecretStatus, MethodSecretSet, MethodSecretDelete,
+	MethodVaultReset, MethodAuditList,
+}
+
+// Parameters.
+type (
+	NoParams  struct{}
+	PINParams struct {
+		PIN string `json:"pin"`
+	}
+	SettingsSetParams struct {
+		Key   string          `json:"key"`
+		Value json.RawMessage `json:"value"`
+	}
+	SecretIDParams struct {
+		ID string `json:"id"`
+	}
+	SecretSetParams struct {
+		ID    string `json:"id"`
+		Value string `json:"value"`
+	}
+	VaultResetParams struct {
+		Confirmation string `json:"confirmation"`
+	}
+	AuditListParams struct {
+		After int64 `json:"after"`
+		Limit int   `json:"limit"`
+	}
+)
+
+// Results.
+type (
+	OKResult struct {
+		OK bool `json:"ok"`
+	}
+	HelloResult struct {
+		Version  string `json:"version"`
+		Protocol int    `json:"protocol"`
+	}
+	VaultState struct {
+		State   string `json:"state"`
+		Reason  string `json:"reason,omitempty"`
+		KeyMode string `json:"key_mode,omitempty"`
+	}
+	StoreState struct {
+		State         string `json:"state"`
+		SchemaVersion int    `json:"schema_version"`
+	}
+	StatusResult struct {
+		Vault         VaultState `json:"vault"`
+		Store         StoreState `json:"store"`
+		UptimeSeconds int64      `json:"uptime_seconds"`
+	}
+	AuthStatusResult struct {
+		PINSet     bool   `json:"pin_set"`
+		BlockUntil string `json:"block_until,omitempty"`
+		Elevated   bool   `json:"elevated"`
+	}
+	Setting struct {
+		Key       string          `json:"key"`
+		Value     json.RawMessage `json:"value"`
+		Version   int64           `json:"version"`
+		Default   bool            `json:"default"`
+		UpdatedAt string          `json:"updated_at,omitempty"`
+		UpdatedBy string          `json:"updated_by,omitempty"`
+	}
+	SettingsListResult struct {
+		Settings []Setting `json:"settings"`
+	}
+	SettingsSetResult struct {
+		Version int64 `json:"version"`
+	}
+	SecretStatusResult struct {
+		ID        string `json:"id"`
+		Set       bool   `json:"set"`
+		Hint      string `json:"hint,omitempty"`
+		UpdatedAt string `json:"updated_at,omitempty"`
+	}
+	AuditRow struct {
+		Seq      int64           `json:"seq"`
+		TS       string          `json:"ts"`
+		Actor    string          `json:"actor"`
+		Action   string          `json:"action"`
+		Target   string          `json:"target"`
+		Result   string          `json:"result"`
+		Details  json.RawMessage `json:"details"`
+		PrevHash string          `json:"prev_hash"`
+		Hash     string          `json:"hash"`
+	}
+	AuditListResult struct {
+		Rows []AuditRow `json:"rows"`
+		Next int64      `json:"next"`
+	}
+)

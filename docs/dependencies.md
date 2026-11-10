@@ -9,6 +9,7 @@ Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clau
 | golang.org/x/sys | v0.50.0 | BSD-3-Clause | hidraw (unix) and SetupAPI, hid.dll (windows) without cgo | internal/transport, internal/sim |
 | go.bug.st/serial | v1.8.0 | BSD-3-Clause | Serial Transport (no cgo on Windows and Linux) | internal/transport |
 | github.com/creack/pty | v1.1.24 | MIT | pty endpoint of the simulator (Linux) | internal/sim, cmd/vlt-sim (not in vltd) |
+| github.com/Microsoft/go-winio | v0.6.4 | MIT | Windows named pipe for the IPC server and client (VLT-IS-003 TASK 03-00-00-007; see the note below) | internal/ipc, internal/ipc/client (Windows only) |
 | golang.org/x/crypto | v0.58.0 | BSD-3-Clause | Argon2id PIN hash (argon2 package) (VLT-IS-003 TASK 03-00-00-005) | internal/auth |
 | modernc.org/sqlite | v1.62.0 | BSD-3-Clause | Store: SQLite without cgo (VLT-IS-003 TASK 03-00-00-003) | internal/store |
 | modernc.org/libc | v1.80.1 (indirect) | BSD-3-Clause | Required by modernc.org/sqlite | internal/store |
@@ -19,6 +20,8 @@ Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clau
 | github.com/mattn/go-isatty | v0.0.24 (indirect) | MIT | Required by modernc.org/libc | internal/store |
 | github.com/ncruces/go-strftime | v1.1.0 (indirect) | MIT | Required by modernc.org/libc | internal/store |
 | github.com/remyoudompheng/bigfft | v0.0.0-20230129092748-24d4a6f8daec (indirect) | BSD-3-Clause | Required by modernc.org/mathutil | internal/store |
+
+Note on go-winio (VLT-IS-003 TASK 03-00-00-007 step 3.4). Choice: github.com/Microsoft/go-winio, not own code with golang.org/x/sys/windows. Reason: go-winio is maintained by Microsoft and used by large projects. It gives overlapped I/O, deadlines (needed for the 30-second partial-frame limit), more than one pipe instance, a security descriptor in SDDL format, and it always sets PIPE_REJECT_REMOTE_CLIENTS (pipe.go, v0.6.4). Own code must do all of this again with less test use. go-winio adds no new module except golang.org/x/sys, which VLT already uses.
 
 ## CI tools (not in VLT binaries)
 

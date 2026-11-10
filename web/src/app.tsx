@@ -5,6 +5,9 @@ import { CountdownBanner, FallbackBanner } from './banners';
 import { ConnProblem, ConnState } from './components';
 import { t, useLang } from './i18n';
 import { Dashboard } from './screens/dashboard';
+import { Device } from './screens/device';
+import { Events } from './screens/events';
+import { History } from './screens/history';
 import { Login, SetPin } from './screens/pin';
 import { Security } from './screens/security';
 import { app, lock, refreshAuth, start } from './state';
@@ -18,6 +21,9 @@ export interface Route {
 
 export const routes: Route[] = [
   { id: 'dashboard', label: 'nav.dashboard', comp: Dashboard },
+  { id: 'device', label: 'nav.device', comp: Device },
+  { id: 'history', label: 'nav.history', comp: History },
+  { id: 'events', label: 'nav.events', comp: Events },
   { id: 'security', label: 'nav.security', comp: Security },
 ];
 

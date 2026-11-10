@@ -88,3 +88,16 @@ label { display: block; margin-top: 8px; font-weight: 600; }
 .banner-warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn); }
 .banner button { margin-left: auto; }
 .banner-reason { font-weight: 600; }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; margin: 0 0 8px; }
+.kv dt { color: var(--muted); font-size: 13px; }
+.kv dd { margin: 0; word-break: break-word; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.filters label { margin: 0; }
+.form { display: grid; gap: 4px; max-width: 420px; }
+.form button { justify-self: start; margin-top: 10px; }
+label.check { font-weight: 400; display: flex; gap: 6px; align-items: center; }
+.confirm { border: 2px solid var(--crit); background: var(--crit-bg); color: var(--fg); border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
+.plot { width: 100%; overflow: hidden; }
+.chart details { margin-top: 8px; }
+.u-legend { color: var(--fg); }
+button[aria-pressed="true"] { text-decoration: underline; }

@@ -39,3 +39,23 @@ export function Badge({ kind, icon, text }: { kind: 'ok' | 'warn' | 'crit' | 'in
     </span>
   );
 }
+
+/** Confirm is an inline confirmation with a text and two buttons. The focus goes to it. */
+export function Confirm({ text, confirmLabel, onConfirm, onCancel }: { text: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div class="confirm" role="alertdialog" aria-modal="false" aria-label={confirmLabel} aria-describedby="confirm-text">
+      <p id="confirm-text">{text}</p>
+      <div class="row">
+        <button type="button" class="danger" ref={(el) => el?.focus()} onClick={onConfirm}>{confirmLabel}</button>
+        <button type="button" onClick={onCancel}>{t('common.cancel')}</button>
+      </div>
+    </div>
+  );
+}
+
+/** errText returns the text of an error code. */
+export function errText(code: string): string {
+  const k = 'err.' + code;
+  const s = t(k);
+  return s === k ? t('err.ipc_error') : s;
+}

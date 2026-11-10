@@ -4,6 +4,7 @@ package gui
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
@@ -57,4 +58,67 @@ func (m *Manager) TrayTexts() TrayTexts {
 		return DefaultTrayTexts
 	}
 	return m.texts
+}
+
+// DeviceStatus calls device.status. The serial number (QID) is
+// "[REDACTED]" from vltd.
+func (a *API) DeviceStatus() (json.RawMessage, error) { return a.raw(wire.MethodDeviceStatus, nil) }
+
+// SetDeviceSettings calls device.settings.set (elevated) after the
+// confirmation in the front end.
+func (a *API) SetDeviceSettings(values map[string]any) error {
+	m, err := client.RawMap(values)
+	if err != nil {
+		return &Error{Code: wire.CodeInvalid}
+	}
+	_, err = a.raw(wire.MethodDeviceSettingsSet, wire.SettingsMapParams{Settings: m})
+	return err
+}
+
+// Step lengths of measurements.query.
+var stepLen = map[string]time.Duration{"raw": 2 * time.Second, "1m": time.Minute, "1h": time.Hour}
+
+// chunkRows is the number of rows of one query; it is less than the row
+// limit of vltd (10000), so that a long range is not cut.
+const chunkRows = 9000
+
+// Series is the result of Measurements.
+type Series struct {
+	Name string            `json:"name"`
+	Unit string            `json:"unit"`
+	Step string            `json:"step"`
+	Rows []json.RawMessage `json:"rows"`
+}
+
+// Measurements calls measurements.query from fromMs to toMs (Unix
+// milliseconds) with step raw, 1m or 1h. A long range is queried in parts.
+func (a *API) Measurements(name string, fromMs, toMs int64, step string) (Series, error) {
+	d, ok := stepLen[step]
+	if !ok || toMs <= fromMs {
+		return Series{}, &Error{Code: wire.CodeInvalid}
+	}
+	out := Series{Name: name, Step: step, Rows: []json.RawMessage{}}
+	from, to := time.UnixMilli(fromMs).UTC(), time.UnixMilli(toMs).UTC()
+	span := d * chunkRows
+	for t := from; t.Before(to); t = t.Add(span) {
+		end := t.Add(span)
+		if end.After(to) {
+			end = to
+		}
+		raw, err := a.raw(wire.MethodMeasurements, wire.MeasurementsParams{Name: name,
+			From: t.Format(time.RFC3339Nano), To: end.Format(time.RFC3339Nano), Step: step})
+		if err != nil {
+			return Series{}, err
+		}
+		var r struct {
+			Unit string            `json:"unit"`
+			Rows []json.RawMessage `json:"rows"`
+		}
+		if err := json.Unmarshal(raw, &r); err != nil {
+			return Series{}, &Error{Code: "ipc_error"}
+		}
+		out.Unit = r.Unit
+		out.Rows = append(out.Rows, r.Rows...)
+	}
+	return out, nil
 }

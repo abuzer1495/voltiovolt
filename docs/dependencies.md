@@ -1,6 +1,6 @@
 # Dependency register (SEC-061)
 
-Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, MPL-2.0. CI checks this list with go-licenses.
+Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, MPL-2.0. CI checks this list with go-licenses. Versions are from proxy.golang.org; licenses are from go-licenses v2.0.1 and pkg.go.dev (2026-11-10).
 
 ## Go modules in VLT binaries
 
@@ -9,6 +9,15 @@ Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clau
 | golang.org/x/sys | v0.50.0 | BSD-3-Clause | hidraw (unix) and SetupAPI, hid.dll (windows) without cgo | internal/transport, internal/sim |
 | go.bug.st/serial | v1.8.0 | BSD-3-Clause | Serial Transport (no cgo on Windows and Linux) | internal/transport |
 | github.com/creack/pty | v1.1.24 | MIT | pty endpoint of the simulator (Linux) | internal/sim, cmd/vlt-sim (not in vltd) |
+| modernc.org/sqlite | v1.62.0 | BSD-3-Clause | Store: SQLite without cgo (VLT-IS-003 TASK 03-00-00-003) | internal/store |
+| modernc.org/libc | v1.80.1 (indirect) | BSD-3-Clause | Required by modernc.org/sqlite | internal/store |
+| modernc.org/mathutil | v1.7.1 (indirect) | BSD-3-Clause | Required by modernc.org/sqlite | internal/store |
+| modernc.org/memory | v1.12.1 (indirect) | BSD-3-Clause | Required by modernc.org/sqlite | internal/store |
+| github.com/dustin/go-humanize | v1.1.0 (indirect) | MIT | Required by modernc.org/libc | internal/store |
+| github.com/google/uuid | v1.6.0 (indirect) | BSD-3-Clause | Required by modernc.org/libc | internal/store |
+| github.com/mattn/go-isatty | v0.0.24 (indirect) | MIT | Required by modernc.org/libc | internal/store |
+| github.com/ncruces/go-strftime | v1.1.0 (indirect) | MIT | Required by modernc.org/libc | internal/store |
+| github.com/remyoudompheng/bigfft | v0.0.0-20230129092748-24d4a6f8daec (indirect) | BSD-3-Clause | Required by modernc.org/mathutil | internal/store |
 
 ## CI tools (not in VLT binaries)
 

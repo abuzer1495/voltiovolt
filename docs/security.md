@@ -283,3 +283,10 @@ vlt-setup dev-install (cmd/vlt-setup, Windows only, run as Administrator) applie
 NOTE: SeChangeNotifyPrivilege is never removed from a service process token (Microsoft Learn, SERVICE_REQUIRED_PRIVILEGES_INFOW). It is in the list to make the list explicit.
 
 CI tests of vlt-setup only read the system (API presence, structure encoding, a read of an unknown group, the data directory ACL on a temporary directory). CI does not run dev-install or dev-uninstall.
+
+## 11. Shutdown executor (VLT-IS-004 TASK 03-00-00-007, SEC-092)
+
+1. Only the Policy Engine calls the executor. The go/ast test TestOnlyPolicyCallsExecutor (internal/shutdown) fails the build if another package imports internal/shutdown (except cmd/vltd), calls Shutdown/Hibernate on an executor, or uses the OS shutdown functions.
+2. No IPC method calls the executor. shutdown.cancel can only stop a countdown.
+3. No test calls the OS: the Windows tests replace the Windows functions, the Linux tests use a fake D-Bus object, and the Policy and Simulation tests use dry-run executors.
+4. Risk: the reason code is unplanned. An unplanned shutdown can make a system state data (SSD) file, which can make the shutdown slower (Microsoft Learn, InitiateSystemShutdownExW). See VLT-RPT-004.

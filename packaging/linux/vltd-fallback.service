@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# vltd fallback unit for development installs (VLT-IS-004 TASK 03-00-00-001
+# step 3). systemd starts it only through OnFailure= of vltd.service. It has
+# the same ExecStart, user, groups and hardening as vltd.service, but no
+# LoadCredentialEncrypted= line. VLT_FALLBACK_MODE=1 tells vltd to set the
+# Vault state "locked" with the reason "primary unit failed" and not to read
+# a DEK. It has no [Install] section: do not enable it.
+
+[Unit]
+Description=VoltioVolt UPS service, fallback without the Vault (development)
+Conflicts=vltd.service
+Documentation=https://github.com/abuzer1495/voltiovolt
+After=local-fs.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/vltd
+Environment=VLT_FALLBACK_MODE=1
+User=vltd
+Group=vltd
+SupplementaryGroups=vlt
+StateDirectory=vltd
+StateDirectoryMode=0700
+RuntimeDirectory=vltd
+RuntimeDirectoryMode=0750
+UMask=0077
+TimeoutStopSec=10
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+CapabilityBoundingSet=
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

@@ -144,6 +144,33 @@ func Open(ctx context.Context, st *store.Store, kp KeyProvider, audit Auditor, l
 	return v
 }
 
+// ReasonFallback is the Vault reason in the fallback unit (VLT-IS-004 QI-1).
+const ReasonFallback = "primary unit failed"
+
+// ErrFallback is returned by the key provider of the fallback mode.
+var ErrFallback = errors.New("vault: fallback mode: no DEK (" + ReasonFallback + ")")
+
+// fallbackProvider never gives a DEK.
+type fallbackProvider struct{}
+
+func (fallbackProvider) Load(context.Context) ([]byte, string, error)   { return nil, "", ErrFallback }
+func (fallbackProvider) Create(context.Context) ([]byte, string, error) { return nil, "", ErrFallback }
+func (fallbackProvider) CanCreate() bool                                { return false }
+
+// OpenFallback opens the Vault in the fallback mode (VLT_FALLBACK_MODE=1,
+// vltd-fallback.service). The state is "locked" with the reason "primary
+// unit failed". It does not try to read a DEK. vault.reset is refused.
+func OpenFallback(ctx context.Context, st *store.Store, audit Auditor, log *slog.Logger) *Vault {
+	if log == nil {
+		log = slog.Default()
+	}
+	v := &Vault{st: st, kp: fallbackProvider{}, audit: audit, log: log}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.setLocked(ctx, ReasonFallback, ErrFallback)
+	return v
+}
+
 func (v *Vault) record(ctx context.Context, action, result string, details map[string]any) {
 	if v.audit == nil {
 		return

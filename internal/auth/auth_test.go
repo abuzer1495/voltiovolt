@@ -5,6 +5,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -139,7 +140,7 @@ func TestLockout(t *testing.T) {
 	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
 	m := newManager(t, st, au, &now)
 
-	if _, err := m.Login(ctx, "gui", "7a3k9z"); !errors.Is(err, ErrNoPIN) {
+	if _, err := m.Login(ctx, srcA, "7a3k9z"); !errors.Is(err, ErrNoPIN) {
 		t.Fatalf("no PIN: %v", err)
 	}
 	if err := m.SetPIN(ctx, "gui", "123456"); !errors.Is(err, ErrPINWeak) {
@@ -151,57 +152,133 @@ func TestLockout(t *testing.T) {
 	if err := m.SetInitialPIN(ctx, "gui", "9q8w7e"); !errors.Is(err, ErrPINIsSet) {
 		t.Fatalf("second initial PIN: %v", err)
 	}
-	if _, err := m.Login(ctx, "gui", "7a3k9z"); err != nil {
+	if _, err := m.Login(ctx, srcA, "7a3k9z"); err != nil {
 		t.Fatalf("correct PIN: %v", err)
 	}
 	// 4 failures: no block.
 	for i := 0; i < 4; i++ {
-		if u, err := m.Login(ctx, "gui", "wrong0"); !errors.Is(err, ErrIncorrect) || !u.IsZero() {
+		if u, err := m.Login(ctx, srcA, "wrong0"); !errors.Is(err, ErrIncorrect) || !u.IsZero() {
 			t.Fatalf("failure %d: %v %v", i+1, u, err)
 		}
 	}
 	// 5th failure: block 5 minutes.
-	u, err := m.Login(ctx, "gui", "wrong0")
+	u, err := m.Login(ctx, srcA, "wrong0")
 	if !errors.Is(err, ErrIncorrect) || !u.Equal(now.Add(5*time.Minute)) {
 		t.Fatalf("5th failure: %v %v", u, err)
 	}
 	// During the block, the correct PIN is refused.
-	if _, err := m.Login(ctx, "gui", "7a3k9z"); !errors.Is(err, ErrBlocked) {
+	if _, err := m.Login(ctx, srcA, "7a3k9z"); !errors.Is(err, ErrBlocked) {
 		t.Fatalf("during block: %v", err)
 	}
 	// A restart (new Manager on the same Store) does not reset the counter.
 	m = newManager(t, st, au, &now)
-	if s, _ := m.Status(ctx); s.Failures != 5 || !s.BlockUntil.Equal(now.Add(5*time.Minute)) {
+	if s, _ := m.Status(ctx, srcA); s.Failures != 5 || !s.BlockUntil.Equal(now.Add(5*time.Minute)) {
 		t.Fatalf("after restart: %+v", s)
 	}
-	if _, err := m.Login(ctx, "gui", "7a3k9z"); !errors.Is(err, ErrBlocked) {
+	if _, err := m.Login(ctx, srcA, "7a3k9z"); !errors.Is(err, ErrBlocked) {
 		t.Fatalf("after restart: %v", err)
 	}
 	// Each new failure doubles the block time: 10, 20, 40 ... maximum 24 h.
 	want := []time.Duration{10, 20, 40, 80, 160, 320, 640, 1280}
 	for _, w := range want {
 		now = now.Add(25 * time.Hour)
-		u, err := m.Login(ctx, "gui", "wrong0")
+		u, err := m.Login(ctx, srcA, "wrong0")
 		if !errors.Is(err, ErrIncorrect) || u.Sub(now) != w*time.Minute {
 			t.Fatalf("block %v: got %v (%v)", w, u.Sub(now), err)
 		}
 	}
 	now = now.Add(25 * time.Hour)
-	if u, _ := m.Login(ctx, "gui", "wrong0"); u.Sub(now) != 24*time.Hour {
+	if u, _ := m.Login(ctx, srcA, "wrong0"); u.Sub(now) != 24*time.Hour {
 		t.Fatalf("maximum block: %v", u.Sub(now))
 	}
 	// After the block, the correct PIN resets the counter.
 	now = now.Add(25 * time.Hour)
-	if _, err := m.Login(ctx, "gui", "7a3k9z"); err != nil {
+	if _, err := m.Login(ctx, srcA, "7a3k9z"); err != nil {
 		t.Fatal(err)
 	}
-	if s, _ := m.Status(ctx); s.Failures != 0 || !s.BlockUntil.IsZero() {
+	if s, _ := m.Status(ctx, srcA); s.Failures != 0 || !s.BlockUntil.IsZero() {
 		t.Fatalf("after correct PIN: %+v", s)
 	}
 	// Audit entries: PIN set, correct entries, incorrect entries, blocks.
 	if au.count("pin_set:success") != 1 || au.count("pin_entry:success") != 2 || au.count("pin_entry:failure") != 14 ||
 		au.count("pin_block:success") != 10 || au.count("pin_entry:blocked") != 2 || au.count("pin_set:rejected") != 2 {
 		t.Fatalf("audit rows: %v", au.rows)
+	}
+}
+
+var (
+	srcA = Source{Actor: "gui", Peer: "uid:1000"}
+	srcB = Source{Actor: "gui", Peer: "uid:1001"}
+)
+
+// TestLockoutPerSource is VLT-IS-004 TASK 03-00-00-001 step 1.
+func TestLockoutPerSource(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+	m := newManager(t, st, &testOnlyAuditor{}, &now)
+	if err := m.SetInitialPIN(ctx, "gui", "7a3k9z"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < MaxFailures; i++ {
+		m.Login(ctx, srcA, "wrong0")
+	}
+	// 1. Source A is blocked.
+	if _, err := m.Login(ctx, srcA, "7a3k9z"); !errors.Is(err, ErrBlocked) {
+		t.Fatalf("source A: %v", err)
+	}
+	// 2. Source B can still log in.
+	if _, err := m.Login(ctx, srcB, "7a3k9z"); err != nil {
+		t.Fatalf("source B: %v", err)
+	}
+	if s, _ := m.Status(ctx, srcB); s.Failures != 0 || !s.BlockUntil.IsZero() {
+		t.Fatalf("source B status: %+v", s)
+	}
+	// A different actor with the same peer is a different source.
+	if _, err := m.Login(ctx, Source{Actor: "telegram", Peer: "uid:1000"}, "7a3k9z"); err != nil {
+		t.Fatalf("other actor: %v", err)
+	}
+	// 3. A restart does not reset the block of source A.
+	m = newManager(t, st, &testOnlyAuditor{}, &now)
+	if _, err := m.Login(ctx, srcA, "7a3k9z"); !errors.Is(err, ErrBlocked) {
+		t.Fatalf("source A after restart: %v", err)
+	}
+	if _, err := m.Login(ctx, srcB, "7a3k9z"); err != nil {
+		t.Fatalf("source B after restart: %v", err)
+	}
+}
+
+// TestSecurityAlert: more than 100 failures of all sources in one hour
+// give one SECURITY_ALERT audit entry (QI-2).
+func TestSecurityAlert(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	au := &testOnlyAuditor{}
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+	m := newManager(t, st, au, &now)
+	if err := m.SetInitialPIN(ctx, "gui", "7a3k9z"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < AlertFailures; i++ {
+		m.Login(ctx, Source{Actor: "gui", Peer: fmt.Sprintf("uid:%d", 2000+i)}, "wrong0")
+		now = now.Add(30 * time.Second)
+	}
+	if n := au.count(ActionAlert + ":failure"); n != 0 {
+		t.Fatalf("alert after 100 failures: %d", n)
+	}
+	now = time.Date(2026, 11, 10, 12, 59, 0, 0, time.UTC)
+	m.Login(ctx, Source{Actor: "gui", Peer: "uid:9999"}, "wrong0")
+	m.Login(ctx, Source{Actor: "gui", Peer: "uid:9998"}, "wrong0")
+	if n := au.count(ActionAlert + ":failure"); n != 1 {
+		t.Fatalf("alerts after 102 failures in one hour: %d", n)
+	}
+	// A new window starts after one hour.
+	now = now.Add(2 * time.Hour)
+	for i := 0; i < 50; i++ {
+		m.Login(ctx, Source{Actor: "gui", Peer: fmt.Sprintf("uid:%d", 5000+i)}, "wrong0")
+	}
+	if n := au.count(ActionAlert + ":failure"); n != 1 {
+		t.Fatalf("alerts in a new window: %d", n)
 	}
 }
 

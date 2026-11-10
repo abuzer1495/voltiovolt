@@ -137,21 +137,22 @@ func PeerCred(c net.Conn) (*unix.Ucred, error) {
 }
 
 func peerCheck(gid uint32, groups func(uint32) ([]string, error)) PeerCheck {
-	return func(c net.Conn) error {
+	return func(c net.Conn) (string, error) {
 		cred, err := PeerCred(c)
 		if err != nil {
-			return fmt.Errorf("SO_PEERCRED: %w", err)
+			return "", fmt.Errorf("SO_PEERCRED: %w", err)
 		}
+		peer := "uid:" + strconv.FormatUint(uint64(cred.Uid), 10)
 		if cred.Uid == 0 || cred.Gid == gid {
-			return nil
+			return peer, nil
 		}
 		ids, err := groups(cred.Uid)
 		if err != nil {
-			return fmt.Errorf("uid %d: groups: %w", cred.Uid, err)
+			return "", fmt.Errorf("uid %d: groups: %w", cred.Uid, err)
 		}
 		if slices.Contains(ids, strconv.FormatUint(uint64(gid), 10)) {
-			return nil
+			return peer, nil
 		}
-		return fmt.Errorf("uid %d is not root and not a member of gid %d", cred.Uid, gid)
+		return "", fmt.Errorf("uid %d is not root and not a member of gid %d", cred.Uid, gid)
 	}
 }

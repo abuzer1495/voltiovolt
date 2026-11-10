@@ -61,7 +61,7 @@ UPS -> Transport -> Dialect parser -> Measurement -> Measurement Store and Event
 | Platform | Endpoint | Access |
 |----------|----------|--------|
 | Linux | Unix socket /run/vltd/vltd.sock, mode 0660, owner vltd, group vlt. Directory /run/vltd, mode 0750, group vlt. | SO_PEERCRED: uid 0, or a member of the group vlt (primary or supplementary group). |
-| Windows | Named pipe \\.\pipe\vltd (github.com/Microsoft/go-winio). | Protected DACL: SYSTEM, Administrators and NT SERVICE\vltd full access; local group "VLT Operators" (if it exists) read and write. Remote clients are rejected (PIPE_REJECT_REMOTE_CLIENTS). |
+| Windows | Named pipe \\.\pipe\vltd (github.com/Microsoft/go-winio). | Protected DACL (VLT-IS-004 QI-4): SYSTEM and NT SERVICE\vltd GA; Administrators and the local group "VLT Operators" (if it exists) GRGW. Peer identity: the user SID of the client process token. Remote clients are rejected (PIPE_REJECT_REMOTE_CLIENTS). |
 
 ### 5.3 Limits
 

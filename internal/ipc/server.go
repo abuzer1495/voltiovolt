@@ -44,8 +44,13 @@ type Backend struct {
 	Log     *slog.Logger
 }
 
-// PeerCheck accepts or refuses a new connection (Linux: SO_PEERCRED).
-type PeerCheck func(net.Conn) error
+// PeerCheck accepts or refuses a new connection and returns the peer
+// identity (Linux: "uid:<n>" from SO_PEERCRED; Windows: "sid:<SID>" of the
+// client process). The PIN lockout is per actor and peer (VLT-IS-004 QI-2).
+type PeerCheck func(net.Conn) (peer string, err error)
+
+// PeerUnknown is the peer identity when Serve has no PeerCheck (tests).
+const PeerUnknown = "unknown"
 
 // Server serves IPC connections.
 type Server struct {
@@ -101,12 +106,15 @@ func (s *Server) Serve(ln net.Listener, check PeerCheck) error {
 			}
 			return err
 		}
+		peer := PeerUnknown
 		if check != nil {
-			if err := check(c); err != nil {
+			p, err := check(c)
+			if err != nil {
 				s.log.Warn("IPC connection refused", "reason", err.Error())
 				c.Close()
 				continue
 			}
+			peer = p
 		}
 		s.mu.Lock()
 		if s.closed || len(s.conns) >= MaxConns {
@@ -121,7 +129,7 @@ func (s *Server) Serve(ln net.Listener, check PeerCheck) error {
 		s.conns[c] = struct{}{}
 		s.wg.Add(1)
 		s.mu.Unlock()
-		go s.handle(c)
+		go s.handle(c, peer)
 	}
 }
 
@@ -151,14 +159,15 @@ func (s *Server) Conns() int {
 type conn struct {
 	s       *Server
 	c       net.Conn
+	peer    string
 	session auth.Session
 	tokens  float64
 	last    time.Time
 }
 
-func (s *Server) handle(c net.Conn) {
+func (s *Server) handle(c net.Conn, peer string) {
 	defer s.wg.Done()
-	cn := &conn{s: s, c: c, tokens: s.rate, last: s.now()}
+	cn := &conn{s: s, c: c, peer: peer, tokens: s.rate, last: s.now()}
 	defer func() {
 		cn.session.Drop()
 		c.Close()
@@ -321,6 +330,9 @@ func (cn *conn) serve(b []byte) wire.Response {
 	return wire.Response{V: wire.Version, ID: id, Result: raw}
 }
 
+// source is the lockout source of this connection.
+func (cn *conn) source() auth.Source { return auth.Source{Actor: audit.ActorGUI, Peer: cn.peer} }
+
 func bad(err error) *wire.Error { return &wire.Error{Code: wire.CodeBadRequest, Message: err.Error()} }
 
 func invalid(msg string) *wire.Error { return &wire.Error{Code: wire.CodeInvalid, Message: msg} }
@@ -380,7 +392,7 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 		if err := wire.Strict(req.Params, &wire.NoParams{}); err != nil {
 			return nil, bad(err)
 		}
-		st, err := b.Auth.Status(ctx)
+		st, err := b.Auth.Status(ctx, cn.source())
 		if err != nil {
 			return nil, internal()
 		}
@@ -417,7 +429,7 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 		if err := wire.Strict(req.Params, &p); err != nil {
 			return nil, bad(err)
 		}
-		until, err := b.Auth.Login(ctx, audit.ActorGUI, p.PIN)
+		until, err := b.Auth.Login(ctx, cn.source(), p.PIN)
 		switch {
 		case err == nil:
 			cn.session.Elevate(cn.s.now())

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -21,6 +22,10 @@ import (
 )
 
 type netListener = net.Listener
+
+// EnvFallbackMode is the state flag of vltd-fallback.service (VLT-IS-001
+// 01-00-05 item 6, Revision 03). It is not a Setting and not a Secret.
+const EnvFallbackMode = "VLT_FALLBACK_MODE"
 
 // config is the daemon configuration. main gives the real values; the
 // integration tests give a temporary directory, a test DEK provider and a
@@ -97,7 +102,13 @@ func (d *daemon) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("store install ID: %w", err)
 	}
-	d.vt = vault.Open(ctx, st, d.cfg.Provider(d.cfg.DataDir, installID), d.au, d.log)
+	if os.Getenv(EnvFallbackMode) == "1" {
+		// vltd-fallback.service (VLT-IS-004 QI-1): do not read a DEK.
+		d.log.Warn("fallback mode: the primary unit failed; the Vault is locked", "env", EnvFallbackMode)
+		d.vt = vault.OpenFallback(ctx, st, d.au, d.log)
+	} else {
+		d.vt = vault.Open(ctx, st, d.cfg.Provider(d.cfg.DataDir, installID), d.au, d.log)
+	}
 	vs := d.vt.Status()
 	d.log.Info("vault state", "state", string(vs.State), "reason", vs.Reason, "key_mode", vs.KeyMode)
 	vr := d.au.VerifyAtStart(ctx)

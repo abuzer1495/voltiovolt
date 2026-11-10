@@ -12,12 +12,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
+
+	"github.com/abuzer1495/voltiovolt/internal/redact"
 )
 
-// SettingDef is one known Setting: the key, the default value and a check.
+// SettingDef is one known Setting: the key, the Go type of the value, the
+// default value and a check.
 type SettingDef struct {
-	Key     string
+	Key string
+	// Type is the Go type of the value (int, string, bool). A Setting never
+	// contains a Secret (VLT-IS-004 QI-6): CheckDefs refuses a type that is
+	// or contains redact.Secret.
+	Type    reflect.Type
 	Default json.RawMessage
 	// Check returns an error if the value is not permitted.
 	Check func(json.RawMessage) error
@@ -81,13 +89,82 @@ func strictJSON(v json.RawMessage, out any) error {
 	return nil
 }
 
+// Go types of Setting values.
+var (
+	TypeInt    = reflect.TypeOf(0)
+	TypeString = reflect.TypeOf("")
+	TypeBool   = reflect.TypeOf(false)
+)
+
+// ErrSecretSetting is returned for a Setting with the Secret type.
+var ErrSecretSetting = errors.New("store: a Setting must not have the Secret type (VLT-IS-004 QI-6)")
+
+var secretType = reflect.TypeOf(redact.Secret{})
+
+func containsSecret(t reflect.Type, seen map[reflect.Type]bool) bool {
+	if t == nil || seen[t] {
+		return false
+	}
+	seen[t] = true
+	if t == secretType {
+		return true
+	}
+	switch t.Kind() {
+	case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Chan:
+		return containsSecret(t.Elem(), seen)
+	case reflect.Map:
+		return containsSecret(t.Key(), seen) || containsSecret(t.Elem(), seen)
+	case reflect.Struct:
+		for i := 0; i < t.NumField(); i++ {
+			if containsSecret(t.Field(i).Type, seen) {
+				return true
+			}
+		}
+	case reflect.Interface:
+		return true // an interface can hold a Secret
+	}
+	return false
+}
+
+// CheckDefs checks Setting definitions: a key, a type that is not and does
+// not contain redact.Secret, a default value of that type that passes the
+// check, and no key two times.
+func CheckDefs(defs []SettingDef) error {
+	seen := map[string]bool{}
+	for _, d := range defs {
+		if d.Key == "" {
+			return errors.New("store: Setting without a key")
+		}
+		if seen[d.Key] {
+			return fmt.Errorf("store: Setting %q two times", d.Key)
+		}
+		seen[d.Key] = true
+		if d.Type == nil {
+			return fmt.Errorf("store: Setting %q has no type", d.Key)
+		}
+		if containsSecret(d.Type, map[reflect.Type]bool{}) {
+			return fmt.Errorf("%w: %q", ErrSecretSetting, d.Key)
+		}
+		v := reflect.New(d.Type).Interface()
+		if err := strictJSON(d.Default, v); err != nil {
+			return fmt.Errorf("store: Setting %q: default value is not of type %v: %w", d.Key, d.Type, err)
+		}
+		if d.Check != nil {
+			if err := d.Check(d.Default); err != nil {
+				return fmt.Errorf("store: Setting %q: default value: %w", d.Key, err)
+			}
+		}
+	}
+	return nil
+}
+
 // DefaultSettings returns the known Settings of this instruction. None of
 // them is a Secret.
 func DefaultSettings() []SettingDef {
 	return []SettingDef{
 		// VLT-IS-003 TASK 03-00-00-005 step 7.2: 10 minutes without a request.
-		{Key: SettingSessionIdleMinutes, Default: json.RawMessage(`10`), Check: intRange(1, 120)},
-		{Key: SettingLanguage, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
+		{Key: SettingSessionIdleMinutes, Type: TypeInt, Default: json.RawMessage(`10`), Check: intRange(1, 120)},
+		{Key: SettingLanguage, Type: TypeString, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
 	}
 }
 

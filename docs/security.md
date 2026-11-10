@@ -161,6 +161,17 @@ WARNING: CONTROL commands and CONFIG commands can stop power to the protected eq
 | SEC-096 | The front end never receives a Secret value. A Secret goes from the input field to the Go side of the VLT GUI, then to vltd with secret.set. The Go side clears the buffer after the call. | New: VLT-IS-005 01-30-00 |
 | SEC-097 | Required status checks on main use the "strict" mode: a branch must be up to date with main before the merge. | New: VLT-IS-005 01-30-00 |
 
+### CONTROL commands and the Owner analysis (VLT-IS-006 01-30-00)
+
+| ID | Requirement | Change |
+|----|-------------|--------|
+| SEC-098 | Only the package internal/control can make CONTROL request bytes. Only these callers can use internal/control: the IPC handlers for an elevated request with a confirmation, and the Policy Engine for the UPS output off step. | New: VLT-IS-006 01-30-00 |
+| SEC-099 | vltd does not send a byte to a serial port that the user did not select or confirm in the VLT GUI. | New: VLT-IS-006 01-30-00 |
+| SEC-100 | VLT never sends "S.0". The permitted shutdown delays are 0.2 to 0.9 minutes (12 to 54 seconds, steps of 6 seconds) and 1 to 10 minutes. | New: VLT-IS-006 01-30-00 |
+| SEC-101 | Do not commit a file or a folder of the Owner analysis. A CI check fails if the repository contains the path "ANALIZ/" or a Ghidra project file. | New: VLT-IS-006 01-30-00 |
+
+Other VLT-IS-006 01-30-00 changes: SEC-060 add "VLT-REF-001 is an accepted source." (OD-24). VLT-IS-001 03-20-00: "C" (cancel shutdown) is in the CONTROL class, UNVERIFIED; VLT does not send it automatically. Dialect names: megatec, voltronic-qs, voltronic. VLT-IS-001 01-00-04: the Reference UPS path is serial Megatec on a virtual COM port; 0665:5161 is not its path.
+
 Term (VLT-IS-001 00-10-00, VLT-IS-005 01-30-00): **Fallback Policy**: a fixed Shutdown Policy in the code. vltd uses it only when the Vault state is "locked" (docs/architecture.md section 10.5).
 
 NOTE: VLT-IS-001 has no SEC-008, SEC-009, SEC-017 to SEC-019, SEC-026 to SEC-029, SEC-039, SEC-052 to SEC-054, SEC-059 and SEC-069.
@@ -333,3 +344,31 @@ CI tests of vlt-setup only read the system (API presence, structure encoding, a 
 1. The GUI never keeps the PIN. Login sends it to vltd with auth.login. vltd keeps the elevated state.
 2. The GUI makes no background requests to vltd, because each request in the elevated state starts the idle time again (docs/architecture.md section 13.3).
 3. The Lock button calls auth.logout.
+
+## 14. CONTROL commands and port selection (VLT-IS-006)
+
+### 14.1 SEC-098: only internal/control makes CONTROL bytes
+
+1. Each encoder of internal/control needs a `control.Grant`. `control.IPCGrant` needs the elevated state and the confirmation text ("START TEST", "TEST UNTIL LOW"; none for cancel test and beeper) and permits one function: test, cancel test or beeper. `control.PolicyGrant` permits the shutdown and restore command. The zero Grant permits nothing.
+2. `transport.Stream.Exchange` accepts only READ commands (SEC-037). `transport.Stream.Control` accepts only a `control.Command` and checks its bytes again with `control.Check`.
+3. Tests: TestOnlyControlMakesControlBytes (go/ast: IPCGrant only in internal/ipc, PolicyGrant only in internal/policy, encoders, Grant and Command literals only in internal/control, CONTROL bytes in no non-test file outside internal/control), TestInspectControlFinds (self test), TestGrants, TestControlRejectsNotControl.
+4. No IPC method sends the shutdown and restore command or the cancel shutdown command. Test: TestNoIPCShutdown. The GUI has no shutdown button (web test "has no shutdown button").
+
+### 14.2 SEC-100: never "S.0", never a shutdown without restore
+
+1. `control.EncodeShutdownRestore` accepts only the delays of SEC-100 and a restore time of 1 to 9999 minutes. There is no encoder for a shutdown without restore. `control.Check` refuses "S.0", a shutdown without "R" and "R0000".
+2. Tests: TestNeverSendsS0 (all delays from -10 to 6000 s with 7 restore values; also Check of "S.0" CR and "S.0R0001" CR), TestNoShutdownWithoutRestore (the exported encoders are exactly the list), TestShutdownNegative (D = 57, 58, 59 s and the other values outside SEC-100, restore 0 and 10000), TestShutdownDelaySteps, TestEncoderVectors, TestCheck.
+3. Policy Settings: ups_off.delay_minutes 1 to 10, ups_off.restore_minutes 1 to 9999 (store checks, TestUPSOffSettingsInactive).
+
+### 14.3 SEC-099: no byte to a port that the user did not select
+
+1. Default `device.transport` "not_configured": no candidate, no port opened. "serial" uses only `device.serial_port`. "auto" uses HID 0665:5161 and only the ports in `device.serial.allowed_ports`. The OS port list is never a candidate list.
+2. device.ports opens no port. device.scan needs the elevated state and the text "SCAN PORTS", accepts only ports of the OS list (1 to 8) and sends only "Q1" CR.
+3. Tests: TestSEC099Lister, TestSEC099NotConfigured, TestScanOnlyMarkedPorts, TestPortBusy (internal/device), TestAllMethodsNoSecretInResponses (internal/ipc) with its part deviceScan (internal/ipc/live_test.go: device.ports sends nothing, a wrong text or a port outside the list sends nothing, an unmarked simulator port receives nothing), TestPushAccess (device.scan needs the elevated state), web test "scans only the marked ports after the confirmation text".
+4. The Builder tests use only the simulator and fakes. No test opens a real serial port.
+
+### 14.4 SEC-101: Owner analysis files
+
+1. .gitignore has "ANALIZ/". The CI job "gitleaks" has the step "Repository path check (SEC-101)": it fails if a tracked path contains "ANALIZ/" or a tracked file has the extension .gpr, .rep or .gzf.
+2. docs/reference/VLT-REF-001.md is committed without changes; a CI step checks its SHA-256.
+

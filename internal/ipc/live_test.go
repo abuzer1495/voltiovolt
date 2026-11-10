@@ -51,6 +51,7 @@ func liveMethods(t *testing.T, ctx context.Context, e *env, c *typed.Client, sec
 		t.Fatalf("allowed ports: %v", err)
 	}
 	deviceScan(t, ctx, e, c)
+	upsMethods(t, ctx, e, c)
 	if err := c.SetDeviceSettings(ctx, map[string]any{store.SettingSessionIdleMinutes: 5}); client.Code(err) != wire.CodeInvalid {
 		t.Fatalf("not a Device Setting: %v", err)
 	}
@@ -184,7 +185,8 @@ func TestPushAccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, m := range []string{wire.MethodDeviceSettingsSet, wire.MethodPolicySet, wire.MethodPolicySimulate,
-		wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodShutdownCancel, wire.MethodDeviceScan} {
+		wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodShutdownCancel, wire.MethodDeviceScan,
+		wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet} {
 		var params any
 		if m == wire.MethodDeviceSettingsSet || m == wire.MethodPolicySet {
 			params = wire.SettingsMapParams{Settings: map[string]json.RawMessage{"x": json.RawMessage(`1`)}}
@@ -197,6 +199,8 @@ func TestPushAccess(t *testing.T) {
 		}
 	}
 	for _, m := range []string{wire.MethodDeviceStatus, wire.MethodPolicyGet, wire.MethodShutdownStatus, wire.MethodSubscribe, wire.MethodDevicePorts} {
+		// ups.control.capabilities is read only; without the UPS part it is
+		// "unavailable" (TestUPSControlAccess has the UPS part).
 		if err := c.Call(ctx, m, nil, nil); err != nil {
 			t.Errorf("%s: %v", m, err)
 		}
@@ -286,5 +290,26 @@ func deviceScan(t *testing.T, ctx context.Context, e *env, c *typed.Client) {
 	}
 	if found != 3 { // wrong confirmation, port not in the list, scan
 		t.Fatalf("%d device_scan audit entries, want 3", found)
+	}
+}
+
+// upsMethods calls the UPS Control methods of VLT-IS-006 TASK 03-00-00-007
+// (step 3: part of TestAllMethodsNoSecretInResponses).
+func upsMethods(t *testing.T, ctx context.Context, e *env, c *typed.Client) {
+	t.Helper()
+	if e.srv.b.UPS == nil {
+		withUPS(t, e)
+	}
+	if _, err := c.UPSControlCapabilities(ctx); err != nil {
+		t.Fatalf("ups.control.capabilities: %v", err)
+	}
+	if r, err := c.UPSBeeperSet(ctx, false); err != nil || !r.Verified {
+		t.Fatalf("ups.beeper.set: %+v %v", r, err)
+	}
+	if r, err := c.UPSTestStart(ctx, wire.TestTypeMinutes, 1, wire.TestConfirmation); err != nil || !r.Verified {
+		t.Fatalf("ups.test.start: %+v %v", r, err)
+	}
+	if r, err := c.UPSTestCancel(ctx); err != nil || !r.Verified {
+		t.Fatalf("ups.test.cancel: %+v %v", r, err)
 	}
 }

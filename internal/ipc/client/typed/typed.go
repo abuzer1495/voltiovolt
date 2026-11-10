@@ -98,3 +98,32 @@ func (c *Client) DeviceScan(ctx context.Context, ports []string, confirmation st
 	err := c.Call(ctx, wire.MethodDeviceScan, wire.DeviceScanParams{Ports: ports, Confirmation: confirmation}, &r)
 	return r.Results, err
 }
+
+// UPSControlCapabilities calls ups.control.capabilities (VLT-IS-006).
+func (c *Client) UPSControlCapabilities(ctx context.Context) (wire.UPSControlCapsResult, error) {
+	var r wire.UPSControlCapsResult
+	err := c.Call(ctx, wire.MethodUPSControlCaps, nil, &r)
+	return r, err
+}
+
+// UPSTestStart calls ups.test.start (elevated; confirmation "START TEST"
+// or "TEST UNTIL LOW").
+func (c *Client) UPSTestStart(ctx context.Context, typ string, minutes int, confirmation string) (wire.UPSControlResult, error) {
+	var r wire.UPSControlResult
+	err := c.Call(ctx, wire.MethodUPSTestStart, wire.UPSTestStartParams{Type: typ, Minutes: minutes, Confirmation: confirmation}, &r)
+	return r, err
+}
+
+// UPSTestCancel calls ups.test.cancel (elevated).
+func (c *Client) UPSTestCancel(ctx context.Context) (wire.UPSControlResult, error) {
+	var r wire.UPSControlResult
+	err := c.Call(ctx, wire.MethodUPSTestCancel, nil, &r)
+	return r, err
+}
+
+// UPSBeeperSet calls ups.beeper.set (elevated).
+func (c *Client) UPSBeeperSet(ctx context.Context, on bool) (wire.UPSControlResult, error) {
+	var r wire.UPSControlResult
+	err := c.Call(ctx, wire.MethodUPSBeeperSet, wire.UPSBeeperSetParams{On: on}, &r)
+	return r, err
+}

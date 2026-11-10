@@ -63,6 +63,9 @@ type TestResult struct {
 	// UPSFailed and BatteryLow are true if b4 or b6 was 1 during the test.
 	UPSFailed  bool `json:"ups_failed"`
 	BatteryLow bool `json:"battery_low"`
+	// Cancelled is true if VLT sent "cancel test" during the test. The
+	// result is still TEST_PASSED or TEST_FAILED (step 7).
+	Cancelled bool `json:"cancelled,omitempty"`
 }
 
 // Result is the result of one CONTROL request.
@@ -130,6 +133,7 @@ type Controller struct {
 	busy   sync.Mutex
 
 	inTest   bool
+	cancel   bool // "cancel test" sent during the running test
 	test     TestResult
 	lastTest *TestResult
 }
@@ -182,6 +186,7 @@ func (c *Controller) Observe(s Status) {
 	switch {
 	case s.Flags.TestInProgress && !c.inTest:
 		c.inTest = true
+		c.cancel = false
 		c.test = TestResult{Start: s.At}
 		fallthrough
 	case s.Flags.TestInProgress:
@@ -191,6 +196,7 @@ func (c *Controller) Observe(s Status) {
 		c.inTest = false
 		r := c.test
 		r.End = s.At
+		r.Cancelled = c.cancel
 		r.Result = TestPassed
 		if r.UPSFailed || r.BatteryLow {
 			r.Result = TestFailed
@@ -211,7 +217,7 @@ func (c *Controller) Observe(s Status) {
 	if ended != nil {
 		c.record(context.Background(), "system", "ups_test_end", "test", ended.Result, map[string]any{
 			"start": ended.Start.UTC().Format(time.RFC3339), "end": ended.End.UTC().Format(time.RFC3339),
-			"ups_failed": ended.UPSFailed, "battery_low": ended.BatteryLow,
+			"ups_failed": ended.UPSFailed, "battery_low": ended.BatteryLow, "cancelled": ended.Cancelled,
 		})
 		if c.OnTestEnd != nil {
 			c.OnTestEnd(*ended)
@@ -399,6 +405,9 @@ func (c *Controller) CancelTest(ctx context.Context, g Grant) (Result, error) {
 		c.record(ctx, actorOf(g.Source()), "ups_control", string(FuncCancelTest), "failure", map[string]any{"func": string(FuncCancelTest), "error": err.Error()})
 		return Result{Func: FuncCancelTest}, err
 	}
+	c.mu.Lock()
+	c.cancel = c.inTest
+	c.mu.Unlock()
 	return c.run(ctx, cmd, true)
 }
 

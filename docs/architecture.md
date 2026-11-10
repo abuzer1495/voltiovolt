@@ -92,6 +92,10 @@ Before a PIN is set, only system.hello, system.status, auth.status and auth.set_
 | device.settings.set | Yes | settings {device.transport, device.serial_port, device.serial_dtr, device.serial_rts, device.serial.allowed_ports} | ok; detection starts again |
 | device.ports | No | none | ports [name, is_usb, vid, pid, product]; opens no port (VLT-IS-006) |
 | device.scan | Yes, and confirmation "SCAN PORTS" | ports (1 to 8 names of the OS list), confirmation | results [name, result, valid_q1]; sends only "Q1" CR to each marked port (VLT-IS-006) |
+| ups.control.capabilities | No | none | connected, functions (test.10s, test.minutes, test.until_low, test.cancel, beeper), last_test (result TEST_PASSED or TEST_FAILED, start, end, ups_failed, battery_low, cancelled) (VLT-IS-006) |
+| ups.test.start | Yes, and confirmation "START TEST" (type 10s or minutes) or "TEST UNTIL LOW" (type until_low) | type, minutes (1 to 99), confirmation | function, bytes, sends, verified. Refused when the UPS is on battery (on_battery), when a countdown runs (countdown_active) or when no UPS is connected (no_ups) (VLT-IS-006) |
+| ups.test.cancel | Yes | none | function, bytes, sends, verified (VLT-IS-006) |
+| ups.beeper.set | Yes | on | function, bytes, sends, verified, no_send (b0 was already the wanted state) (VLT-IS-006) |
 | status.subscribe | No | none | ok; then push frames |
 | status.unsubscribe | No | none | ok |
 | measurements.query | No | name, from, to (RFC 3339), step (raw, 1m, 1h) | name, unit, step, rows [ts, min, max, mean, count, source] |
@@ -377,7 +381,7 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 1. The bytes are the same in the Dialects megatec, voltronic-qs and voltronic.
 2. SEC-100: the delay is 12 to 54 s in steps of 6 s (".2" to ".9") or 1 to 10 whole minutes. The restore time is 1 to 9999 minutes. There is no encoder for a shutdown without restore, and no input gives "S.0". `control.Check` refuses all other bytes; `transport.Stream.Control` calls it again before the write. Tests: TestNeverSendsS0, TestNoShutdownWithoutRestore, TestShutdownNegative, TestEncoderVectors, TestShutdownDelaySteps, TestCheck.
 3. SEC-098: only internal/control makes CONTROL bytes. Each encoder needs a `control.Grant`. `control.IPCGrant` (elevated state and the confirmation text; test, cancel test and beeper only) is used only in internal/ipc. `control.PolicyGrant` (shutdown and restore) is used only in internal/policy. The go/ast test TestOnlyControlMakesControlBytes fails for a Grant outside these packages, an encoder call or a Grant or Command literal outside internal/control, or CONTROL bytes in a non-test file outside internal/control. TestNoIPCShutdown fails if internal/ipc or internal/gui uses the shutdown functions, or if a package outside internal/control uses the cancel shutdown function.
-4. `ups.control.capabilities` gives `control.Capabilities(dialect)`: the test, cancel test and beeper functions. The shutdown functions are never in the list.
+4. `ups.control.capabilities` gives `control.Capabilities(dialect)`: the test, cancel test and beeper functions. The shutdown functions are never in the list. No IPC method sends the shutdown and restore command or the cancel shutdown command: `ipc.UPSControl` has no shutdown function, and only the Policy Engine sends the shutdown and restore command (SEC-098). The IPC handlers (internal/ipc/ups.go) make the IPC Grant in the elevated state with the confirmation text and write the audit entries `ups_test_start`, `ups_test_cancel` and `ups_beeper_set` (success, failure or rejected). Error codes: on_battery, countdown_active, not_verified, not_supported, no_ups, control_busy. Tests: TestUPSControlIntegration, TestUPSControlAccess, TestUPSTestRejectedDuringCountdown (internal/ipc), TestUPSControlVltd (cmd/vltd); the methods are in TestAllMethodsNoSecretInResponses.
 
 ### 14.2 Send and verification
 

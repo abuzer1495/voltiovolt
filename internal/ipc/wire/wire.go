@@ -156,6 +156,13 @@ const (
 	CodeNoSimulation     = "no_simulation" // policy.activate without a passed Simulation
 	CodeLowBattery       = "low_battery"   // shutdown.cancel while LOW_BATTERY is active
 	CodeVaultLocked      = "vault_locked"  // policy.set/activate/deactivate while the Fallback Policy is in use
+	// VLT-IS-006 TASK 03-00-00-007 (UPS Control).
+	CodeOnBattery    = "on_battery"       // ups.test.start while the UPS is on battery
+	CodeCountdown    = "countdown_active" // ups.test.start while a shutdown countdown runs
+	CodeNotVerified  = "not_verified"     // the UPS status did not confirm the command
+	CodeNotSupported = "not_supported"    // the Dialect does not support the function
+	CodeNoUPS        = "no_ups"           // no UPS connected
+	CodeControlBusy  = "control_busy"     // another UPS Control request runs
 )
 
 // Methods of protocol version 1.
@@ -194,6 +201,26 @@ const (
 	// sends only "Q1" CR to each marked port.
 	MethodDevicePorts = "device.ports"
 	MethodDeviceScan  = "device.scan"
+
+	// VLT-IS-006 TASK 03-00-00-007: UPS Control. No IPC method sends the
+	// shutdown and restore command or the cancel shutdown command (SEC-098).
+	MethodUPSControlCaps = "ups.control.capabilities"
+	MethodUPSTestStart   = "ups.test.start"
+	MethodUPSTestCancel  = "ups.test.cancel"
+	MethodUPSBeeperSet   = "ups.beeper.set"
+)
+
+// Confirmation texts of ups.test.start.
+const (
+	TestConfirmation         = "START TEST"
+	TestUntilLowConfirmation = "TEST UNTIL LOW"
+)
+
+// Test types of ups.test.start.
+const (
+	TestType10s      = "10s"
+	TestTypeMinutes  = "minutes"
+	TestTypeUntilLow = "until_low"
 )
 
 // ScanConfirmation is the confirmation text of device.scan.
@@ -208,6 +235,7 @@ var Methods = []string{
 	MethodEventsList, MethodPolicyGet, MethodPolicySet, MethodPolicySimulate, MethodPolicyActivate,
 	MethodPolicyDeactivate, MethodShutdownStatus, MethodShutdownCancel,
 	MethodDevicePorts, MethodDeviceScan,
+	MethodUPSControlCaps, MethodUPSTestStart, MethodUPSTestCancel, MethodUPSBeeperSet,
 }
 
 // Push messages (VLT-IS-004 TASK 03-00-00-008 step 1). The server sends
@@ -273,6 +301,14 @@ type (
 	DeviceScanParams struct {
 		Ports        []string `json:"ports"`
 		Confirmation string   `json:"confirmation"`
+	}
+	UPSTestStartParams struct {
+		Type         string `json:"type"`              // 10s, minutes or until_low
+		Minutes      int    `json:"minutes,omitempty"` // 1 to 99 for "minutes"
+		Confirmation string `json:"confirmation"`
+	}
+	UPSBeeperSetParams struct {
+		On bool `json:"on"`
 	}
 	EventsListParams struct {
 		Before int64 `json:"before"` // 0: the newest
@@ -370,6 +406,26 @@ type (
 	}
 	DeviceScanResult struct {
 		Results []ScanPortResult `json:"results"`
+	}
+	UPSTestResult struct {
+		Result     string `json:"result"` // TEST_PASSED or TEST_FAILED
+		Start      string `json:"start"`  // RFC 3339
+		End        string `json:"end"`
+		UPSFailed  bool   `json:"ups_failed"`
+		BatteryLow bool   `json:"battery_low"`
+		Cancelled  bool   `json:"cancelled"`
+	}
+	UPSControlCapsResult struct {
+		Connected bool           `json:"connected"`
+		Functions []string       `json:"functions"` // test.10s, test.minutes, test.until_low, test.cancel, beeper
+		LastTest  *UPSTestResult `json:"last_test,omitempty"`
+	}
+	UPSControlResult struct {
+		Function string `json:"function"`
+		Bytes    string `json:"bytes"` // the command without CR; empty if nothing was sent
+		Sends    int    `json:"sends"`
+		Verified bool   `json:"verified"`
+		NoSend   bool   `json:"no_send,omitempty"`
 	}
 	EventsListResult struct {
 		Events json.RawMessage `json:"events"`

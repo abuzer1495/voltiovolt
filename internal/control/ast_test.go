@@ -211,10 +211,11 @@ func exportedFuncs(t *testing.T, prefix string) []string {
 	return out
 }
 
-// TestNoIPCShutdown (SEC-098, TASK 03-00-00-007 step 2): no file of
-// internal/ipc or internal/gui uses the shutdown and restore function or
-// the cancel shutdown function, and no file outside internal/control uses
-// FuncCancelShutdown ("C" is never sent).
+// TestNoIPCShutdown (SEC-098, TASK 03-00-00-007 step 2): no non-test file
+// of internal/ipc or internal/gui uses the shutdown and restore function
+// or the cancel shutdown function, and no non-test file outside
+// internal/control uses FuncCancelShutdown ("C" is never sent). Test files
+// can use the names to check that a result does not contain them.
 func TestNoIPCShutdown(t *testing.T) {
 	root := moduleRoot(t)
 	fset := token.NewFileSet()
@@ -230,7 +231,7 @@ func TestNoIPCShutdown(t *testing.T) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".go") {
+		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
 			return nil
 		}
 		dir := filepath.ToSlash(filepath.Dir(rel))

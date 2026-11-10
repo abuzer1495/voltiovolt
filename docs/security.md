@@ -266,3 +266,20 @@ Test DEK providers and test auditors have names that start with "testOnly" and a
 
 CI runs the same check in the job build-test (ubuntu-latest), step "SEC-091 check".
 
+
+## 10. Windows development setup: service rights (VLT-IS-004 TASK 03-00-00-002)
+
+vlt-setup dev-install (cmd/vlt-setup, Windows only, run as Administrator) applies SEC-020 for the development install. The MVP installer uses the same code later (QI-5).
+
+| Item | Value | Source |
+|------|-------|--------|
+| Service account | Virtual account NT SERVICE\vltd, service SID type "unrestricted". No password. | VLT-IS-002 QA-03 |
+| User right | SeShutdownPrivilege for the SID of NT SERVICE\vltd (LsaAddAccountRights). dev-uninstall removes it (LsaRemoveAccountRights). | Microsoft Learn: LsaAddAccountRights |
+| Required privileges | SeShutdownPrivilege, SeChangeNotifyPrivilege (ChangeServiceConfig2, SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO). The SCM removes all other privileges from the process token. No other privilege is added. | Microsoft Learn: SERVICE_REQUIRED_PRIVILEGES_INFOW; InitiateSystemShutdownExW (SE_SHUTDOWN_NAME) |
+| IPC group | Local group "VLT Operators" (NetLocalGroupAdd). dev-uninstall deletes it only if it has no members. | SEC-021 |
+| Data directory | %ProgramData%\VoltioVolt: `D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1301bf;;;<NT SERVICE\vltd SID>)`. vlt-setup checks it with the vltd start check (store.CheckDataDirFor). | VLT-IS-003 TASK 03-00-00-003 |
+| Recovery | Restart after the first and the second failure, after 5 seconds. No action after the third failure. Reset of the failure count after one day. | TASK 03-00-00-002 step 2.6 |
+
+NOTE: SeChangeNotifyPrivilege is never removed from a service process token (Microsoft Learn, SERVICE_REQUIRED_PRIVILEGES_INFOW). It is in the list to make the list explicit.
+
+CI tests of vlt-setup only read the system (API presence, structure encoding, a read of an unknown group, the data directory ACL on a temporary directory). CI does not run dev-install or dev-uninstall.

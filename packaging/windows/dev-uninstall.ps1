@@ -1,46 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# dev-uninstall.ps1: removes the development install of vltd (VLT-IS-003
-# TASK 03-00-00-008). Run as Administrator. Stops and removes the service.
-# Asks before it deletes the data directory (the data directory has the
-# Store, the encrypted DEK and the logs).
+# dev-uninstall.ps1: removes the development install of vltd (VLT-IS-004
+# TASK 03-00-00-002 step 4).
+#
+# The script only checks for Administrator rights and then starts
+# vlt-setup.exe dev-uninstall. vlt-setup.exe must be in the same folder as
+# this script. vlt-setup asks before it deletes the data directory.
 
-#Requires -RunAsAdministrator
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
 
-$name = 'vltd'
-$installDir = Join-Path $env:ProgramFiles 'VoltioVolt'
-$dataDir = Join-Path $env:ProgramData 'VoltioVolt'
-
-$svc = Get-Service -Name $name -ErrorAction SilentlyContinue
-if ($svc) {
-    if ($svc.Status -ne 'Stopped') {
-        Stop-Service -Name $name
-        $svc.WaitForStatus('Stopped', (New-TimeSpan -Seconds 30))
-    }
-    & sc.exe delete $name | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "sc.exe delete failed: $LASTEXITCODE" }
-    Write-Host "Service $name removed."
-} else {
-    Write-Host "Service $name not found."
+$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw 'Run this script in a PowerShell window that you opened as Administrator.'
 }
 
-$exe = Join-Path $installDir 'vltd.exe'
-if (Test-Path -LiteralPath $exe) { Remove-Item -LiteralPath $exe -Force }
-if ((Test-Path -LiteralPath $installDir) -and -not (Get-ChildItem -LiteralPath $installDir)) {
-    Remove-Item -LiteralPath $installDir -Force
-}
-
-if (Test-Path -LiteralPath $dataDir) {
-    Write-Host "The data directory $dataDir contains the Store, the encrypted DEK and the logs."
-    Write-Host 'If you delete it, all stored Secrets and Settings are lost.'
-    $answer = Read-Host 'Type DELETE to delete the data directory, or press Enter to keep it'
-    if ($answer -ceq 'DELETE') {
-        Remove-Item -LiteralPath $dataDir -Recurse -Force
-        Write-Host 'Data directory deleted.'
-    } else {
-        Write-Host 'Data directory kept.'
-    }
-}
+$setup = Join-Path $PSScriptRoot 'vlt-setup.exe'
+& $setup dev-uninstall
+exit $LASTEXITCODE

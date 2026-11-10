@@ -34,9 +34,14 @@ func TestMigrationFromEmpty(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	s := openTest(t, dir, Options{})
+	ms, err := migrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest := len(ms)
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 1 {
-		t.Fatalf("schema version = %d, %v; want 1", v, err)
+	if err != nil || v != latest {
+		t.Fatalf("schema version = %d, %v; want %d", v, err, latest)
 	}
 	for _, tbl := range []string{"meta", "settings", "secrets", "measurements", "events", "audit", "auth_state", "schema_version"} {
 		var n int
@@ -55,7 +60,7 @@ func TestMigrationFromEmpty(t *testing.T) {
 	if !bytes.Equal(id, id2) {
 		t.Fatal("install ID changed")
 	}
-	if v, _ := s2.SchemaVersion(ctx); v != 1 {
+	if v, _ := s2.SchemaVersion(ctx); v != latest {
 		t.Fatalf("schema version after reopen = %d", v)
 	}
 	if err := s2.SetMeta(ctx, "install_id", []byte("x")); err == nil {

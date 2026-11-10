@@ -213,3 +213,11 @@ WARNING: An error in the Vault can expose all user Secrets.
 6. First start: if no PIN is set, vltd permits only "set PIN" and read-only status requests.
 7. Audit entries: each PIN set, each correct entry, each incorrect entry, each block and each entry refused during a block.
 
+
+## 8. Audit log (VLT-IS-003 TASK 03-00-00-006)
+
+1. The audit table is append-only. The package internal/audit has no function to change or delete a row. SQLite triggers (audit_no_update, audit_no_delete) refuse UPDATE and DELETE.
+2. Columns: seq, ts (UTC, RFC 3339), actor (gui, telegram or system), action, target, result, details (JSON object), prev_hash, hash.
+3. hash = lowercase hex of SHA-256(prev_hash || canonical JSON of the row without the hash). Canonical JSON: the fields in a fixed order, the keys of details sorted, no spaces. prev_hash of the first row is 64 "0" characters.
+4. Details never contain a Secret. Before a write, each text value in details goes through the redaction rules of section 5. A value of type redact.Secret is written as "[REDACTED]".
+5. At each start, vltd verifies the full chain. If the chain is broken (a changed row, a deleted row or a wrong prev_hash), vltd writes a log entry and an audit entry with the action "audit_chain_broken", and continues.

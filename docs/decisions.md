@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00 and VLT-IS-005 01-00-00. The source texts are in `docs/instructions/`.
+This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00 and VLT-IS-006 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -83,3 +83,22 @@ This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00
 | CH-31 | 2026-11-10 | SEC-095 (new): The VLT GUI loads no remote content. All front-end files are in the binary. The Content Security Policy is "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'". No eval. No inline scripts. | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
 | CH-32 | 2026-11-10 | SEC-096 (new): The front end never receives a Secret value. A Secret goes from the input field to the Go side of the VLT GUI, then to vltd with secret.set. The Go side clears the buffer after the call. | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
 | CH-33 | 2026-11-10 | SEC-097 (new): Required status checks on main use the "strict" mode: a branch must be up to date with main before the merge. | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
+| Q-IA-1 | 2026-11-10 | Changed. Settings with the key prefix "ui." are not security Settings. A client can write them without the elevated state. A set PIN is necessary. Write an audit entry for each change. | VLT-IS-006 Rev 00, 01-10-00 |
+| Q-IA-2 | 2026-11-10 | Accepted. The package internal/ipc/client/typed stays. | VLT-IS-006 Rev 00, 01-10-00 |
+| Q-IA-3 | 2026-11-10 | Accepted. The Simulation discharge model (0.1 % each virtual second on battery) and the pass-rule limits of the Fallback Policy stay. | VLT-IS-006 Rev 00, 01-10-00 |
+| Q-IA-4 | 2026-11-10 | Accepted with a condition: update cmd/vlt-gui to Wails v3.1.0 only if the work starts on 2026-11-15 or later. The work of VLT-IS-006 started on 2026-11-10: no update (VLT-RPT-006 section 7). | VLT-IS-006 Rev 00, 01-10-00 |
+| Q-IA-5 | 2026-11-10 | Yes. VLT-IS-007 adds the Channel screens with Secret input fields. | VLT-IS-006 Rev 00, 01-10-00 |
+| OD-24 | 2026-11-10 | VLT-REF-001 is an accepted source for SEC-060. It is the Owner interoperability analysis. It contains behavior only and synthetic examples. | VLT-IS-006 Rev 00, 01-20-00 |
+| OD-25 | 2026-11-10 | The folder ANALIZ on the Builder computer is private. Do not read it. Do not commit it. Use only VLT-REF-001. | VLT-IS-006 Rev 00, 01-20-00 |
+| OD-26 | 2026-11-10 | Primary path of the Reference UPS: serial Megatec (Q1, F, I) on a virtual COM port. HID VID 0665 PID 5161 is not the path of the Reference UPS. It stays supported for other units. | VLT-IS-006 Rev 00, 01-20-00 |
+| OD-27 | 2026-11-10 | The user selects the serial port in the VLT GUI. vltd does not send bytes to a serial port that the user did not select or confirm. | VLT-IS-006 Rev 00, 01-20-00 |
+| OD-28 | 2026-11-10 | UPS output off: the function exists in the MVP. The default is off. The Owner turns it on only after test T-12 passes. | VLT-IS-006 Rev 00, 01-20-00 |
+| OD-29 | 2026-11-10 | The roadmap in VLT-IS-006 01-40-00 (docs/roadmap.md) replaces all earlier plans. | VLT-IS-006 Rev 00, 01-20-00 |
+| CH-34 | 2026-11-10 | VLT-IS-001 01-00-04: new rows "Connection: USB cable. The OS shows a virtual COM port (FIELD, VLT-REF-001).", "Bridge chip VID and PID: UNVERIFIED.", "Working path: serial Megatec Q1, F, I (FIELD)." The row "USB identity 0665:5161" becomes "Not the path of the Reference UPS." | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| CH-35 | 2026-11-10 | VLT-IS-001 00-10-00: Dialect names megatec (Q1, F, I), voltronic-qs (QS family), voltronic (QGS family). | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| CH-36 | 2026-11-10 | VLT-IS-001 03-20-00: add "C" (cancel shutdown) to the CONTROL class. UNVERIFIED. VLT does not send it automatically. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| CH-37 | 2026-11-10 | VLT-IS-001 SEC-060: add "VLT-REF-001 is an accepted source." | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| CH-38 | 2026-11-10 | SEC-098 (new): Only the package internal/control can make CONTROL request bytes. Only these callers can use internal/control: the IPC handlers for an elevated request with a confirmation, and the Policy Engine for the UPS output off step. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| CH-39 | 2026-11-10 | SEC-099 (new): vltd does not send a byte to a serial port that the user did not select or confirm in the VLT GUI. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| CH-40 | 2026-11-10 | SEC-100 (new): VLT never sends "S.0". The permitted shutdown delays are 0.2 to 0.9 minutes (12 to 54 seconds, steps of 6 seconds) and 1 to 10 minutes. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| CH-41 | 2026-11-10 | SEC-101 (new): Do not commit a file or a folder of the Owner analysis. A CI check fails if the repository contains the path "ANALIZ/" or a Ghidra project file. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |

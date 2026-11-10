@@ -1,4 +1,4 @@
-# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009)
+# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009)
 
 English first. Turkish: section T below.
 
@@ -12,12 +12,16 @@ General preconditions for all tests:
 - The Reference UPS and its USB or serial cable.
 - The CI artifacts of the latest successful `ci` run on `main`, with the SHA-256 check of docs/user/probe.md section 1.
 - For T-08 to T-10: the VLT GUI artifact `vlt-gui-linux-amd64` or `vlt-gui-windows-amd64` with its SHA-256 file. Linux: the GTK 4 and WebKitGTK 6.0 libraries (for example on Debian and Ubuntu: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: the Microsoft Edge WebView2 Runtime (Windows 10 and 11 have it).
-- Do the tests in this order: T-01 to T-09, then T-10 (OD-23).
+- Do the tests in this order: T-01 to T-09, then T-10 (OD-23), then T-11 and T-12 (VLT-IS-006).
 
 ### T-01 vlt-probe Capture on the Reference UPS
 
 - Purpose: find the Dialect and the real responses of the Reference UPS (VLT-IS-002 TASK 03-00-00-008).
 - Preconditions: vlt-probe from the CI artifact. The UPS is connected with USB. Use Linux if possible, because Windows has no raw report descriptor. The UPS battery is fully charged.
+- Preconditions (VLT-IS-006):
+    - Stop UPSilon 2000 and the RupsMon service before the test. Start them again after the test.
+    - The Reference UPS uses serial Megatec (Q1, F, I) on a virtual COM port (OD-26). Use "--transport serial --port COM3" on Windows. On Linux, find the port with "vlt-probe scan" (/dev/ttyUSB* or /dev/ttyACM*).
+    - Write the hardware ID of the port (Windows Device Manager: Ports, COM3, Properties, Details, Hardware Ids).
 - Steps:
     1. Follow docs/user/probe.md: `vlt-probe scan`, then `vlt-probe probe --transport hid` (Linux: with sudo).
     2. Do the mains test of docs/user/probe.md section 4 (watch mode, 3 minutes, input power off for 60 seconds or less). Write down the two times.
@@ -157,6 +161,38 @@ WARNING: This test turns off the computer. Save all work. Close all applications
 - Expected result: all steps work as written. No text in the GUI is in the wrong language or has wrong Turkish characters.
 - Send: the result of each step (OK or the problem), a list of the Turkish text that must change (the screen, the current text and the correct text), the OS, and the version of the VLT GUI (General, About). Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
 
+### T-11 UPS Control (VLT-IS-006)
+
+- Purpose: check the UPS Control screen and the CONTROL commands test and beeper on the Reference UPS (VLT-IS-006 TASK 03-00-00-005, 007 and 008).
+- Preconditions: T-01 to T-10 are complete. vltd runs with `device.transport` serial and the port of T-01 (screen "Device"). The device state is "connected". Mains power is present. The UPS battery is fully charged.
+- Steps (all in the VLT GUI):
+    1. Unlock with the PIN. Open "UPS Control". The buttons are on.
+    2. Click "Beeper off". Write down the time. Disconnect the UPS input power for 10 seconds: the UPS makes no sound. Connect the input power again.
+    3. Click "Beeper on". Disconnect the UPS input power for 10 seconds: the UPS makes a sound. Connect the input power again.
+    4. Click "Test 10 seconds", then confirm with "Start the test". Write down the time. The Event TEST_STARTED shows. After the test, the screen shows the last test result (TEST_PASSED or TEST_FAILED) with its time.
+    5. Open "Events": TEST_STARTED and its clear.
+    6. Open "Security" and read the audit log: ups_beeper_set, ups_control, ups_control_verify, ups_test_start and ups_test_end.
+- Expected result: each command is "verified". The test result is TEST_PASSED. The audit log has the entries of step 6 with the bytes (Q, T).
+- Send: the times, the test result, the audit entries (no Secret is in them) and the Events.
+
+### T-12 UPS output off and restore (VLT-IS-006)
+
+WARNING: The UPS turns off its output during this test. All equipment on the UPS loses power. Connect only the test computer to the UPS. Save all work. Make sure that the battery is fully charged.
+
+- Purpose: check the UPS output off step of the Shutdown Policy (VLT-IS-006 TASK 03-00-00-006, OD-28).
+- Preconditions: T-09 and T-11 are complete. Only the test computer is connected to the UPS output. vltd runs with the port of T-01.
+- Steps (all in the VLT GUI):
+    1. Unlock with the PIN. Open "Shutdown Policy", click "Edit", set ups_off.enabled on, ups_off.delay_minutes 2, ups_off.restore_minutes 1 (keep trigger.on_battery_seconds 30 of T-09) and click "Save".
+    2. Run the Simulation. The result must be "passed" and each scenario shows the step "UPS output off command (dry run, not sent)". Activate the policy.
+    3. Disconnect the UPS input power. Write down the time.
+    4. Record the times of the OS shutdown, the UPS output off and the UPS output on.
+    5. Run 1: connect the input power again before the restore time (before the UPS output is on again).
+    6. Run 2: do steps 3 and 4 again, and do not connect the input power. Write down what the UPS does. Then connect the input power.
+    7. Start the computer. Open "Security" and read the audit log: policy_countdown_start, policy_ups_off, policy_shutdown_request, os_shutdown_request.
+    8. Set ups_off.enabled off again (the default, OD-28), run the Simulation and activate the policy.
+- Expected result: the OS shuts down before the UPS output turns off (2 minutes after the shutdown starts). Run 1: the UPS output turns on 1 minute after it turned off. Run 2: the behavior without input power is UNVERIFIED (VLT-REF-001 5.1 item 4); write it down.
+- Send: the times of steps 3 and 4 for both runs, the audit entries and the vltd log lines.
+
 ## T. Türkçe
 
 Her testte şunlar vardır: amaç, ön koşullar, adımlar, beklenen sonuç ve Instruction Author'a gönderilecekler. Testleri sırayla yapın. Her testin sonuçlarını test biter bitmez gönderin. Secret, PIN, DEK, QID değeri veya seri numarası göndermeyin. Göndermeden önce her dosyayı kontrol edin.
@@ -167,12 +203,16 @@ Tüm testler için genel ön koşullar:
 - Referans UPS ve USB veya seri kablosu.
 - `main` dalındaki son başarılı `ci` çalışmasının CI artifact dosyaları; SHA-256 kontrolü docs/user/probe.md bölüm 1'e göre yapılmış olmalıdır.
 - T-08 ile T-10 için: SHA-256 dosyasıyla birlikte `vlt-gui-linux-amd64` veya `vlt-gui-windows-amd64` VLT GUI artifact dosyası. Linux: GTK 4 ve WebKitGTK 6.0 kitaplıkları (örneğin Debian ve Ubuntu'da: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: Microsoft Edge WebView2 Runtime (Windows 10 ve 11'de vardır).
-- Testleri şu sırayla yapın: T-01 ile T-09, sonra T-10 (OD-23).
+- Testleri şu sırayla yapın: T-01 ile T-09, sonra T-10 (OD-23), sonra T-11 ve T-12 (VLT-IS-006).
 
 ### T-01 Referans UPS ile vlt-probe Capture
 
 - Amaç: Referans UPS'in Dialect'ini ve gerçek yanıtlarını bulmak (VLT-IS-002 TASK 03-00-00-008).
 - Ön koşullar: CI artifact dosyasından vlt-probe. UPS, USB ile bağlıdır. Mümkünse Linux kullanın, çünkü Windows'ta ham rapor tanımlayıcısı (raw report descriptor) yoktur. UPS bataryası tam doludur.
+- Ön koşullar (VLT-IS-006):
+    - Testten önce UPSilon 2000'i ve RupsMon hizmetini durdurun. Testten sonra yeniden başlatın.
+    - Referans UPS, sanal bir COM portunda seri Megatec (Q1, F, I) kullanır (OD-26). Windows'ta "--transport serial --port COM3" kullanın. Linux'ta portu "vlt-probe scan" ile bulun (/dev/ttyUSB* veya /dev/ttyACM*).
+    - Portun donanım kimliğini yazın (Windows Aygıt Yöneticisi: Bağlantı Noktaları, COM3, Özellikler, Ayrıntılar, Donanım Kimlikleri).
 - Adımlar:
     1. docs/user/probe.md belgesini izleyin: `vlt-probe scan`, sonra `vlt-probe probe --transport hid` (Linux: sudo ile).
     2. docs/user/probe.md bölüm 4'teki şebeke testini yapın (watch modu, 3 dakika, giriş gücü 60 saniye veya daha kısa süre kapalı). İki zamanı not edin.
@@ -313,3 +353,35 @@ UYARI: Bu test bilgisayarı kapatır. Tüm çalışmalarınızı kaydedin. Tüm 
     15. Tema: işletim sisteminin temasını açık ve koyu arasında değiştirin. GUI temayı izler.
 - Beklenen sonuç: tüm adımlar yazıldığı gibi çalışır. GUI'deki hiçbir metin yanlış dilde değildir veya yanlış Türkçe karakter içermez.
 - Gönderin: her adımın sonucu (Tamam veya sorun), değişmesi gereken Türkçe metinlerin listesi (ekran, geçerli metin ve doğru metin), işletim sistemi ve VLT GUI sürümü (Genel, Hakkında). Ekran görüntüsü gönderilebilir; içlerinde Secret, PIN ve seri numarası olmadığını kontrol edin.
+
+### T-11 UPS Kontrolü (VLT-IS-006)
+
+- Amaç: UPS Kontrolü ekranını ve Referans UPS üzerinde test ve sesli uyarı CONTROL komutlarını kontrol etmek (VLT-IS-006 TASK 03-00-00-005, 007 ve 008).
+- Ön koşullar: T-01 ile T-10 tamamlanmıştır. vltd, `device.transport` serial ve T-01'deki port ile çalışır ("Cihaz" ekranı). Cihaz durumu "bağlı"dır. Şebeke gücü vardır. UPS bataryası tam doludur.
+- Adımlar (tümü VLT GUI'de):
+    1. PIN ile kilidi açın. "UPS Kontrolü" ekranını açın. Düğmeler açıktır.
+    2. "Sesli uyarı kapalı" düğmesine tıklayın. Zamanı not edin. UPS giriş gücünü 10 saniye kesin: UPS ses çıkarmaz. Giriş gücünü yeniden bağlayın.
+    3. "Sesli uyarı açık" düğmesine tıklayın. UPS giriş gücünü 10 saniye kesin: UPS ses çıkarır. Giriş gücünü yeniden bağlayın.
+    4. "10 saniye test" düğmesine tıklayın, sonra "Testi başlat" ile onaylayın. Zamanı not edin. TEST_STARTED Olayı görünür. Testten sonra ekran son test sonucunu (TEST_PASSED veya TEST_FAILED) zamanıyla gösterir.
+    5. "Olaylar" ekranını açın: TEST_STARTED ve bitişi.
+    6. "Güvenlik" ekranını açın ve denetim kaydını okuyun: ups_beeper_set, ups_control, ups_control_verify, ups_test_start ve ups_test_end.
+- Beklenen sonuç: her komut "doğrulandı" durumundadır. Test sonucu TEST_PASSED'dır. Denetim kaydında 6. adımdaki girdiler baytlarıyla (Q, T) vardır.
+- Gönderin: zamanlar, test sonucu, denetim girdileri (içlerinde Secret yoktur) ve Olaylar.
+
+### T-12 UPS çıkışını kapatma ve yeniden açma (VLT-IS-006)
+
+UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihazların gücü kesilir. UPS'e yalnızca test bilgisayarını bağlayın. Tüm çalışmalarınızı kaydedin. Bataryanın tam dolu olduğundan emin olun.
+
+- Amaç: Kapatma Politikasının UPS çıkışını kapatma adımını kontrol etmek (VLT-IS-006 TASK 03-00-00-006, OD-28).
+- Ön koşullar: T-09 ve T-11 tamamlanmıştır. UPS çıkışına yalnızca test bilgisayarı bağlıdır. vltd, T-01'deki port ile çalışır.
+- Adımlar (tümü VLT GUI'de):
+    1. PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, ups_off.enabled açık, ups_off.delay_minutes 2, ups_off.restore_minutes 1 yapın (T-09'daki trigger.on_battery_seconds 30 kalsın) ve "Kaydet" düğmesine tıklayın.
+    2. Simülasyonu çalıştırın. Sonuç "başarılı" olmalıdır ve her senaryo "UPS çıkışını kapatma komutu (deneme, gönderilmedi)" adımını gösterir. Politikayı etkinleştirin.
+    3. UPS giriş gücünü kesin. Zamanı not edin.
+    4. İşletim sisteminin kapanma, UPS çıkışının kapanma ve UPS çıkışının açılma zamanlarını kaydedin.
+    5. 1. çalıştırma: giriş gücünü yeniden açma süresinden önce (UPS çıkışı yeniden açılmadan önce) bağlayın.
+    6. 2. çalıştırma: 3. ve 4. adımları tekrarlayın ve giriş gücünü bağlamayın. UPS'in ne yaptığını not edin. Sonra giriş gücünü bağlayın.
+    7. Bilgisayarı başlatın. "Güvenlik" ekranını açın ve denetim kaydını okuyun: policy_countdown_start, policy_ups_off, policy_shutdown_request, os_shutdown_request.
+    8. ups_off.enabled ayarını yeniden kapatın (varsayılan, OD-28), Simülasyonu çalıştırın ve politikayı etkinleştirin.
+- Beklenen sonuç: işletim sistemi, UPS çıkışı kapanmadan önce (kapatma başladıktan 2 dakika sonra) kapanır. 1. çalıştırma: UPS çıkışı kapandıktan 1 dakika sonra açılır. 2. çalıştırma: giriş gücü olmadan davranış UNVERIFIED'dır (VLT-REF-001 5.1 madde 4); not edin.
+- Gönderin: her iki çalıştırma için 3. ve 4. adımların zamanları, denetim girdileri ve vltd günlük satırları.

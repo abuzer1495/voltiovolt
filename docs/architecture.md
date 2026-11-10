@@ -25,6 +25,7 @@ This file gives the component model of VLT-IS-001 03-10-00 (text only). Status: 
 | Vault | vltd | Keeps Secrets. | `internal/vault` |
 | IPC Server | vltd | Serves the VLT GUI. Checks access. | `internal/ipc`, `internal/ipc/wire`, `internal/ipc/client` |
 | Audit Log | vltd | Records security-relevant actions. | `internal/audit` |
+| CONTROL | vltd | Makes and sends CONTROL commands (tests, beeper, shutdown and restore) with a Grant, and verifies them (section 14, SEC-098). | `internal/control` |
 | VLT GUI | Desktop | Screens: Dashboard, History, Events, Analysis, Channels, Policies, UPS Settings, Security. | not yet |
 
 Protocol layer (made by VLT-IS-002):

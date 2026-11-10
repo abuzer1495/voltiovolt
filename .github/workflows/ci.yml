@@ -420,7 +420,12 @@ jobs:
           GOBIN="$RUNNER_TEMP/bin" go install "github.com/google/go-licenses/v2@${GO_LICENSES_VERSION}"
           GOBIN="$RUNNER_TEMP/bin" go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
           "$RUNNER_TEMP/bin/go-licenses" report . --ignore github.com/abuzer1495/voltiovolt
-          "$RUNNER_TEMP/bin/go-licenses" check . --allowed_licenses="${ALLOWED_LICENSES}" --ignore github.com/abuzer1495/voltiovolt
+          # git.sr.ht/~jackmordaunt/go-toast/v2 (Wails toast notifications,
+          # VLT-IS-007 TASK 03-00-00-004) is "Unlicense OR MIT". VLT uses it
+          # under MIT (allowed). go-licenses reports both licenses and refuses
+          # Unlicense, so this module is checked by hand (docs/dependencies.md)
+          # and ignored here.
+          "$RUNNER_TEMP/bin/go-licenses" check . --allowed_licenses="${ALLOWED_LICENSES}" --ignore github.com/abuzer1495/voltiovolt --ignore git.sr.ht/~jackmordaunt/go-toast/v2
           "$RUNNER_TEMP/bin/govulncheck" ./...
       - name: Upload vlt-gui windows-amd64 (not a release)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

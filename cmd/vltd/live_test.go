@@ -259,15 +259,29 @@ func TestUPSOffIntegration(t *testing.T) {
 			t.Errorf("command %q is not a READ command or the expected CONTROL command", cmd)
 		}
 	}
-	res, err := c.Audit(ctx, 0, 500)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The Policy Engine writes the audit entry of the shutdown request
+	// after the executor call returns, so wait for it.
+	wants := []string{"ups_control sent", "ups_control_verify verified", "policy_ups_off success", "policy_shutdown_request success"}
 	found := map[string]bool{}
-	for _, r := range res.Rows {
-		found[r.Action+" "+r.Result] = true
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		res, err := c.Audit(ctx, 0, 500)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range res.Rows {
+			found[r.Action+" "+r.Result] = true
+		}
+		all := true
+		for _, w := range wants {
+			all = all && found[w]
+		}
+		if all || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
-	for _, want := range []string{"ups_control sent", "ups_control_verify verified", "policy_ups_off success", "policy_shutdown_request success"} {
+	for _, want := range wants {
 		if !found[want] {
 			t.Errorf("no audit entry %q", want)
 		}

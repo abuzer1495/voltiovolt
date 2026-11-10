@@ -97,6 +97,35 @@ export interface PolicyConfig {
   countdown_seconds: number;
   cancel_when_mains_returns: boolean;
   force_close_applications: boolean;
+  'ups_off.enabled': boolean;
+  'ups_off.delay_minutes': number;
+  'ups_off.restore_minutes': number;
+}
+
+/** UPSTestResult is the result of the last battery test (VLT-IS-006). */
+export interface UPSTestResult {
+  result: 'TEST_PASSED' | 'TEST_FAILED';
+  start: string;
+  end: string;
+  ups_failed: boolean;
+  battery_low: boolean;
+  cancelled: boolean;
+}
+
+/** UPSCaps is the ups.control.capabilities result. */
+export interface UPSCaps {
+  connected: boolean;
+  functions: string[];
+  last_test?: UPSTestResult;
+}
+
+/** UPSControlResult is the result of one UPS Control request. */
+export interface UPSControlResult {
+  function: string;
+  bytes: string;
+  sends: number;
+  verified: boolean;
+  no_send?: boolean;
 }
 
 export interface SimStep {
@@ -236,6 +265,13 @@ export const api = {
   devicePorts: () => call<{ ports: SerialPort[] }>('DevicePorts'),
   /** deviceScan sends only "Q1" CR to each marked port (elevated). */
   deviceScan: (ports: string[], confirmation: string) => call<{ results: ScanResult[] }>('DeviceScan', ports, confirmation),
+  // UPS Control (VLT-IS-006 TASK 03-00-00-008). There is no function for
+  // the shutdown commands (SEC-098).
+  upsCaps: () => call<UPSCaps>('UPSControlCapabilities'),
+  upsTestStart: (type: '10s' | 'minutes' | 'until_low', minutes: number, confirmation: string) =>
+    call<UPSControlResult>('UPSTestStart', type, minutes, confirmation),
+  upsTestCancel: () => call<UPSControlResult>('UPSTestCancel'),
+  upsBeeperSet: (on: boolean) => call<UPSControlResult>('UPSBeeperSet', on),
   setPolicy: (v: Record<string, unknown>) => call<PolicyInfo>('SetPolicy', v),
   simulate: () => call<SimResult>('Simulate'),
   activatePolicy: () => call<void>('ActivatePolicy'),

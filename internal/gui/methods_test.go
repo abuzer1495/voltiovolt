@@ -23,36 +23,40 @@ type methodCase struct {
 // TestEachMethodWithFakeServer fails if a method is missing here.
 func methodCases(secret []byte) map[string]methodCase {
 	return map[string]methodCase{
-		"Connection":        {nil, ""},
-		"About":             {nil, ""},
-		"Last":              {nil, ""},
-		"Rules":             {nil, ""},
-		"SetTrayTexts":      {[]any{DefaultTrayTexts}, ""},
-		"OpenSource":        {nil, ""},
-		"SystemStatus":      {nil, wire.MethodStatus},
-		"AuthStatus":        {nil, wire.MethodAuthStatus},
-		"SetPIN":            {[]any{"1234"}, wire.MethodSetPIN},
-		"Login":             {[]any{"1234"}, wire.MethodLogin},
-		"Logout":            {nil, wire.MethodLogout},
-		"Events":            {[]any{int64(0), 50}, wire.MethodEventsList},
-		"Policy":            {nil, wire.MethodPolicyGet},
-		"ShutdownStatus":    {nil, wire.MethodShutdownStatus},
-		"CancelShutdown":    {nil, wire.MethodShutdownCancel},
-		"DeviceStatus":      {nil, wire.MethodDeviceStatus},
-		"SetDeviceSettings": {[]any{map[string]any{"device.buzzer": true}}, wire.MethodDeviceSettingsSet},
-		"Measurements":      {[]any{"battery.capacity", int64(0), int64(3_600_000), "1m"}, wire.MethodMeasurements},
-		"SetPolicy":         {[]any{map[string]any{"policy.low_battery.percent": 20}}, wire.MethodPolicySet},
-		"Simulate":          {nil, wire.MethodPolicySimulate},
-		"ActivatePolicy":    {nil, wire.MethodPolicyActivate},
-		"DeactivatePolicy":  {nil, wire.MethodPolicyDeactivate},
-		"SetSecret":         {[]any{"channel.test.token", secret}, wire.MethodSecretSet},
-		"SecretStatus":      {[]any{"channel.test.token"}, wire.MethodSecretStatus},
-		"ResetVault":        {[]any{ResetConfirmation}, wire.MethodVaultReset},
-		"Audit":             {[]any{int64(0), 50}, wire.MethodAuditList},
-		"Settings":          {nil, wire.MethodSettingsList},
-		"SetLanguage":       {[]any{"tr"}, wire.MethodSettingsSet},
-		"DevicePorts":       {nil, wire.MethodDevicePorts},
-		"DeviceScan":        {[]any{[]string{"COM3"}, ScanConfirmation}, wire.MethodDeviceScan},
+		"Connection":             {nil, ""},
+		"About":                  {nil, ""},
+		"Last":                   {nil, ""},
+		"Rules":                  {nil, ""},
+		"SetTrayTexts":           {[]any{DefaultTrayTexts}, ""},
+		"OpenSource":             {nil, ""},
+		"SystemStatus":           {nil, wire.MethodStatus},
+		"AuthStatus":             {nil, wire.MethodAuthStatus},
+		"SetPIN":                 {[]any{"1234"}, wire.MethodSetPIN},
+		"Login":                  {[]any{"1234"}, wire.MethodLogin},
+		"Logout":                 {nil, wire.MethodLogout},
+		"Events":                 {[]any{int64(0), 50}, wire.MethodEventsList},
+		"Policy":                 {nil, wire.MethodPolicyGet},
+		"ShutdownStatus":         {nil, wire.MethodShutdownStatus},
+		"CancelShutdown":         {nil, wire.MethodShutdownCancel},
+		"DeviceStatus":           {nil, wire.MethodDeviceStatus},
+		"SetDeviceSettings":      {[]any{map[string]any{"device.buzzer": true}}, wire.MethodDeviceSettingsSet},
+		"Measurements":           {[]any{"battery.capacity", int64(0), int64(3_600_000), "1m"}, wire.MethodMeasurements},
+		"SetPolicy":              {[]any{map[string]any{"policy.low_battery.percent": 20}}, wire.MethodPolicySet},
+		"Simulate":               {nil, wire.MethodPolicySimulate},
+		"ActivatePolicy":         {nil, wire.MethodPolicyActivate},
+		"DeactivatePolicy":       {nil, wire.MethodPolicyDeactivate},
+		"SetSecret":              {[]any{"channel.test.token", secret}, wire.MethodSecretSet},
+		"SecretStatus":           {[]any{"channel.test.token"}, wire.MethodSecretStatus},
+		"ResetVault":             {[]any{ResetConfirmation}, wire.MethodVaultReset},
+		"Audit":                  {[]any{int64(0), 50}, wire.MethodAuditList},
+		"Settings":               {nil, wire.MethodSettingsList},
+		"SetLanguage":            {[]any{"tr"}, wire.MethodSettingsSet},
+		"DevicePorts":            {nil, wire.MethodDevicePorts},
+		"DeviceScan":             {[]any{[]string{"COM3"}, ScanConfirmation}, wire.MethodDeviceScan},
+		"UPSControlCapabilities": {nil, wire.MethodUPSControlCaps},
+		"UPSTestStart":           {[]any{"10s", 0, TestConfirmation}, wire.MethodUPSTestStart},
+		"UPSTestCancel":          {nil, wire.MethodUPSTestCancel},
+		"UPSBeeperSet":           {[]any{false}, wire.MethodUPSBeeperSet},
 	}
 }
 
@@ -64,7 +68,8 @@ func allFake(t *testing.T) *fakeServer {
 		wire.MethodDeviceStatus, wire.MethodDeviceSettingsSet, wire.MethodMeasurements, wire.MethodPolicySet,
 		wire.MethodPolicySimulate, wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodSecretSet,
 		wire.MethodVaultReset, wire.MethodAuditList, wire.MethodSettingsList, wire.MethodSettingsSet,
-		wire.MethodDevicePorts, wire.MethodDeviceScan} {
+		wire.MethodDevicePorts, wire.MethodDeviceScan,
+		wire.MethodUPSControlCaps, wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet} {
 		f.handle(m, func(json.RawMessage) (any, *wire.Error) { return map[string]any{"ok": true}, nil })
 	}
 	f.handle(wire.MethodSecretStatus, func(json.RawMessage) (any, *wire.Error) {
@@ -232,5 +237,31 @@ func TestSEC096Types(t *testing.T) {
 	}
 	if _, ok := reflect.TypeOf(wire.SecretStatusResult{}).FieldByName("Value"); ok {
 		t.Fatal("secret.status result has a Value field")
+	}
+}
+
+// TestUPSTestStartChecks: the GUI refuses a wrong confirmation text or a
+// wrong minutes value before it sends a request (VLT-IS-006).
+func TestUPSTestStartChecks(t *testing.T) {
+	f := allFake(t)
+	_, a, _ := start(t, f)
+	before := len(f.methods())
+	for _, c := range []struct {
+		typ  string
+		min  int
+		conf string
+	}{
+		{"10s", 0, "start test"}, {"until_low", 0, TestConfirmation}, {"minutes", 0, TestConfirmation},
+		{"minutes", 100, TestConfirmation}, {"shutdown", 0, TestConfirmation}, {"10s", 0, TestUntilLowConfirmation},
+	} {
+		if _, err := a.UPSTestStart(c.typ, c.min, c.conf); err == nil {
+			t.Errorf("%+v accepted", c)
+		}
+	}
+	if got := f.methods()[before:]; len(got) != 0 {
+		t.Fatalf("sent %v", got)
+	}
+	if _, err := a.UPSTestStart("until_low", 0, TestUntilLowConfirmation); err != nil {
+		t.Fatal(err)
 	}
 }

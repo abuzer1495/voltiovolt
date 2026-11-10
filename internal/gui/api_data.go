@@ -91,6 +91,48 @@ func (a *API) DeviceScan(ports []string, confirmation string) (json.RawMessage, 
 	return a.raw(wire.MethodDeviceScan, wire.DeviceScanParams{Ports: ports, Confirmation: confirmation})
 }
 
+// Confirmation texts of ups.test.start (VLT-IS-006 TASK 03-00-00-008).
+const (
+	TestConfirmation         = wire.TestConfirmation
+	TestUntilLowConfirmation = wire.TestUntilLowConfirmation
+)
+
+// UPSControlCapabilities calls ups.control.capabilities: the CONTROL
+// functions of the connected UPS and the last test result.
+func (a *API) UPSControlCapabilities() (json.RawMessage, error) {
+	return a.raw(wire.MethodUPSControlCaps, nil)
+}
+
+// UPSTestStart calls ups.test.start (elevated). typ is 10s, minutes or
+// until_low. The confirmation is "START TEST", or "TEST UNTIL LOW" for
+// until_low. There is no GUI method for the shutdown commands (SEC-098).
+func (a *API) UPSTestStart(typ string, minutes int, confirmation string) (json.RawMessage, error) {
+	want := TestConfirmation
+	switch typ {
+	case wire.TestType10s:
+	case wire.TestTypeMinutes:
+		if minutes < 1 || minutes > 99 {
+			return nil, &Error{Code: wire.CodeInvalid}
+		}
+	case wire.TestTypeUntilLow:
+		want = TestUntilLowConfirmation
+	default:
+		return nil, &Error{Code: wire.CodeInvalid}
+	}
+	if confirmation != want {
+		return nil, &Error{Code: wire.CodeInvalid}
+	}
+	return a.raw(wire.MethodUPSTestStart, wire.UPSTestStartParams{Type: typ, Minutes: minutes, Confirmation: confirmation})
+}
+
+// UPSTestCancel calls ups.test.cancel (elevated).
+func (a *API) UPSTestCancel() (json.RawMessage, error) { return a.raw(wire.MethodUPSTestCancel, nil) }
+
+// UPSBeeperSet calls ups.beeper.set (elevated): the wanted beeper state.
+func (a *API) UPSBeeperSet(on bool) (json.RawMessage, error) {
+	return a.raw(wire.MethodUPSBeeperSet, wire.UPSBeeperSetParams{On: on})
+}
+
 // Step lengths of measurements.query.
 var stepLen = map[string]time.Duration{"raw": 2 * time.Second, "1m": time.Minute, "1h": time.Hour}
 

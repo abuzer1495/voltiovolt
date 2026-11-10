@@ -15,3 +15,8 @@ This register lists each source that the VLT project uses for protocol facts, te
 | R-09 | Developer Certificate of Origin | https://developercertificate.org/ | DCO sign-off rule | Reference | 2026-11-10 |
 | R-10 | go.bug.st/serial v1.8.0 source (module proxy) | https://pkg.go.dev/go.bug.st/serial | Read timeout behavior (Read returns 0 bytes on timeout) | API facts | 2026-11-10 |
 | R-11 | GitHub documentation: download workflow artifacts | https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts | docs/user/probe.md | Facts only | 2026-11-10 |
+| R-12 | VLT-REF-001 Rev 00, Owner interoperability reference (OD-24). Copy in docs/reference/VLT-REF-001.md, without a change, SHA-256 4ee716bc84db6752a8385d89c33bae9a83f3e313bec5ff4b8adad39442eeef8e | docs/reference/VLT-REF-001.md | Megatec Q1, F, I frame layout, status bits, CONTROL command formats, synthetic test vectors, Reference UPS connection (virtual COM port) | Behavior facts and synthetic examples only. Accepted source for SEC-060 (OD-24). | 2026-11-10 |
+
+## Owner analysis files (OD-25)
+
+The Owner analysis files are private. VLT does not read, use or commit them. The only accepted result of that analysis is VLT-REF-001. The CI job "gitleaks" fails if a tracked path contains "ANALIZ/" or a tracked file has the extension .gpr, .rep or .gzf (SEC-101).

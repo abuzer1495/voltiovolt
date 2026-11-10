@@ -1,4 +1,4 @@
-# vltd development service: install and test (VLT-IS-003 TASK 03-00-00-008, VLT-IS-004 TASK 03-00-00-001)
+# vltd development service: install and test (VLT-IS-003 TASK 03-00-00-008, VLT-IS-004 TASK 03-00-00-001 and 03-00-00-002)
 
 English first. Turkish: section T below.
 
@@ -28,10 +28,22 @@ vlt-dev-init.sh makes the users and groups, the encrypted DEK /etc/credstore.enc
 
 ### E.3 Install on Windows
 
-Open PowerShell as Administrator in the folder with vltd.exe and the script:
+Build vlt-setup too (`CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o vlt-setup.exe ./cmd/vlt-setup`), or download the CI artifact `vltd-vlt-setup-windows-amd64` and check the SHA-256 files. Put vltd.exe, vlt-setup.exe, dev-install.ps1 and dev-uninstall.ps1 in one folder. Open PowerShell as Administrator in that folder:
 
     Set-ExecutionPolicy -Scope Process Bypass
-    .\packaging\windows\dev-install.ps1 -Binary .\vltd.exe
+    .\dev-install.ps1
+
+The script checks for Administrator rights and runs `vlt-setup.exe dev-install`. vlt-setup prints each step (VLT-IS-004 TASK 03-00-00-002):
+
+1. Makes the local group "VLT Operators" (continues if it exists).
+2. Copies vltd.exe to %ProgramFiles%\VoltioVolt and makes the service vltd with the virtual account NT SERVICE\vltd (start type manual).
+3. Gives the user right SeShutdownPrivilege to NT SERVICE\vltd.
+4. Sets the required privileges of the service: SeShutdownPrivilege and SeChangeNotifyPrivilege.
+5. Makes %ProgramData%\VoltioVolt with the ACL of VLT-IS-003 TASK 03-00-00-003 and checks it.
+6. Sets the recovery: restart after the first and the second failure, after 5 seconds.
+7. Starts the service.
+
+To give a user access to the IPC pipe, add the user to the group: `Add-LocalGroupMember -Group "VLT Operators" -Member <user>` (then log in again).
 
 ### E.4 Check the service status
 
@@ -60,7 +72,7 @@ Linux note: if systemd cannot decrypt the credential, vltd.service stops with 24
 2. Install vltd on computer B (E.2 or E.3). Stop it.
 3. Copy the data directory from A to B:
     - Linux: /var/lib/vltd (database vltd.db, vltd.db-wal, vltd.db-shm). Keep owner vltd and mode 0700/0600.
-    - Windows: %ProgramData%\VoltioVolt (vltd.db and vault.dek). Then run the icacls command of dev-install.ps1 again.
+    - Windows: %ProgramData%\VoltioVolt (vltd.db and vault.dek). The copied files get the ACL of the folder. If vltd reports a permission error, run dev-uninstall.ps1 (keep the data directory) and dev-install.ps1 again: vlt-setup sets the ACL again.
 4. Start vltd on B.
 5. Look in the log of B. The Vault state MUST be "locked" (`vault locked reason="host binding failed"`). If the state is "available", stop and tell the Instruction Author: this is a security defect.
 
@@ -75,7 +87,7 @@ Linux note: if systemd cannot decrypt the credential, vltd.service stops with 24
       rm -r /var/lib/vltd /etc/credstore.encrypted/vlt-dek /etc/vltd
       userdel vltd; groupdel vltd; groupdel vlt
 
-- Windows (as Administrator): `.\packaging\windows\dev-uninstall.ps1`. The script asks before it deletes the data directory.
+- Windows (as Administrator): `.\dev-uninstall.ps1`. vlt-setup stops and removes the service, removes the user right SeShutdownPrivilege, removes vltd.exe, deletes the group "VLT Operators" only if it has no members, and asks before it deletes the data directory.
 
 ## T. Türkçe
 
@@ -101,10 +113,22 @@ vlt-dev-init.sh kullanıcıları ve grupları, şifreli DEK dosyasını (/etc/cr
 
 ### T.3 Windows kurulumu
 
-vltd.exe ve betiğin olduğu klasörde PowerShell'i Yönetici olarak açın:
+vlt-setup aracını da derleyin (`CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o vlt-setup.exe ./cmd/vlt-setup`) veya CI yapıtını (`vltd-vlt-setup-windows-amd64`) indirip SHA-256 dosyalarını kontrol edin. vltd.exe, vlt-setup.exe, dev-install.ps1 ve dev-uninstall.ps1 dosyalarını bir klasöre koyun. Bu klasörde PowerShell'i Yönetici olarak açın:
 
     Set-ExecutionPolicy -Scope Process Bypass
-    .\packaging\windows\dev-install.ps1 -Binary .\vltd.exe
+    .\dev-install.ps1
+
+Betik Yönetici haklarını kontrol eder ve `vlt-setup.exe dev-install` komutunu çalıştırır. vlt-setup her adımı yazar (VLT-IS-004 TASK 03-00-00-002):
+
+1. "VLT Operators" yerel grubunu oluşturur (varsa devam eder).
+2. vltd.exe dosyasını %ProgramFiles%\VoltioVolt klasörüne kopyalar ve NT SERVICE\vltd sanal hesabıyla vltd hizmetini oluşturur (başlangıç türü el ile).
+3. NT SERVICE\vltd hesabına SeShutdownPrivilege kullanıcı hakkını verir.
+4. Hizmetin gerekli ayrıcalıklarını ayarlar: SeShutdownPrivilege ve SeChangeNotifyPrivilege.
+5. %ProgramData%\VoltioVolt klasörünü VLT-IS-003 TASK 03-00-00-003 ACL'si ile oluşturur ve kontrol eder.
+6. Kurtarmayı ayarlar: birinci ve ikinci hatadan sonra 5 saniye sonra yeniden başlat.
+7. Hizmeti başlatır.
+
+Bir kullanıcıya IPC kanalı erişimi vermek için kullanıcıyı gruba ekleyin: `Add-LocalGroupMember -Group "VLT Operators" -Member <kullanıcı>` (sonra yeniden oturum açın).
 
 ### T.4 Hizmet durumunu kontrol edin
 
@@ -133,7 +157,7 @@ Linux notu: systemd kimlik bilgisini (credential) çözemezse vltd.service 243/C
 2. B bilgisayarına vltd kurun (T.2 veya T.3). Durdurun.
 3. Veri klasörünü A'dan B'ye kopyalayın:
     - Linux: /var/lib/vltd (vltd.db, vltd.db-wal, vltd.db-shm). Sahip vltd, mod 0700/0600 kalmalıdır.
-    - Windows: %ProgramData%\VoltioVolt (vltd.db ve vault.dek). Sonra dev-install.ps1 içindeki icacls komutunu yeniden çalıştırın.
+    - Windows: %ProgramData%\VoltioVolt (vltd.db ve vault.dek). Kopyalanan dosyalar klasörün ACL'sini alır. vltd bir izin hatası bildirirse dev-uninstall.ps1 (veri klasörünü koruyun) ve sonra dev-install.ps1 çalıştırın: vlt-setup ACL'yi yeniden ayarlar.
 4. B'de vltd'yi başlatın.
 5. B'nin günlüğüne bakın. Vault durumu "locked" OLMALIDIR (`vault locked reason="host binding failed"`). Durum "available" ise durun ve Talimat Yazarına bildirin: bu bir güvenlik hatasıdır.
 
@@ -148,4 +172,4 @@ Linux notu: systemd kimlik bilgisini (credential) çözemezse vltd.service 243/C
       rm -r /var/lib/vltd /etc/credstore.encrypted/vlt-dek /etc/vltd
       userdel vltd; groupdel vltd; groupdel vlt
 
-- Windows (Yönetici olarak): `.\packaging\windows\dev-uninstall.ps1`. Betik veri klasörünü silmeden önce sorar.
+- Windows (Yönetici olarak): `.\dev-uninstall.ps1`. vlt-setup hizmeti durdurur ve kaldırır, SeShutdownPrivilege kullanıcı hakkını kaldırır, vltd.exe dosyasını siler, "VLT Operators" grubunu yalnızca üyesi yoksa siler ve veri klasörünü silmeden önce sorar.

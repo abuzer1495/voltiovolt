@@ -197,6 +197,10 @@ export const api = {
   setTrayTexts: (tx: TrayTexts) => call<void>('SetTrayTexts', tx),
   deviceStatus: () => call<DeviceStatus>('DeviceStatus'),
   setDeviceSettings: (v: Record<string, unknown>) => call<void>('SetDeviceSettings', v),
+  setPolicy: (v: Record<string, unknown>) => call<PolicyInfo>('SetPolicy', v),
+  simulate: () => call<SimResult>('Simulate'),
+  activatePolicy: () => call<void>('ActivatePolicy'),
+  deactivatePolicy: () => call<void>('DeactivatePolicy'),
   measurements: (name: string, fromMs: number, toMs: number, step: string) => call<Series>('Measurements', name, fromMs, toMs, step),
 };
 

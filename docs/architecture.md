@@ -288,6 +288,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
     1. "status", every 2 seconds: ts, device (device.status), ups (on_battery, low_battery, comm_lost, active Events), measurements (the last value of each name), countdown, policy_active.
     2. "event", one for each Event (ts, type, severity, data).
     3. "countdown", every second during a countdown (shutdown.status data).
+    4. "notification", one for each desktop Notification of the Notification Router (VLT-IS-007, section 15.1).
 3. The server keeps 64 push frames for each connection. If a client is slow and the queue is full, new push frames for that client are dropped; requests and other clients are not blocked. Responses and push frames are written one at a time on the connection.
 4. The client (internal/ipc/client) reads all frames in one goroutine. Responses go to the waiting call; push frames go to `Pushes()` (256 frames; more are dropped and counted).
 
@@ -413,3 +414,9 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 - Queue: one queue for each Channel. A failed send is tried again after 10 s, 30 s, 1 min, 5 min, then every 5 min. After 1 hour the message is dropped (log entry). A message sent after a failed send has the text "Late message" and the original time.
 - Templates: English and Turkish (`templates.go`). The language is the Setting `ui.language`. The content is the Event, the time, the mode, input voltage, load, battery charge and runtime when available. No Secret and no serial number.
 - Channels implement `notify.Channel` (`Name`, `Send`). The Channels are added in TASK 03-00-00-004 to 006.
+
+### 15.1 Desktop Channel (VLT-IS-007 TASK 03-00-00-004)
+
+1. vltd sends each desktop Notification to the connected VLT GUI as the push message "notification" (data: subject, text, severity, type, time). Only connections after status.subscribe get it.
+2. If no VLT GUI is connected, the Notification is not shown and not queued. The Event stays in the Events screen.
+3. The VLT GUI shows it as an OS notification with the Wails notifications service: Windows toast notifications, Linux org.freedesktop.Notifications (D-Bus). If the service does not start (for example no D-Bus session), the VLT GUI continues without OS notifications and writes a log entry.

@@ -124,11 +124,11 @@ func (m Message) Time() time.Time {
 
 // Notification is the text for a Channel.
 type Notification struct {
-	Subject  string // for e-mail: "[VLT][severity] Event"
-	Text     string // the full text
-	Severity string
-	Type     string
-	Time     time.Time
+	Subject  string    `json:"subject"` // for e-mail: "[VLT][severity] Event"
+	Text     string    `json:"text"`    // the full text
+	Severity string    `json:"severity"`
+	Type     string    `json:"type"`
+	Time     time.Time `json:"time"`
 }
 
 // Channel sends Notifications. Send must return an error when the message

@@ -111,6 +111,24 @@ type Manager struct {
 	onTray   func(TrayState)
 	texts    TrayTexts
 	openURL  func(string) error
+	onNotify func(OSNotification)
+}
+
+// OSNotification is a desktop Notification of vltd (VLT-IS-007 TASK
+// 03-00-00-004). The VLT GUI shows it as an OS notification.
+type OSNotification struct {
+	Title    string    `json:"subject"`
+	Body     string    `json:"text"`
+	Severity string    `json:"severity"`
+	Type     string    `json:"type"`
+	Time     time.Time `json:"time"`
+}
+
+// OnNotify sets the function that shows a desktop Notification.
+func (m *Manager) OnNotify(f func(OSNotification)) {
+	m.mu.Lock()
+	m.onNotify = f
+	m.mu.Unlock()
 }
 
 // NewManager returns a Manager. An empty addr is the default endpoint.
@@ -261,6 +279,16 @@ func (m *Manager) serve(ctx context.Context, c *client.Client) {
 }
 
 func (m *Manager) onPush(p wire.Push) {
+	if p.Push == wire.PushNotification {
+		var n OSNotification
+		m.mu.Lock()
+		f := m.onNotify
+		m.mu.Unlock()
+		if f != nil && json.Unmarshal(p.Data, &n) == nil && n.Title != "" {
+			f(n)
+		}
+		return
+	}
 	m.mu.Lock()
 	m.last[p.Push] = p.Data
 	if p.Push == wire.PushEvent {

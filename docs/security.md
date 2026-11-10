@@ -203,3 +203,13 @@ WARNING: An error in the Vault can expose all user Secrets.
 11. Hint: the last 4 characters of a Secret of 16 characters or more. No hint for a shorter Secret.
 12. Test-only DEK providers are only in _test.go files (SEC-091).
 
+## 7. PIN authentication (VLT-IS-003 TASK 03-00-00-005)
+
+1. PIN: 6 to 64 characters, ASCII digits and letters only (A-Z, a-z, 0-9).
+2. Refused: the same character only, simple ascending or descending sequences of digits (with wrap, for example "1234567890") or letters, and a list of 20 common PINs (case is not important).
+3. Hash: Argon2id, time 3, memory 64 MiB, threads 4, salt 16 bytes, key 32 bytes (RFC 9106, section 4, second recommended option). Format: PHC string `$argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>`. Compare in constant time.
+4. Lockout (SEC-024): after 5 incorrect entries, block for 5 minutes. Each new failure doubles the block time, maximum 24 hours. During a block, the PIN is not checked. The counter and the block end time are in the Store (auth_state); a restart does not reset them. A correct entry sets the counter to 0.
+5. Session: a correct PIN gives the elevated state to the IPC connection only. There is no token. The state ends after the Setting `auth.session_idle_minutes` (default 10) without a request, after 8 hours, or when the connection closes.
+6. First start: if no PIN is set, vltd permits only "set PIN" and read-only status requests.
+7. Audit entries: each PIN set, each correct entry, each incorrect entry, each block and each entry refused during a block.
+

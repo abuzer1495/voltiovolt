@@ -224,6 +224,11 @@ func (d *daemon) startLive(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("policy: %w", err)
 	}
+	// The Fallback Policy in the Vault state "locked" (VLT-IS-005 Q-IA-1).
+	pol.SetVaultState(func() string { return string(d.vt.Status().State) })
+	if err := pol.Refresh(ctx); err != nil {
+		return fmt.Errorf("policy: %w", err)
+	}
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
 		hub: ipc.NewHub(), last: map[string]measure.Point{}}
 	if d.cfg.Lister != nil {

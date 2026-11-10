@@ -95,6 +95,24 @@ func liveMethods(t *testing.T, ctx context.Context, e *env, c *client.Client, se
 	if err := c.DeactivatePolicy(ctx); err != nil {
 		t.Fatalf("policy.deactivate: %v", err)
 	}
+	// The Fallback Policy in the Vault state "locked" (VLT-IS-005).
+	e.pol.SetVaultState(func() string { return "locked" })
+	if fb, err := c.Policy(ctx); err != nil || !fb.Fallback || !fb.Active {
+		t.Fatalf("policy.get fallback: %+v %v", fb, err)
+	}
+	if _, err := c.SetPolicy(ctx, map[string]any{"countdown_seconds": 90}); client.Code(err) != wire.CodeVaultLocked {
+		t.Fatalf("policy.set locked: %v", err)
+	}
+	if err := c.ActivatePolicy(ctx); client.Code(err) != wire.CodeVaultLocked {
+		t.Fatalf("policy.activate locked: %v", err)
+	}
+	if err := c.DeactivatePolicy(ctx); client.Code(err) != wire.CodeVaultLocked {
+		t.Fatalf("policy.deactivate locked: %v", err)
+	}
+	e.pol.SetVaultState(nil)
+	if fb, err := c.Policy(ctx); err != nil || fb.Fallback {
+		t.Fatalf("policy.get after fallback: %+v %v", fb, err)
+	}
 
 	// Push messages only after status.subscribe.
 	if err := e.hub.Publish(wire.PushStatus, map[string]any{"n": 0}); err != nil {

@@ -9,7 +9,7 @@
 
 vlt-probe is a READ-only capture tool. It sends only the commands of the Probe List and the Watch List to the UPS. These lists are constants in the code. vlt-probe has no option to send other commands.
 
-Probe List (fixed order): `Q1, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, F, I, QID, QVFW, QMD`
+Probe List (fixed order): `Q1, F, I, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, QID, QVFW, QMD` (VLT-IS-006)
 
 Watch List: `Q1, QS, QGS, QMOD, QBV, QWS`
 
@@ -102,7 +102,7 @@ sudo chown "$USER" vlt-capture-*.vltcap.json
 
 vlt-probe yalnızca okuma (READ) yapan bir kayıt aracıdır. UPS'e yalnızca Probe List ve Watch List komutlarını gönderir. Bu listeler kodun içinde sabittir. vlt-probe başka bir komut gönderme seçeneğine sahip değildir.
 
-Probe List (sabit sıra): `Q1, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, F, I, QID, QVFW, QMD`
+Probe List (sabit sıra): `Q1, F, I, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, QID, QVFW, QMD` (VLT-IS-006)
 
 Watch List: `Q1, QS, QGS, QMOD, QBV, QWS`
 

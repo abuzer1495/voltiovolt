@@ -125,9 +125,6 @@ func parseStatus(cmd string, resp []byte) (Status, error) {
 	return s, nil
 }
 
-// ParseQ1 parses the response of Q1.
-func ParseQ1(resp []byte) (Status, error) { return parseStatus("Q1", resp) }
-
 // ParseQS parses the response of QS.
 func ParseQS(resp []byte) (Status, error) { return parseStatus("QS", resp) }
 
@@ -360,9 +357,6 @@ func parseRating(cmd string, resp []byte, start byte) (Rating, error) {
 // ParseQRI parses the response of QRI.
 func ParseQRI(resp []byte) (Rating, error) { return parseRating("QRI", resp, '(') }
 
-// ParseF parses the response of F.
-func ParseF(resp []byte) (Rating, error) { return parseRating("F", resp, '#') }
-
 // Information is the response of I. Spaces at the end of each field are
 // removed. An empty field has no value.
 type Information struct {
@@ -371,39 +365,12 @@ type Information struct {
 	Version string
 }
 
-// Field widths of the I response, from the public Megatec document.
+// Field widths of the I response (VLT-REF-001 6.3, STATIC, PUBLIC).
 const (
 	iCompanyWidth = 15
 	iModelWidth   = 10
 	iVersionWidth = 10
-	iBodyLen      = iCompanyWidth + 1 + iModelWidth + 1 + iVersionWidth
 )
-
-// ParseI parses the response of I.
-func ParseI(resp []byte) (Information, error) {
-	const cmd = "I"
-	body, err := frame(cmd, resp, '#')
-	if err != nil {
-		return Information{}, err
-	}
-	if len(body) != iBodyLen {
-		return Information{}, frameErr(cmd, "length %d, expected %d", len(body), iBodyLen)
-	}
-	if body[iCompanyWidth] != ' ' {
-		return Information{}, fieldErr(cmd, 2, "no space before the field")
-	}
-	if body[iCompanyWidth+1+iModelWidth] != ' ' {
-		return Information{}, fieldErr(cmd, 3, "no space before the field")
-	}
-	c := body[:iCompanyWidth]
-	m := body[iCompanyWidth+1 : iCompanyWidth+1+iModelWidth]
-	v := body[iCompanyWidth+1+iModelWidth+1:]
-	return Information{
-		Company: strings.TrimSpace(c),
-		Model:   strings.TrimSpace(m),
-		Version: strings.TrimSpace(v),
-	}, nil
-}
 
 // MaxQIDLen is the maximum length of the QID data that VLT accepts.
 const MaxQIDLen = 32

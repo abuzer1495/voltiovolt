@@ -297,3 +297,38 @@ func TestStoreListSubscribe(t *testing.T) {
 		t.Fatalf("%+v", s)
 	}
 }
+
+// TestAVRMode: for b5 = 1 and b3 = 1, AVR_ACTIVE has "boost" when the
+// input voltage is less than the output voltage, else "buck" (VLT-IS-006
+// TASK 03-00-00-003 step 9). The data comes from a Q1 response.
+func TestAVRMode(t *testing.T) {
+	for _, c := range []struct {
+		q1, mode string
+	}{
+		{"(198.0 198.0 220.0 020 50.0 27.0 25.0 00101000", "boost"},
+		{"(250.0 250.0 220.0 020 50.0 27.0 25.0 00101000", "buck"},
+		{"(220.0 220.0 220.0 020 50.0 27.0 25.0 00101000", "buck"},
+	} {
+		r := newRun(t)
+		st, err := dialect.ParseQ1([]byte(c.q1 + "\r"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var o Observation
+		o.Add("Q1", st)
+		none(t, r.obs(o))
+		got := r.obs(o)
+		one(t, got, AVRActive, Info, true)
+		if got[0].Data["mode"] != c.mode {
+			t.Errorf("%s: data %v, want mode %s", c.q1, got[0].Data, c.mode)
+		}
+	}
+	// Without the voltages there is no "mode".
+	r := newRun(t)
+	none(t, r.status("00101000"))
+	got := r.status("00101000")
+	one(t, got, AVRActive, Info, true)
+	if _, ok := got[0].Data["mode"]; ok {
+		t.Errorf("mode without voltages: %v", got[0].Data)
+	}
+}

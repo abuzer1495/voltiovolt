@@ -144,7 +144,7 @@ vltd has one flag: --version. It prints the version and exits.
 
 1. Device Settings: `device.transport` (auto, hid or serial; default auto), `device.serial_port` (empty, `/dev/<name>` or `COM<n>`; empty means all serial ports), `device.serial_dtr` (default on), `device.serial_rts` (default off). None of them is a Secret.
 2. Candidates with "auto": first the HID devices with VID 0665 and PID 5161, then the serial ports. With "hid": HID only. With "serial": serial only. If `device.serial_port` has a name, only that serial port.
-3. On each candidate, the Device Manager sends the Probe List (VLT-IS-002 03-50-01) in order, with 500 ms between requests. A command without a valid response is skipped; the next command follows.
+3. On each candidate, the Device Manager sends the Probe List in order (VLT-IS-006 order: Q1, F, I, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, QID, QVFW, QMD), with 500 ms between requests and a response timeout of 1500 ms. Dialects: megatec (Q1 answers), voltronic-qs (QS answers), voltronic (QGS answers); the first match in the order voltronic, voltronic-qs, megatec is used. A command without a valid response is skipped; the next command follows.
 4. Dialect selection: Voltronic if QGS answers, QS if QS answers, Q1 if only Q1 answers. If no Dialect is found, the next candidate follows. If no candidate gives a Dialect, the state is "no device" and a new detection follows after 1, 2, 5, 10, 30, 30 ... seconds.
 5. Device profile: Transport, port, Dialect, supported commands, nominal values (QRI, else F), model data (I, QMD, QVFW). The QID value is never kept: the profile shows `serial_number: "[REDACTED]"` if QID answers.
 6. States: detecting, no device, connected, comm lost, stopped. `Restart` (device.settings.set) stops the Poller and starts a new detection with the current Settings.
@@ -178,6 +178,7 @@ vltd has one flag: --version. It prints the version and exits.
 | load.percent | % | Q1, QS, QGS |
 | battery.voltage | V | QS, QGS, QBV; Q1 as received (VLT-IS-002 TASK 03-00-00-005 step 4f) |
 | battery.charge | % | QBV |
+| battery.charge_estimate | % | Q1 battery voltage and F rated battery voltage, megatec Dialect only (`measure.ChargeEstimate`; Settings battery.cell_empty_v, battery.cell_full_v, battery.block_empty_v, battery.block_full_v). Not used by the Shutdown Policy. The Dashboard shows "estimate". |
 | battery.runtime | min | QBV |
 | ups.temperature | °C | Q1, QS, QGS |
 

@@ -46,7 +46,9 @@ export function ModeView({ mode }: { mode: Mode }) {
   );
 }
 
-const ROWS: { key: string; name: string; digits: number }[] = [
+// note: a text next to the value. battery.charge_estimate is calculated by
+// VLT from the Q1 battery voltage (VLT-IS-006 TASK 03-00-00-003 step 8).
+const ROWS: { key: string; name: string; digits: number; note?: string }[] = [
   { key: 'dash.input_voltage', name: 'input.voltage', digits: 1 },
   { key: 'dash.input_frequency', name: 'input.frequency', digits: 1 },
   { key: 'dash.output_voltage', name: 'output.voltage', digits: 1 },
@@ -55,6 +57,7 @@ const ROWS: { key: string; name: string; digits: number }[] = [
   { key: 'dash.load', name: 'load.percent', digits: 0 },
   { key: 'dash.battery_voltage', name: 'battery.voltage', digits: 1 },
   { key: 'dash.battery_charge', name: 'battery.charge', digits: 0 },
+  { key: 'dash.battery_charge_estimate', name: 'battery.charge_estimate', digits: 0, note: 'dash.estimate' },
   { key: 'dash.runtime', name: 'battery.runtime', digits: 0 },
   { key: 'dash.temperature', name: 'ups.temperature', digits: 1 },
 ];
@@ -66,7 +69,10 @@ export function Values({ s }: { s: StatusPush | null }) {
       {ROWS.map((r) => (
         <div class="value">
           <dt>{t(r.key)}</dt>
-          <dd>{value(m[r.name], r.digits, r.name === 'battery.runtime' ? t('unit.min') : undefined)}</dd>
+          <dd>
+            {value(m[r.name], r.digits, r.name === 'battery.runtime' ? t('unit.min') : undefined)}
+            {r.note && m[r.name] ? <span class="small"> ({t(r.note)})</span> : null}
+          </dd>
         </div>
       ))}
     </dl>

@@ -11,8 +11,8 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/transport"
 )
 
-// ProbeList is the Probe List of VLT-IS-002 03-50-01, in order.
-var ProbeList = []string{"Q1", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "F", "I", "QID", "QVFW", "QMD"}
+// ProbeList is the Probe List of VLT-IS-006 TASK 03-00-00-003 step 4, in order.
+var ProbeList = []string{"Q1", "F", "I", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD"}
 
 // WatchList is the Watch List of VLT-IS-002 03-50-01.
 var WatchList = []string{"Q1", "QS", "QGS", "QMOD", "QBV", "QWS"}

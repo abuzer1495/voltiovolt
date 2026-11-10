@@ -34,8 +34,13 @@ const (
 // 03-00-00-006 step 3).
 const MinGap = 500 * time.Millisecond
 
-// ProbeList is the Probe List of VLT-IS-002 03-50-01, in order.
-var ProbeList = []string{"Q1", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "F", "I", "QID", "QVFW", "QMD"}
+// ResponseTimeout is the time vltd waits for the CR of a response
+// (VLT-IS-006 TASK 03-00-00-003 step 7). Comm lost stays at 3 failed
+// fast-group polls in sequence (poller.LostAfter).
+const ResponseTimeout = 1500 * time.Millisecond
+
+// ProbeList is the Probe List of VLT-IS-006 TASK 03-00-00-003 step 4, in order.
+var ProbeList = []string{"Q1", "F", "I", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD"}
 
 // ErrNoDevice is returned when no Transport gives a known Dialect.
 var ErrNoDevice = errors.New("device: no UPS found")
@@ -190,9 +195,9 @@ func SelectDialect(supported []string) (dialect.Dialect, bool) {
 	case has["QGS"]:
 		return dialect.DialectVoltronic, true
 	case has["QS"]:
-		return dialect.DialectQS, true
+		return dialect.DialectVoltronicQS, true
 	case has["Q1"]:
-		return dialect.DialectQ1, true
+		return dialect.DialectMegatec, true
 	}
 	return "", false
 }

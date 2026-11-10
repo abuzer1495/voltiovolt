@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/abuzer1495/voltiovolt/internal/device"
+	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/event"
 	"github.com/abuzer1495/voltiovolt/internal/ipc"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
@@ -38,6 +39,7 @@ type live struct {
 	commLost bool
 	charge   *float64
 	runtime  *float64
+	rated    *dialect.Rating // last F response (megatec charge estimate)
 	last     map[string]measure.Point
 
 	tickMu sync.Mutex
@@ -60,12 +62,35 @@ func (l *live) OnCycle(c poller.Cycle) {
 	ctx := context.Background()
 	obs := event.Observation{Time: c.End}
 	var samples []measure.Sample
+	var megatec bool
+	var nominal *dialect.Rating
+	if l.mgr != nil {
+		if p := l.mgr.Status().Profile; p != nil {
+			megatec = p.Dialect == dialect.DialectMegatec
+			nominal = p.Nominal
+		}
+	}
+	est := measure.EstimateConfigFromStore(ctx, l.d.st)
 	l.mu.Lock()
 	for _, r := range c.Results {
 		if r.Err != nil || r.Value == nil {
 			continue
 		}
+		if f, ok := r.Value.(dialect.Rating); ok && r.Command == "F" {
+			l.rated = &f
+		}
 		pts := measure.FromValue(r.Command, r.Value)
+		// VLT-IS-006 TASK 03-00-00-003 step 8: battery.charge_estimate for
+		// the megatec Dialect only.
+		if st, ok := r.Value.(dialect.Status); ok && megatec && r.Command == "Q1" {
+			rated := l.rated
+			if rated == nil {
+				rated = nominal
+			}
+			if v, ok := measure.ChargeEstimate(st, rated, est); ok {
+				pts = append(pts, measure.Point{Name: measure.BatteryChargeEstimate, Unit: measure.Units[measure.BatteryChargeEstimate], Value: v, Source: "Q1"})
+			}
+		}
 		if len(pts) > 0 {
 			samples = append(samples, measure.Sample{Time: r.Time, Points: pts})
 		}

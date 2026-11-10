@@ -100,8 +100,8 @@ func TestSelectDialect(t *testing.T) {
 	}{
 		{[]string{"Q1", "QS", "QGS"}, dialect.DialectVoltronic, true},
 		{[]string{"QGS"}, dialect.DialectVoltronic, true},
-		{[]string{"Q1", "QS"}, dialect.DialectQS, true},
-		{[]string{"Q1", "F", "I"}, dialect.DialectQ1, true},
+		{[]string{"Q1", "QS"}, dialect.DialectVoltronicQS, true},
+		{[]string{"Q1", "F", "I"}, dialect.DialectMegatec, true},
 		{[]string{"F", "I"}, "", false},
 		{nil, "", false},
 	} {
@@ -122,9 +122,9 @@ func TestDetectProfiles(t *testing.T) {
 		nominal   string
 		qid       bool
 	}{
-		{sim.ProfileQ1, dialect.DialectQ1, []string{"Q1", "F", "I"}, "F", false},
-		{sim.ProfileQS, dialect.DialectQS, []string{"Q1", "QS", "F", "I"}, "F", false},
-		{sim.ProfileVoltronic, dialect.DialectVoltronic, []string{"Q1", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "F", "QID", "QVFW", "QMD"}, "QRI", true},
+		{sim.ProfileQ1, dialect.DialectMegatec, []string{"Q1", "F", "I"}, "F", false},
+		{sim.ProfileQS, dialect.DialectVoltronicQS, []string{"Q1", "F", "I", "QS"}, "F", false},
+		{sim.ProfileVoltronic, dialect.DialectVoltronic, []string{"Q1", "F", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD"}, "QRI", true},
 	}
 	for _, kind := range []string{TransportSerial, TransportHID} {
 		for _, c := range cases {
@@ -188,7 +188,7 @@ func TestDetectNextCandidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	tr.Close()
-	if p.Dialect != dialect.DialectQS {
+	if p.Dialect != dialect.DialectVoltronicQS {
 		t.Fatalf("%+v", p)
 	}
 	for _, s := range []*sim.Sim{ds, echo, good} {
@@ -283,7 +283,7 @@ func TestManager(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- m.Run(ctx) }()
 	p := <-polls
-	if p.Dialect != dialect.DialectQ1 || m.Status().State != StateConnected || m.Status().Profile == nil {
+	if p.Dialect != dialect.DialectMegatec || m.Status().State != StateConnected || m.Status().Profile == nil {
 		t.Fatalf("%+v %+v", p, m.Status())
 	}
 	if len(clk.sleeps) == 0 || clk.sleeps[0] != time.Second {

@@ -70,6 +70,13 @@ const (
 	SettingPolicyCountdown        = "policy.countdown_seconds"
 	SettingPolicyCancelOnMains    = "policy.cancel_when_mains_returns"
 	SettingPolicyForceClose       = "policy.force_close_applications"
+
+	// Battery charge estimate of the megatec Dialect (VLT-IS-006 TASK
+	// 03-00-00-003 step 8). Voltages in V.
+	SettingBatteryCellEmptyV  = "battery.cell_empty_v"
+	SettingBatteryCellFullV   = "battery.cell_full_v"
+	SettingBatteryBlockEmptyV = "battery.block_empty_v"
+	SettingBatteryBlockFullV  = "battery.block_full_v"
 )
 
 // serialPortName accepts an empty text, a Linux device path /dev/<name>
@@ -108,6 +115,19 @@ func intRange(lo, hi int) func(json.RawMessage) error {
 	}
 }
 
+func floatRange(lo, hi float64) func(json.RawMessage) error {
+	return func(v json.RawMessage) error {
+		var f float64
+		if err := strictJSON(v, &f); err != nil {
+			return fmt.Errorf("value must be a number: %w", err)
+		}
+		if f < lo || f > hi {
+			return fmt.Errorf("value must be %g to %g", lo, hi)
+		}
+		return nil
+	}
+}
+
 func oneOf(vals ...string) func(json.RawMessage) error {
 	return func(v json.RawMessage) error {
 		var s string
@@ -140,6 +160,7 @@ var (
 	TypeInt    = reflect.TypeOf(0)
 	TypeString = reflect.TypeOf("")
 	TypeBool   = reflect.TypeOf(false)
+	TypeFloat  = reflect.TypeOf(0.0)
 )
 
 // ErrSecretSetting is returned for a Setting with the Secret type.
@@ -232,6 +253,13 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingPolicyCountdown, Type: TypeInt, Default: json.RawMessage(`60`), Check: intRange(10, 600)},
 		{Key: SettingPolicyCancelOnMains, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
 		{Key: SettingPolicyForceClose, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
+		// VLT-IS-006 TASK 03-00-00-003 step 8. Defaults from VLT-REF-001
+		// section 7 (STATIC only: UNVERIFIED): 1.667 V and 2.267 V per cell, 10.0 V and
+		// 13.6 V per 12 V block.
+		{Key: SettingBatteryCellEmptyV, Type: TypeFloat, Default: json.RawMessage(`1.667`), Check: floatRange(1.5, 2.1)},
+		{Key: SettingBatteryCellFullV, Type: TypeFloat, Default: json.RawMessage(`2.267`), Check: floatRange(2.0, 2.5)},
+		{Key: SettingBatteryBlockEmptyV, Type: TypeFloat, Default: json.RawMessage(`10.0`), Check: floatRange(9.0, 12.5)},
+		{Key: SettingBatteryBlockFullV, Type: TypeFloat, Default: json.RawMessage(`13.6`), Check: floatRange(12.0, 15.0)},
 	}
 }
 

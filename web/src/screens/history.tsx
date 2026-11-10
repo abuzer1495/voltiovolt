@@ -32,7 +32,7 @@ export const CHARTS: ChartDef[] = [
   { id: 'voltage', title: 'hist.voltages', names: ['input.voltage', 'output.voltage'] },
   { id: 'frequency', title: 'hist.frequency', names: ['input.frequency', 'output.frequency'] },
   { id: 'load', title: 'hist.load', names: ['load.percent'] },
-  { id: 'battery', title: 'hist.battery', names: ['battery.voltage', 'battery.charge'] },
+  { id: 'battery', title: 'hist.battery', names: ['battery.voltage', 'battery.charge', 'battery.charge_estimate'] },
   { id: 'temperature', title: 'hist.temperature', names: ['ups.temperature'] },
 ];
 

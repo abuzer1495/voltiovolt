@@ -223,6 +223,19 @@ export const api = {
   settings: () => call<{ settings: Setting[] }>('Settings'),
   setLanguage: (l: string) => call<void>('SetLanguage', l),
   openSource: () => call<void>('OpenSource'),
+  /**
+   * setSecret sends the text of an input field to the Go side (SEC-096).
+   * The Go side sends it to vltd with secret.set and clears its buffer.
+   * No method gives a Secret back; clear the input field after the call.
+   */
+  setSecret: (id: string, text: string) => {
+    const b = new TextEncoder().encode(text);
+    let bin = '';
+    for (const c of b) bin += String.fromCharCode(c);
+    b.fill(0);
+    return call<void>('SetSecret', id, btoa(bin));
+  },
+  secretStatus: (id: string) => call<{ id: string; set: boolean; hint?: string; updated_at?: string }>('SecretStatus', id),
   measurements: (name: string, fromMs: number, toMs: number, step: string) => call<Series>('Measurements', name, fromMs, toMs, step),
 };
 

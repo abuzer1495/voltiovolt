@@ -54,6 +54,11 @@ const (
 	SettingDeviceSerial    = "device.serial_port" // empty: all serial ports
 	SettingDeviceDTR       = "device.serial_dtr"
 	SettingDeviceRTS       = "device.serial_rts"
+
+	// Event thresholds (VLT-IS-004 TASK 03-00-00-005 step 3).
+	SettingEventOverload   = "event.overload_percent"
+	SettingEventOverTemp   = "event.over_temperature_c"
+	SettingEventRuntimeLow = "event.runtime_low_minutes"
 )
 
 // serialPortName accepts an empty text, a Linux device path /dev/<name>
@@ -201,6 +206,11 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingDeviceSerial, Type: TypeString, Default: json.RawMessage(`""`), Check: serialPort},
 		{Key: SettingDeviceDTR, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
 		{Key: SettingDeviceRTS, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
+
+		// VLT-IS-004 TASK 03-00-00-005 step 3.
+		{Key: SettingEventOverload, Type: TypeInt, Default: json.RawMessage(`100`), Check: intRange(50, 150)},
+		{Key: SettingEventOverTemp, Type: TypeInt, Default: json.RawMessage(`50`), Check: intRange(30, 90)},
+		{Key: SettingEventRuntimeLow, Type: TypeInt, Default: json.RawMessage(`5`), Check: intRange(1, 120)},
 	}
 }
 

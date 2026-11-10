@@ -171,3 +171,14 @@ vltd has one flag: --version. It prints the version and exits.
 3. All Measurements of one poll cycle are written in one transaction. If one row fails, no row of the cycle is stored.
 4. The hourly job (at start and every hour) makes the 1-minute values of all complete minutes from the raw values, and the 1-hour values of all complete hours from the 1-minute values (mean weighted by count). It makes the last summary period again, so a second run gives the same result. Then it deletes raw values older than 7 days and 1-minute values older than 400 days. 1-hour values have no limit.
 5. Query (measurements.query): name, range [from, to), step raw, 1m or 1h. Maximum 10000 rows.
+
+## 9. Event Engine (internal/event, VLT-IS-004 TASK 03-00-00-005)
+
+1. Input: one Observation for each poll cycle: the Q1 or QS status bits, the QWS bits, load.percent, ups.temperature and battery.runtime (only the fields in the cycle). The status bit table is in docs/protocol.md section 8.
+2. Threshold Events (Settings): OVERLOAD (WARNING) when `event.overload_percent` (default 100) or more; OVER_TEMPERATURE (WARNING) when `event.over_temperature_c` (default 50) or more; RUNTIME_LOW (WARNING) when battery.runtime is less than `event.runtime_low_minutes` (default 5) and ON_BATTERY is active.
+3. Hysteresis: an active threshold Event clears only 5 % of the threshold value past the threshold (OVERLOAD below 95 %, OVER_TEMPERATURE below 47.5 °C, RUNTIME_LOW at 5.25 minutes or more, or when not on battery).
+4. Debounce: ON_BATTERY and LOW_BATTERY after 1 poll. All other Events and all clear conditions after 2 polls in sequence. A cycle without the input of a condition does not change its counters.
+5. Clear: ON_BATTERY clears with the Event ONLINE (INFO). The other conditions clear with an Event of the same type, severity INFO and `"active": false`.
+6. COMM_LOST: WARNING, or CRITICAL when ON_BATTERY is active. COMM_RESTORED: INFO. The Poller state gives them (3 failed fast polls).
+7. Each Event is stored in the events table (ts in Unix milliseconds, type, severity, data JSON). Each CRITICAL Event is written to the log with level ERROR. Subscribers (IPC push, Policy Engine) get each Event.
+8. events.list: newest first, paging by ID (rowid), 1 to 500 rows.

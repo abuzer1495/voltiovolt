@@ -59,6 +59,17 @@ const (
 	SettingEventOverload   = "event.overload_percent"
 	SettingEventOverTemp   = "event.over_temperature_c"
 	SettingEventRuntimeLow = "event.runtime_low_minutes"
+
+	// Shutdown Policy (VLT-IS-004 TASK 03-00-00-006 step 1).
+	SettingPolicyAction           = "policy.action"
+	SettingPolicyOnBatterySeconds = "policy.trigger.on_battery_seconds"
+	SettingPolicyRuntimeBelow     = "policy.trigger.runtime_below_minutes"
+	SettingPolicyChargeBelow      = "policy.trigger.charge_below_percent"
+	SettingPolicyLowBatteryFlag   = "policy.trigger.low_battery_flag"
+	SettingPolicyCommLostSeconds  = "policy.trigger.comm_lost_on_battery_seconds"
+	SettingPolicyCountdown        = "policy.countdown_seconds"
+	SettingPolicyCancelOnMains    = "policy.cancel_when_mains_returns"
+	SettingPolicyForceClose       = "policy.force_close_applications"
 )
 
 // serialPortName accepts an empty text, a Linux device path /dev/<name>
@@ -211,6 +222,16 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingEventOverload, Type: TypeInt, Default: json.RawMessage(`100`), Check: intRange(50, 150)},
 		{Key: SettingEventOverTemp, Type: TypeInt, Default: json.RawMessage(`50`), Check: intRange(30, 90)},
 		{Key: SettingEventRuntimeLow, Type: TypeInt, Default: json.RawMessage(`5`), Check: intRange(1, 120)},
+		// VLT-IS-004 TASK 03-00-00-006 step 1. 0 = off for the triggers.
+		{Key: SettingPolicyAction, Type: TypeString, Default: json.RawMessage(`"shutdown"`), Check: oneOf("shutdown", "hibernate")},
+		{Key: SettingPolicyOnBatterySeconds, Type: TypeInt, Default: json.RawMessage(`300`), Check: intRange(0, 86400)},
+		{Key: SettingPolicyRuntimeBelow, Type: TypeInt, Default: json.RawMessage(`5`), Check: intRange(0, 600)},
+		{Key: SettingPolicyChargeBelow, Type: TypeInt, Default: json.RawMessage(`30`), Check: intRange(0, 100)},
+		{Key: SettingPolicyLowBatteryFlag, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
+		{Key: SettingPolicyCommLostSeconds, Type: TypeInt, Default: json.RawMessage(`180`), Check: intRange(0, 86400)},
+		{Key: SettingPolicyCountdown, Type: TypeInt, Default: json.RawMessage(`60`), Check: intRange(10, 600)},
+		{Key: SettingPolicyCancelOnMains, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
+		{Key: SettingPolicyForceClose, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
 	}
 }
 

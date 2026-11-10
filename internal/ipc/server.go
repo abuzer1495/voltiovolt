@@ -16,6 +16,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -286,7 +287,7 @@ var methodAccess = map[string]access{
 	wire.MethodLogout:       readOnly,
 	wire.MethodSettingsList: readOnly,
 	wire.MethodSecretStatus: readOnly,
-	wire.MethodSettingsSet:  elevated,
+	wire.MethodSettingsSet:  readOnly, // "ui." keys: PIN set; other keys: elevated (dispatch, VLT-IS-006 Q-IA-1)
 	wire.MethodSecretSet:    elevated,
 	wire.MethodSecretDelete: elevated,
 	wire.MethodVaultReset:   elevated,
@@ -512,6 +513,13 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 		if len(p.Value) == 0 {
 			return nil, invalid("value is missing")
 		}
+		// VLT-IS-006 Q-IA-1: Settings with the key prefix "ui." are not
+		// security Settings. They need a set PIN only. All other keys need
+		// the elevated state. Both cases write an audit entry.
+		if !elev && !IsUISetting(p.Key) {
+			cn.record(ctx, "settings_set", p.Key, "failure", map[string]any{"reason": "not elevated"})
+			return nil, &wire.Error{Code: wire.CodeNotElevated, Message: "enter the PIN first"}
+		}
 		v, err := b.Store.SetSetting(ctx, p.Key, p.Value, audit.ActorGUI)
 		if err != nil {
 			cn.record(ctx, "settings_set", p.Key, "failure", map[string]any{"reason": err.Error()})
@@ -520,7 +528,7 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 			}
 			return nil, invalid(err.Error())
 		}
-		cn.record(ctx, "settings_set", p.Key, "success", map[string]any{"version": v, "value": p.Value})
+		cn.record(ctx, "settings_set", p.Key, "success", map[string]any{"version": v, "value": p.Value, "elevated": elev})
 		return wire.SettingsSetResult{Version: v}, nil
 
 	case wire.MethodSecretStatus:
@@ -599,3 +607,10 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 		return cn.dispatchLive(ctx, req)
 	}
 }
+
+// UIPrefix is the key prefix of the Settings that are not security
+// Settings (VLT-IS-006 Q-IA-1).
+const UIPrefix = "ui."
+
+// IsUISetting reports whether a Setting key has the prefix "ui.".
+func IsUISetting(key string) bool { return strings.HasPrefix(key, UIPrefix) }

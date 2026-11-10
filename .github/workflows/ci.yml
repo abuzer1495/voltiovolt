@@ -166,6 +166,20 @@ jobs:
       - name: Scan the full history
         run: |
           "$RUNNER_TEMP/gitleaks" git --no-banner --redact -v -c .gitleaks.toml --log-opts="--all" .
+      - name: Repository path check (SEC-101)
+        run: |
+          set -euo pipefail
+          # This step checks the tracked paths only, not the file content.
+          # The pattern text in this file is not a path, so it does not match.
+          if bad="$(git ls-files | grep -E '(^|/)ANALIZ/|\.(gpr|rep|gzf)$')"; then
+            echo "SEC-101: the repository contains a path that is not permitted:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "SEC-101: no path that is not permitted."
+      - name: Reference document is unchanged (VLT-IS-006 03-00-00-002)
+        run: |
+          echo "4ee716bc84db6752a8385d89c33bae9a83f3e313bec5ff4b8adad39442eeef8e  docs/reference/VLT-REF-001.md" | sha256sum -c -
 
   licenses:
     name: licenses

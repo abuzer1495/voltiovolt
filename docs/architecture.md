@@ -82,7 +82,7 @@ Before a PIN is set, only system.hello, system.status, auth.status and auth.set_
 | auth.login | No | pin | ok |
 | auth.logout | No | none | ok |
 | settings.list | No | none | settings [key, value, version, default, updated_at, updated_by] |
-| settings.set | Yes | key, value | version |
+| settings.set | Yes; a key with the prefix "ui." needs a set PIN only (VLT-IS-006 Q-IA-1). Each call writes an audit entry. | key, value | version |
 | secret.status | No | id | id, set, hint, updated_at |
 | secret.set | Yes | id, value | ok |
 | secret.delete | Yes | id | ok |
@@ -316,7 +316,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 | ShutdownStatus, CancelShutdown | shutdown.status, shutdown.cancel | cancel only |
 | SecretStatus, SetSecret | secret.status, secret.set | set only |
 | ResetVault, Audit | vault.reset, audit.list | yes |
-| Settings, SetLanguage | settings.list, settings.set (ui.language) | set only |
+| Settings, SetLanguage | settings.list, settings.set (ui.language) | no (ui.language needs a set PIN only) |
 
 ### 13.3 Push events and the lock timer
 

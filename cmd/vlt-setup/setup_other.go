@@ -4,5 +4,5 @@
 
 package main
 
-func devInstall(env) error   { return errWindowsOnly }
-func devUninstall(env) error { return errWindowsOnly }
+func devInstall(env, string) error   { return errWindowsOnly }
+func devUninstall(env, string) error { return errWindowsOnly }

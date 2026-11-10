@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -289,16 +290,31 @@ func checkAdmin() error {
 	return nil
 }
 
-func dirs() (install, data string) {
-	pf := os.Getenv("ProgramFiles")
-	if pf == "" {
-		pf = `C:\Program Files`
-	}
+// dirs returns the install folder and the data folder. dir is the --dir
+// value; "" gives %ProgramFiles%\VoltioVolt. dir must be absolute.
+func dirs(dir string) (install, data string, err error) {
 	pd := os.Getenv("ProgramData")
 	if pd == "" {
 		pd = `C:\ProgramData`
 	}
-	return filepath.Join(pf, installSubdir), filepath.Join(pd, dataSubdir)
+	data = filepath.Join(pd, dataSubdir)
+	if dir != "" {
+		if !filepath.IsAbs(dir) {
+			return "", "", fmt.Errorf("--dir %q is not an absolute path", dir)
+		}
+		return filepath.Clean(dir), data, nil
+	}
+	pf := os.Getenv("ProgramFiles")
+	if pf == "" {
+		pf = `C:\Program Files`
+	}
+	return filepath.Join(pf, installSubdir), data, nil
+}
+
+// samePath reports whether a and b are the same file path (Windows paths
+// are not case-sensitive).
+func samePath(a, b string) bool {
+	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 }
 
 func copyFile(src, dst string) error {
@@ -318,7 +334,7 @@ func copyFile(src, dst string) error {
 	return out.Close()
 }
 
-func devInstall(e env) error {
+func devInstall(e env, dir string) error {
 	if err := checkAdmin(); err != nil {
 		return err
 	}
@@ -330,7 +346,10 @@ func devInstall(e env) error {
 	if st, err := os.Stat(src); err != nil || !st.Mode().IsRegular() {
 		return fmt.Errorf("%s not found next to vlt-setup.exe", src)
 	}
-	installDir, dataDir := dirs()
+	installDir, dataDir, err := dirs(dir)
+	if err != nil {
+		return err
+	}
 
 	// 1. Group.
 	made, err := addGroup(operatorsGroup, groupComment)
@@ -370,7 +389,9 @@ func devInstall(e env) error {
 		return err
 	}
 	exe := filepath.Join(installDir, exeName)
-	if err := copyFile(src, exe); err != nil {
+	if samePath(src, exe) {
+		e.printf("2. %s is in the install folder. It is not copied.\n", exe)
+	} else if err := copyFile(src, exe); err != nil {
 		return fmt.Errorf("copy %s: %w", exeName, err)
 	}
 	s, err := m.CreateService(serviceName, exe, mgr.Config{
@@ -450,11 +471,14 @@ func waitState(s *mgr.Service, want svc.State, max time.Duration) error {
 	}
 }
 
-func devUninstall(e env) error {
+func devUninstall(e env, dir string) error {
 	if err := checkAdmin(); err != nil {
 		return err
 	}
-	installDir, dataDir := dirs()
+	installDir, dataDir, err := dirs(dir)
+	if err != nil {
+		return err
+	}
 	m, err := mgr.Connect()
 	if err != nil {
 		return fmt.Errorf("connect to the service manager: %w", err)

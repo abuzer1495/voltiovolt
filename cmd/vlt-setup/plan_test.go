@@ -13,12 +13,19 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	for _, ok := range []string{"dev-install", "dev-uninstall"} {
-		if c, err := parse([]string{ok}); err != nil || c != ok {
-			t.Errorf("%s: %q %v", ok, c, err)
+	for _, ok := range []string{"dev-install", "dev-uninstall", "version"} {
+		if o, err := parse([]string{ok}); err != nil || o.cmd != ok || o.dir != "" {
+			t.Errorf("%s: %+v %v", ok, o, err)
 		}
 	}
-	for _, bad := range [][]string{nil, {}, {"install"}, {"dev-install", "-x"}, {"--help"}, {"dev-install", "dev-uninstall"}} {
+	// VLT-IS-007 TASK 03-00-00-001 step 3.3: the install folder.
+	for _, args := range [][]string{{"dev-install", "--dir", `C:\Program Files\VoltioVolt-Test`}, {"dev-install", `--dir=C:\Program Files\VoltioVolt-Test`}, {"dev-uninstall", "--dir", `C:\Program Files\VoltioVolt-Test`}} {
+		if o, err := parse(args); err != nil || o.dir != `C:\Program Files\VoltioVolt-Test` {
+			t.Errorf("%q: %+v %v", args, o, err)
+		}
+	}
+	for _, bad := range [][]string{nil, {}, {"install"}, {"dev-install", "-x"}, {"--help"}, {"dev-install", "dev-uninstall"},
+		{"dev-install", "--dir"}, {"dev-install", "--dir", ""}, {"dev-install", "--dir="}, {"version", "--dir", "x"}, {"dev-install", "--dir", "a", "b"}} {
 		if _, err := parse(bad); err == nil {
 			t.Errorf("%q: no error", bad)
 		}
@@ -26,6 +33,10 @@ func TestParse(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if code := run([]string{"status"}, strings.NewReader(""), &out, &errOut); code != 2 || !strings.Contains(errOut.String(), "usage") {
 		t.Fatalf("code %d, %q", code, errOut.String())
+	}
+	out.Reset()
+	if code := run([]string{"version"}, strings.NewReader(""), &out, &errOut); code != 0 || out.String() != "vlt-setup "+version+"\n" {
+		t.Fatalf("version: code %d, %q", code, out.String())
 	}
 }
 

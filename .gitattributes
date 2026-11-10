@@ -8,3 +8,8 @@
 
 # Reference documents: keep the bytes without a change (VLT-IS-006 03-00-00-002).
 docs/reference/*.md -text
+
+# Windows test package files: CRLF line ends (cmd.exe labels and Notepad)
+# (VLT-IS-007 TASK 03-00-00-001).
+packaging/test/windows/*.cmd text eol=crlf
+packaging/test/windows/*.txt text eol=crlf

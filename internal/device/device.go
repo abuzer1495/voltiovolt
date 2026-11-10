@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/control"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/redact"
 	"github.com/abuzer1495/voltiovolt/internal/store"
@@ -148,6 +149,29 @@ func (s *Sender) Send(ctx context.Context, cmd string) (any, time.Time, error) {
 	}
 	v, err := dialect.Parse(cmd, resp.Raw)
 	return v, at, err
+}
+
+// ErrNoControl is returned when the Transport cannot send CONTROL commands.
+var ErrNoControl = errors.New("device: the Transport cannot send CONTROL commands")
+
+// SendControl sends one CONTROL command of internal/control with the
+// minimum gap between two requests (VLT-IS-006 TASK 03-00-00-005 step 6).
+// It returns the time of the request.
+func (s *Sender) SendControl(ctx context.Context, c control.Command) (time.Time, error) {
+	ct, ok := s.T.(transport.Controller)
+	if !ok {
+		return time.Time{}, ErrNoControl
+	}
+	if !s.last.IsZero() {
+		if wait := MinGap - s.Clock.Now().Sub(s.last); wait > 0 {
+			if err := s.Clock.Sleep(ctx, wait); err != nil {
+				return time.Time{}, err
+			}
+		}
+	}
+	at := s.Clock.Now()
+	s.last = at
+	return at, ct.Control(ctx, c)
 }
 
 // Profile is the device profile (TASK 03-00-00-003 step 2.5).

@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/control"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 )
 
@@ -242,6 +243,83 @@ func (s *Stream) Exchange(ctx context.Context, req []byte) (Response, error) {
 		out = append(out, buf[:n]...)
 		if len(out) > dialect.MaxResponseLen {
 			return Response{Raw: out}, ErrTooLong
+		}
+	}
+}
+
+// ControlWait is the maximum wait for a response to a CONTROL command.
+// The response is not read (VLT-REF-001 section 5: "Not read").
+const ControlWait = 300 * time.Millisecond
+
+// ErrNotControl is returned when a CONTROL command did not come from
+// internal/control or its bytes fail control.Check.
+var ErrNotControl = errors.New("transport: not a CONTROL command of internal/control (SEC-098)")
+
+// Controller is a Transport that can send a CONTROL command.
+type Controller interface {
+	Control(ctx context.Context, c control.Command) error
+}
+
+// Control sends one CONTROL command of internal/control (VLT-IS-006 TASK
+// 03-00-00-005, SEC-098). It accepts only a control.Command that passes
+// control.Check; Exchange still accepts only READ commands (SEC-037). It
+// keeps the minimum time between requests, removes old input data, writes
+// the full command (a partial write closes the Port, SEC-038) and reads a
+// response until CR or for a maximum of ControlWait. A missing response is
+// not an error.
+func (s *Stream) Control(ctx context.Context, c control.Command) error {
+	req := c.Bytes()
+	if !c.Valid() || control.Check(req) != nil {
+		return ErrNotControl
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.port == nil {
+		return ErrClosed
+	}
+	if !s.last.IsZero() {
+		if wait := s.opts.MinInterval - s.opts.Now().Sub(s.last); wait > 0 {
+			if err := s.opts.Sleep(ctx, wait); err != nil {
+				return err
+			}
+		}
+	}
+	buf := make([]byte, 512)
+	flushEnd := s.opts.Now().Add(s.opts.FlushTime)
+	for {
+		left := flushEnd.Sub(s.opts.Now())
+		if left <= 0 {
+			break
+		}
+		n, err := s.port.Read(buf, left)
+		if err != nil {
+			_ = s.closeLocked()
+			return fmt.Errorf("transport: flush: %w", err)
+		}
+		if n == 0 {
+			break
+		}
+	}
+	s.last = s.opts.Now()
+	n, err := s.port.Write(req)
+	if err != nil || n != len(req) {
+		_ = s.closeLocked()
+		return fmt.Errorf("%w: wrote %d of %d bytes", ErrPartialWrite, n, len(req))
+	}
+	end := s.opts.Now().Add(min(ControlWait, s.opts.Timeout))
+	for {
+		left := end.Sub(s.opts.Now())
+		if left <= 0 || ctx.Err() != nil {
+			return nil
+		}
+		n, err := s.port.Read(buf, left)
+		if err != nil {
+			_ = s.closeLocked()
+			return fmt.Errorf("transport: read: %w", err)
+		}
+		// Read waited for the time left: no more response bytes.
+		if n == 0 || bytes.IndexByte(buf[:n], '\r') >= 0 {
+			return nil
 		}
 	}
 }

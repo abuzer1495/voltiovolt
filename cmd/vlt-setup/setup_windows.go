@@ -27,6 +27,7 @@ var (
 	procNetLocalGroupAdd        = modnetapi32.NewProc("NetLocalGroupAdd")
 	procNetLocalGroupDel        = modnetapi32.NewProc("NetLocalGroupDel")
 	procNetLocalGroupGetMembers = modnetapi32.NewProc("NetLocalGroupGetMembers")
+	procNetLocalGroupAddMembers = modnetapi32.NewProc("NetLocalGroupAddMembers")
 	procLsaOpenPolicy           = modadvapi32.NewProc("LsaOpenPolicy")
 	procLsaClose                = modadvapi32.NewProc("LsaClose")
 	procLsaAddAccountRights     = modadvapi32.NewProc("LsaAddAccountRights")
@@ -36,11 +37,12 @@ var (
 
 // Error codes of the NetLocalGroup functions.
 const (
-	nerrGroupExists   = 2223 // NERR_GroupExists
-	errorAliasExists  = 1379 // ERROR_ALIAS_EXISTS
-	nerrGroupNotFound = 2220 // NERR_GroupNotFound
-	errorNoSuchAlias  = 1376 // ERROR_NO_SUCH_ALIAS
-	maxPreferredLen   = 0xFFFFFFFF
+	nerrGroupExists    = 2223 // NERR_GroupExists
+	errorAliasExists   = 1379 // ERROR_ALIAS_EXISTS
+	nerrGroupNotFound  = 2220 // NERR_GroupNotFound
+	errorNoSuchAlias   = 1376 // ERROR_NO_SUCH_ALIAS
+	errorMemberInAlias = 1378 // ERROR_MEMBER_IN_ALIAS
+	maxPreferredLen    = 0xFFFFFFFF
 )
 
 // LSA policy access rights (ntsecapi.h).
@@ -154,6 +156,50 @@ func addGroup(name, comment string) (bool, error) {
 		return false, nil
 	}
 	return false, fmt.Errorf("NetLocalGroupAdd: %w", windows.Errno(r))
+}
+
+// localGroupMembersInfo0 is LOCALGROUP_MEMBERS_INFO_0 (lmaccess.h): the
+// SID of the member.
+type localGroupMembersInfo0 struct {
+	sid *windows.SID
+}
+
+// addMember adds the account with the SID to the local group (Microsoft
+// Learn, NetLocalGroupAddMembers, level 0). It returns false if the
+// account is a member already (ERROR_MEMBER_IN_ALIAS).
+func addMember(group string, sid *windows.SID) (bool, error) {
+	g, err := windows.UTF16PtrFromString(group)
+	if err != nil {
+		return false, err
+	}
+	info := localGroupMembersInfo0{sid: sid}
+	r, _, _ := procNetLocalGroupAddMembers.Call(0, uintptr(unsafe.Pointer(g)), 0, uintptr(unsafe.Pointer(&info)), 1)
+	switch r {
+	case 0:
+		return true, nil
+	case errorMemberInAlias:
+		return false, nil
+	}
+	return false, fmt.Errorf("NetLocalGroupAddMembers: %w", windows.Errno(r))
+}
+
+// callingUser returns the user SID and the account name of the process
+// token: the user who started vlt-setup (VLT-IS-005 TASK 03-00-00-009
+// step 7).
+func callingUser() (*windows.SID, string, error) {
+	tu, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		return nil, "", fmt.Errorf("read the user of the process token: %w", err)
+	}
+	sid, err := tu.User.Sid.Copy()
+	if err != nil {
+		return nil, "", err
+	}
+	name := sid.String()
+	if acc, dom, _, err := sid.LookupAccount(""); err == nil {
+		name = dom + `\` + acc
+	}
+	return sid, name, nil
 }
 
 // groupMembers returns the number of members, or -1 if the group does not
@@ -295,6 +341,19 @@ func devInstall(e env) error {
 		e.printf("1. Group %q made.\n", operatorsGroup)
 	} else {
 		e.printf("1. Group %q exists. Continue.\n", operatorsGroup)
+	}
+	usid, uname, err := callingUser()
+	if err != nil {
+		return err
+	}
+	added, err := addMember(operatorsGroup, usid)
+	if err != nil {
+		return err
+	}
+	if added {
+		e.printf("1a. User %s added to the group %q. Sign out and sign in again to use the VLT GUI.\n", uname, operatorsGroup)
+	} else {
+		e.printf("1a. User %s is a member of the group %q.\n", uname, operatorsGroup)
 	}
 
 	// 2. Service with the virtual account.

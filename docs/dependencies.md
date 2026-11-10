@@ -54,6 +54,8 @@ Installed with `npm ci --ignore-scripts` only. Exact versions in package.json; p
 
 Indirect development packages: their licenses are MIT, ISC, Apache-2.0, BSD-2-Clause (entities), BSD-3-Clause (source-map-js) and MPL-2.0 (lightningcss and its platform packages). The list with the publish dates is in VLT-RPT-005.
 
+The front-end tests use preact/test-utils, a part of the preact package (no other package). Tasks 03-00-00-003 to 03-00-00-009 of VLT-IS-005 add no dependency.
+
 The Wails runtime is not an npm package here. The VLT GUI serves the runtime of the Wails Go module at /wails/runtime.js (application.BundledAssetFileServer).
 
 ## CI tools (not in VLT binaries)

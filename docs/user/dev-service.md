@@ -24,7 +24,7 @@ Run each command as root:
     systemctl daemon-reload
     systemctl start vltd
 
-vlt-dev-init.sh makes the users and groups, the encrypted DEK /etc/credstore.encrypted/vlt-dek and /etc/vltd/key-mode. It also installs the polkit rule /etc/polkit-1/rules.d/50-vltd.rules (owner root, mode 0644): only the user vltd can power off or hibernate the computer. Do not enable vltd-fallback.service. To use the IPC as a normal user, add the user to the group vlt: `usermod -aG vlt <user>` (then log in again).
+vlt-dev-init.sh makes the users and groups, the encrypted DEK /etc/credstore.encrypted/vlt-dek and /etc/vltd/key-mode. It also installs the polkit rule /etc/polkit-1/rules.d/50-vltd.rules (owner root, mode 0644): only the user vltd can power off or hibernate the computer. Do not enable vltd-fallback.service. To use the IPC (and the VLT GUI) as a normal user, the user must be in the group vlt. If you start vlt-dev-init.sh with sudo (`sudo sh packaging/linux/vlt-dev-init.sh`), the script adds the user who started sudo (SUDO_USER) to the group vlt (VLT-IS-005). Else: `usermod -aG vlt <user>`. Then log out and log in again.
 
 ### E.3 Install on Windows
 
@@ -35,7 +35,7 @@ Build vlt-setup too (`CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o vlt-se
 
 The script checks for Administrator rights and runs `vlt-setup.exe dev-install`. vlt-setup prints each step (VLT-IS-004 TASK 03-00-00-002):
 
-1. Makes the local group "VLT Operators" (continues if it exists).
+1. Makes the local group "VLT Operators" (continues if it exists). 1a. Adds the user who started vlt-setup to the group (VLT-IS-005); sign out and sign in again to use the VLT GUI.
 2. Copies vltd.exe to %ProgramFiles%\VoltioVolt and makes the service vltd with the virtual account NT SERVICE\vltd (start type manual).
 3. Gives the user right SeShutdownPrivilege to NT SERVICE\vltd.
 4. Sets the required privileges of the service: SeShutdownPrivilege and SeChangeNotifyPrivilege.
@@ -43,7 +43,7 @@ The script checks for Administrator rights and runs `vlt-setup.exe dev-install`.
 6. Sets the recovery: restart after the first and the second failure, after 5 seconds.
 7. Starts the service.
 
-To give a user access to the IPC pipe, add the user to the group: `Add-LocalGroupMember -Group "VLT Operators" -Member <user>` (then log in again).
+To give another user access to the IPC pipe, add the user to the group: `Add-LocalGroupMember -Group "VLT Operators" -Member <user>` (then log in again).
 
 ### E.4 Check the service status
 
@@ -111,7 +111,7 @@ Her komutu root olarak çalıştırın:
     systemctl daemon-reload
     systemctl start vltd
 
-vlt-dev-init.sh kullanıcıları ve grupları, şifreli DEK dosyasını (/etc/credstore.encrypted/vlt-dek) ve /etc/vltd/key-mode dosyasını oluşturur. Ayrıca polkit kuralını /etc/polkit-1/rules.d/50-vltd.rules olarak kurar (sahip root, izin 0644): bilgisayarı yalnızca vltd kullanıcısı kapatabilir veya hazırda bekletebilir. vltd-fallback.service birimini etkinleştirmeyin (enable). IPC'yi normal bir kullanıcı ile kullanmak için kullanıcıyı vlt grubuna ekleyin: `usermod -aG vlt <kullanıcı>` (sonra yeniden oturum açın).
+vlt-dev-init.sh kullanıcıları ve grupları, şifreli DEK dosyasını (/etc/credstore.encrypted/vlt-dek) ve /etc/vltd/key-mode dosyasını oluşturur. Ayrıca polkit kuralını /etc/polkit-1/rules.d/50-vltd.rules olarak kurar (sahip root, izin 0644): bilgisayarı yalnızca vltd kullanıcısı kapatabilir veya hazırda bekletebilir. vltd-fallback.service birimini etkinleştirmeyin (enable). IPC'yi (ve VLT GUI'yi) normal bir kullanıcı ile kullanmak için kullanıcı vlt grubunda olmalıdır. vlt-dev-init.sh betiğini sudo ile başlatırsanız (`sudo sh packaging/linux/vlt-dev-init.sh`), betik sudo'yu başlatan kullanıcıyı (SUDO_USER) vlt grubuna ekler (VLT-IS-005). Aksi halde: `usermod -aG vlt <kullanıcı>`. Sonra oturumu kapatıp yeniden açın.
 
 ### T.3 Windows kurulumu
 
@@ -122,7 +122,7 @@ vlt-setup aracını da derleyin (`CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go bui
 
 Betik Yönetici haklarını kontrol eder ve `vlt-setup.exe dev-install` komutunu çalıştırır. vlt-setup her adımı yazar (VLT-IS-004 TASK 03-00-00-002):
 
-1. "VLT Operators" yerel grubunu oluşturur (varsa devam eder).
+1. "VLT Operators" yerel grubunu oluşturur (varsa devam eder). 1a. vlt-setup aracını başlatan kullanıcıyı gruba ekler (VLT-IS-005); VLT GUI'yi kullanmak için oturumu kapatıp yeniden açın.
 2. vltd.exe dosyasını %ProgramFiles%\VoltioVolt klasörüne kopyalar ve NT SERVICE\vltd sanal hesabıyla vltd hizmetini oluşturur (başlangıç türü el ile).
 3. NT SERVICE\vltd hesabına SeShutdownPrivilege kullanıcı hakkını verir.
 4. Hizmetin gerekli ayrıcalıklarını ayarlar: SeShutdownPrivilege ve SeChangeNotifyPrivilege.
@@ -130,7 +130,7 @@ Betik Yönetici haklarını kontrol eder ve `vlt-setup.exe dev-install` komutunu
 6. Kurtarmayı ayarlar: birinci ve ikinci hatadan sonra 5 saniye sonra yeniden başlat.
 7. Hizmeti başlatır.
 
-Bir kullanıcıya IPC kanalı erişimi vermek için kullanıcıyı gruba ekleyin: `Add-LocalGroupMember -Group "VLT Operators" -Member <kullanıcı>` (sonra yeniden oturum açın).
+Başka bir kullanıcıya IPC kanalı erişimi vermek için kullanıcıyı gruba ekleyin: `Add-LocalGroupMember -Group "VLT Operators" -Member <kullanıcı>` (sonra yeniden oturum açın).
 
 ### T.4 Hizmet durumunu kontrol edin
 

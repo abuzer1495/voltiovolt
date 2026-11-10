@@ -16,6 +16,9 @@ Source keys (refer to `docs/references.md`):
 | A | Source A, family sample (Tunçmatik Newtech Pro 1 kVA, 2010): <https://lists.alioth.debian.org/pipermail/nut-upsuser/2010-February/005856.html> |
 | B | Source B, standby UPS, Q1 over USB: <https://gist.github.com/ao-kenji/7070940> |
 | IS2 | VLT-IS-002 Revision 00 (decisions and test vectors) |
+| K1 | Linux kernel documentation, hidraw: <https://docs.kernel.org/hid/hidraw.html> |
+| K2 | Linux kernel documentation, introduction to HID report descriptors: <https://docs.kernel.org/hid/hidintro.html> |
+| W1 | Microsoft documentation, HIDP_CAPS: <https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidpi/ns-hidpi-_hidp_caps> |
 
 ## 1. General frame
 
@@ -101,3 +104,23 @@ Format (sample): `(209.7 50.0 219.7 50.0 000.8 019 374.9 374.3 041.8 ---.- 023.3
 | P-091 | QMD | 8 fields: model (15, "#" padding), rated VA (7, "#" padding), power factor (dd), phases ("d/d"), nominal input voltage (ddd), nominal output voltage (ddd), number of batteries (dd), battery voltage (dd.d). | —, VA, %, —, V, V, —, V | A (sample only, the source says "What is this ?") | UNVERIFIED |
 | P-092 | QMD | Leading "#" characters are padding. A field with only "#" has no value. | — | A, IS2 | UNVERIFIED |
 
+## 6. USB HID
+
+| No. | Fact | Code | Source | Status |
+|-----|------|------|--------|--------|
+| P-100 | The Reference UPS USB interface has VID 0665 and PID 5161. | `transport.VendorID`, `ProductID` | IS2 | UNVERIFIED |
+| P-101 | hidraw write(): the first byte is the report number, 0 if the device does not use numbered reports. | `hidPort.Write`, `hidraw.WriteReport` | K1 | VERIFIED |
+| P-102 | hidraw read(): with numbered reports, the first byte is the report number; without, the data starts at the first byte. | `hidraw.ReadReport` | K1 | VERIFIED |
+| P-103 | The report descriptor is readable from sysfs (`.../report_descriptor`). | `listHIDIn` | K2 | VERIFIED |
+| P-104 | sysfs `uevent` has `HID_ID=<bus>:<vid>:<pid>` (hexadecimal), `HID_NAME` and `HID_UNIQ`. | `readUevent` | Linux kernel source (not read in this session) | UNVERIFIED |
+| P-105 | Report descriptor short items: prefix byte with size (bits 0-1, value 3 = 4 bytes), type (bits 2-3) and tag (bits 4-7). Global tags: Report Size 7, Report ID 8, Report Count 9, Push 10, Pop 11. Main tags: Input 8, Output 9, Feature 11. Long item prefix 0xFE. | `ParseReportDescriptor` | USB HID specification 1.11 (not read in this session); examples in K2 | UNVERIFIED |
+| P-106 | HidP_GetCaps report lengths include the report ID byte. The ID is zero if report IDs are not used. | `queryHID` | W1 | VERIFIED |
+| P-107 | Requests are sent as output reports (not feature reports). | `hidPort` | none | UNVERIFIED (IS2 03-00-00-006 step 7 NOTE) |
+| P-108 | Zero bytes after the CR in an input report are not data. | `transport.Stream` (stops at CR) | none | UNVERIFIED |
+
+## 7. Serial
+
+| No. | Fact | Code | Source | Status |
+|-----|------|------|--------|--------|
+| P-120 | 2400 bit/s, 8 data bits, no parity, 1 stop bit. | `transport.NewSerial` | IS2 03-00-00-006 step 4 | UNVERIFIED for the Reference UPS |
+| P-121 | DTR on and RTS off at open time. | `transport.DefaultSerialOptions` | IS2 03-00-00-006 step 4 | UNVERIFIED for the Reference UPS |

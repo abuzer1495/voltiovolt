@@ -16,6 +16,7 @@ import { Policy } from '../src/screens/policy';
 import { Security } from '../src/screens/security';
 import { Events } from '../src/screens/events';
 import { Device } from '../src/screens/device';
+import { UPSControl } from '../src/screens/ups';
 import { SetPin, Login } from '../src/screens/pin';
 import { app } from '../src/state';
 import * as fake from './fakebridge';
@@ -107,7 +108,7 @@ function setup() {
   const p = {
     settings: { action: 'shutdown', 'trigger.on_battery_seconds': 300, 'trigger.runtime_below_minutes': 5, 'trigger.charge_below_percent': 30,
       'trigger.low_battery_flag': true, 'trigger.comm_lost_on_battery_seconds': 180, countdown_seconds: 60, cancel_when_mains_returns: true,
-      force_close_applications: true },
+      force_close_applications: true, 'ups_off.enabled': false, 'ups_off.delay_minutes': 2, 'ups_off.restore_minutes': 1 },
     version: 'abc', active: false, fallback: false, last_simulation: null,
   };
   fake.handlers.Policy = () => p;
@@ -121,6 +122,7 @@ function setup() {
   fake.handlers.Events = () => ({ events: [], next: 0 });
   fake.handlers.DeviceStatus = () => ({ state: 'port busy', since: '', config: { transport: 'serial', serial_port: 'COM3', serial_dtr: 'unchanged', serial_rts: 'unchanged', allowed_ports: [] } });
   fake.handlers.DevicePorts = () => ({ ports: [{ name: 'COM3', is_usb: true, vid: '1a86', pid: '7523', product: 'USB Serial' }, { name: 'COM1', is_usb: false }] });
+  fake.handlers.UPSControlCapabilities = () => ({ connected: true, functions: ['test.10s', 'test.minutes', 'test.until_low', 'test.cancel', 'beeper'], last_test: { result: 'TEST_PASSED', start: '2026-11-10T10:00:00Z', end: '2026-11-10T10:00:10Z', ups_failed: false, battery_low: false, cancelled: false } });
   fake.handlers.About = () => ({ version: 'test', vltd_version: '0.5.0', protocol: 1, gui_protocol: 1, license: 'AGPL-3.0-or-later', source: 'https://github.com/abuzer1495/voltiovolt' });
   app.set({ auth: { pin_set: true, elevated: true } as never, conn: { state: 'connected', since: '' }, policy: p as never });
 }
@@ -128,7 +130,7 @@ function setup() {
 describe('accessible names', () => {
   const screens: [string, () => preact.JSX.Element][] = [
     ['App', () => <App />], ['Dashboard', () => <Dashboard />], ['Policy', () => <Policy />], ['Security', () => <Security />], ['General', () => <General />],
-    ['Events', () => <Events />], ['Device', () => <Device />], ['SetPin', () => <SetPin />], ['Login', () => <Login />],
+    ['Events', () => <Events />], ['Device', () => <Device />], ['UPSControl', () => <UPSControl />], ['SetPin', () => <SetPin />], ['Login', () => <Login />],
   ];
   for (const lang of ['en', 'tr'] as const)
     for (const [n, f] of screens)

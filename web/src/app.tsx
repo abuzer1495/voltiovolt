@@ -12,6 +12,7 @@ import { History } from './screens/history';
 import { Login, SetPin } from './screens/pin';
 import { Policy } from './screens/policy';
 import { Security } from './screens/security';
+import { UPSControl } from './screens/ups';
 import { app, lock, refreshAuth, start } from './state';
 import { useStore } from './store';
 
@@ -24,6 +25,7 @@ export interface Route {
 export const routes: Route[] = [
   { id: 'dashboard', label: 'nav.dashboard', comp: Dashboard },
   { id: 'device', label: 'nav.device', comp: Device },
+  { id: 'ups', label: 'nav.ups', comp: UPSControl },
   { id: 'history', label: 'nav.history', comp: History },
   { id: 'events', label: 'nav.events', comp: Events },
   { id: 'policy', label: 'nav.policy', comp: Policy },

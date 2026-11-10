@@ -322,6 +322,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 | SystemStatus | system.status | no |
 | AuthStatus, SetPIN, Login, Logout | auth.status, auth.set_pin, auth.login, auth.logout | SetPIN for a change only |
 | DeviceStatus, SetDeviceSettings, DevicePorts, DeviceScan | device.status, device.settings.set, device.ports, device.scan | set and scan only |
+| UPSControlCapabilities, UPSTestStart, UPSTestCancel, UPSBeeperSet | ups.control.capabilities, ups.test.start, ups.test.cancel, ups.beeper.set | test, cancel and beeper only; no shutdown function (SEC-098) |
 | Measurements | measurements.query (in parts of 9000 rows) | no |
 | Events | events.list | no |
 | Policy, SetPolicy, Simulate, ActivatePolicy, DeactivatePolicy | policy.get, policy.set, policy.simulate, policy.activate, policy.deactivate | all except Policy |
@@ -344,9 +345,10 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 | Set PIN / Login | First start: only "Set PIN" with the rules. Login shows the block time. |
 | Dashboard | Mode with icon and text, values, countdown banner with Cancel, Fallback banner, last Events. |
 | Device | device.status; port list with the USB description, "Scan" (WARNING, typed text "SCAN PORTS", elevated), "Use this port" (elevated, confirmation); port busy help; device settings (elevated). |
+| UPS Control | ups.control.capabilities; buttons Test 10 seconds, Test for minutes (1 to 99), Test until battery low (WARNING, typed text "TEST UNTIL LOW"), Cancel test, Beeper on, Beeper off. Each button needs the elevated state and the function in the capabilities. The tests ask for a confirmation and send "START TEST". The last test result (TEST_PASSED or TEST_FAILED) with its time. No shutdown button (VLT-IS-006). |
 | History | uPlot charts for 1 h, 24 h, 7 d, 30 d, 1 y; a text table for each chart. |
 | Events | events.list with paging, filter by severity and type. |
-| Shutdown Policy | policy.get, edit with default and range per field, Simulation with steps, Activate only after a passed Simulation of the current version, Deactivate, shutdown.status. |
+| Shutdown Policy | policy.get, edit with default and range per field, Simulation with steps, Activate only after a passed Simulation of the current version, Deactivate, shutdown.status. VLT-IS-006: the 3 ups_off Settings with their ranges, the WARNING "An incorrect delay can turn off the power before the computer has shut down. Data can be lost." and the text with the delay and restore values. |
 | Security | Vault state and reason, SEC-005 notice for "reduced protection", Vault reset (type "RESET VAULT"), Change PIN, audit log with paging. |
 | General | Language (tr/en, Setting ui.language), theme follows the OS, About. |
 

@@ -25,6 +25,25 @@ function formOf(p: PolicyInfo): Record<string, string | boolean> {
   return out;
 }
 
+/**
+ * UPSOffNote is the WARNING and the explanation of the UPS output off step
+ * (VLT-IS-006 TASK 03-00-00-008 step 2).
+ */
+export function UPSOffNote({ form }: { form: Record<string, string | boolean> }) {
+  return (
+    <div class="upsoff">
+      <h4>{t('policy.upsoff.title')}</h4>
+      <div class="banner banner-warn" role="note">
+        <span aria-hidden="true" class="banner-icon">⚠</span>
+        <span>{t('policy.upsoff.warning')}</span>
+      </div>
+      <p class="note">
+        {t('policy.upsoff.text', { delay: String(form['ups_off.delay_minutes']), restore: String(form['ups_off.restore_minutes']) })}
+      </p>
+    </div>
+  );
+}
+
 export function PolicyForm({ p, onSaved }: { p: PolicyInfo; onSaved: (p: PolicyInfo) => void }) {
   const [form, setForm] = useState(formOf(p));
   const [problems, setProblems] = useState<Record<string, string>>({});
@@ -48,6 +67,8 @@ export function PolicyForm({ p, onSaved }: { p: PolicyInfo; onSaved: (p: PolicyI
         const hint = id + '-hint';
         const prob = problems[f.key];
         return (
+          <>
+          {f.key === 'ups_off.enabled' ? <UPSOffNote form={form} /> : null}
           <div class="field">
             {f.kind === 'bool' ? (
               <label class="check" for={id}>
@@ -77,6 +98,7 @@ export function PolicyForm({ p, onSaved }: { p: PolicyInfo; onSaved: (p: PolicyI
             </span>
             {prob ? <span class="msg msg-error" role="alert">{t(prob, { min: f.min ?? 0, max: f.max ?? 0 })}</span> : null}
           </div>
+          </>
         );
       })}
       <button type="submit" class="primary">{t('common.save')}</button>

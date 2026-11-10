@@ -25,6 +25,10 @@ export const FIELDS: Field[] = [
   { key: 'countdown_seconds', kind: 'int', def: 60, min: 10, max: 600, unit: 's' },
   { key: 'cancel_when_mains_returns', kind: 'bool', def: true },
   { key: 'force_close_applications', kind: 'bool', def: true },
+  // VLT-IS-006 TASK 03-00-00-006: the UPS output off step.
+  { key: 'ups_off.enabled', kind: 'bool', def: false },
+  { key: 'ups_off.delay_minutes', kind: 'int', def: 2, min: 1, max: 10, unit: 'min' },
+  { key: 'ups_off.restore_minutes', kind: 'int', def: 1, min: 1, max: 9999, unit: 'min' },
 ];
 
 /** checkField returns an i18n key of the problem, or null. */

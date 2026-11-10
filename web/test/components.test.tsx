@@ -12,6 +12,7 @@ import { canActivate, FIELDS } from '../src/policyform';
 import { Policy, PolicyForm } from '../src/screens/policy';
 import { Login, PinRules, SetPin } from '../src/screens/pin';
 import { Device, SCAN_TEXT } from '../src/screens/device';
+import { UNTIL_LOW_TEXT, UPSControl } from '../src/screens/ups';
 import { app } from '../src/state';
 import * as fake from './fakebridge';
 
@@ -283,5 +284,98 @@ describe('Device screen ports', () => {
     expect(set.length).toBe(1);
     expect(set[0].args[0]).toEqual({ 'device.transport': 'serial', 'device.serial_port': 'COM4' });
     expect(fake.calls.some((c) => c.method === 'DeviceScan')).toBe(false);
+  });
+});
+
+// VLT-IS-006 TASK 03-00-00-008 step 1: UPS Control screen. The bridge is a
+// fake: no command goes to a UPS.
+describe('UPS Control screen', () => {
+  const all = ['test.10s', 'test.minutes', 'test.until_low', 'test.cancel', 'beeper'];
+  async function upsScreen(elevated: boolean, functions = all, last?: unknown) {
+    app.set({ auth: { pin_set: true, elevated } as never });
+    fake.handlers.UPSControlCapabilities = () => ({ connected: functions.length > 0, functions, last_test: last });
+    fake.handlers.UPSTestStart = () => ({ function: 'test.10s', bytes: 'T', sends: 1, verified: true });
+    fake.handlers.UPSBeeperSet = () => ({ function: 'beeper', bytes: 'Q', sends: 1, verified: true });
+    fake.handlers.UPSTestCancel = () => ({ function: 'test.cancel', bytes: 'CT', sends: 1, verified: true });
+    await show(<UPSControl />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+  const names = ['ups.test.10s', 'ups.test.minutes', 'ups.test.low', 'ups.test.cancel', 'ups.beeper.on', 'ups.beeper.off'];
+  it('each button is off without the elevated state', async () => {
+    await upsScreen(false);
+    for (const n of names) expect(byText(t(n)).disabled, n).toBe(true);
+  });
+  it('each button is off without the capability', async () => {
+    await upsScreen(true, []);
+    for (const n of names) expect(byText(t(n)).disabled, n).toBe(true);
+    expect(root.textContent).toContain(t('ups.noups'));
+  });
+  it('has no shutdown button', async () => {
+    await upsScreen(true);
+    const labels = [...root.querySelectorAll('button')].map((b) => b.textContent ?? '');
+    expect(labels.some((l) => /shut ?down|output off/i.test(l))).toBe(false);
+  });
+  it('test 10 seconds asks first, then sends START TEST', async () => {
+    await upsScreen(true);
+    await click(byText(t('ups.test.10s')));
+    expect(fake.calls.some((c) => c.method === 'UPSTestStart')).toBe(false);
+    await click(byText(t('ups.test.start')));
+    const c = fake.calls.filter((x) => x.method === 'UPSTestStart');
+    expect(c).toEqual([{ method: 'UPSTestStart', args: ['10s', 0, 'START TEST'] }]);
+  });
+  it('test for minutes checks the range 1 to 99', async () => {
+    await upsScreen(true);
+    await type('#ups-minutes', '100');
+    expect(byText(t('ups.test.minutes')).disabled).toBe(true);
+    await type('#ups-minutes', '15');
+    await click(byText(t('ups.test.minutes')));
+    await click(byText(t('ups.test.start')));
+    expect(fake.calls.filter((x) => x.method === 'UPSTestStart')[0].args).toEqual(['minutes', 15, 'START TEST']);
+  });
+  it('test until low shows the WARNING and needs the typed text', async () => {
+    await upsScreen(true);
+    await click(byText(t('ups.test.low')));
+    expect(root.textContent).toContain('This test discharges the battery until it is low. The protected equipment has less battery time after the test until the battery is charged again.');
+    await type('#ups-low-text', 'test until low');
+    expect(byText(t('ups.test.low.start')).disabled).toBe(true);
+    await type('#ups-low-text', UNTIL_LOW_TEXT);
+    await submit('form');
+    expect(fake.calls.filter((x) => x.method === 'UPSTestStart')).toEqual([{ method: 'UPSTestStart', args: ['until_low', 0, 'TEST UNTIL LOW'] }]);
+  });
+  it('beeper off and cancel test send their requests', async () => {
+    await upsScreen(true);
+    await click(byText(t('ups.beeper.off')));
+    await click(byText(t('ups.test.cancel')));
+    expect(fake.calls.filter((x) => x.method === 'UPSBeeperSet')[0].args).toEqual([false]);
+    expect(fake.calls.some((x) => x.method === 'UPSTestCancel')).toBe(true);
+  });
+  it('shows the last test result and its time', async () => {
+    await upsScreen(true, all, { result: 'TEST_FAILED', start: '2026-11-10T10:00:00Z', end: '2026-11-10T10:00:10Z', ups_failed: false, battery_low: true, cancelled: false });
+    expect(root.textContent).toContain('TEST_FAILED');
+    expect(root.textContent).toContain(t('ups.battery_low'));
+  });
+});
+
+// VLT-IS-006 TASK 03-00-00-008 step 2: the UPS output off Settings.
+describe('Policy UPS output off', () => {
+  it('shows the WARNING, the text with the values and the ranges', async () => {
+    await show(<PolicyForm p={pol()} onSaved={() => undefined} />);
+    expect(root.textContent).toContain('An incorrect delay can turn off the power before the computer has shut down. Data can be lost.');
+    expect(root.textContent).toContain('The UPS turns off its output 2 minutes after the shutdown starts. The computer must shut down in less time. The UPS turns on its output 1 minutes later.');
+    expect($('#pf-ups_off-delay_minutes-hint').textContent).toContain('10');
+    expect($('#pf-ups_off-restore_minutes-hint').textContent).toContain('9999');
+  });
+  it('refuses a delay out of range', async () => {
+    fake.handlers.SetPolicy = () => pol();
+    await show(<PolicyForm p={pol()} onSaved={() => undefined} />);
+    await type('#pf-ups_off-delay_minutes', '11');
+    await submit('form');
+    expect(fake.calls.some((c) => c.method === 'SetPolicy')).toBe(false);
+    await type('#pf-ups_off-delay_minutes', '10');
+    await submit('form');
+    const c = fake.calls.find((x) => x.method === 'SetPolicy');
+    expect((c!.args[0] as Record<string, unknown>)['ups_off.delay_minutes']).toBe(10);
   });
 });

@@ -149,3 +149,25 @@ vltd has one flag: --version. It prints the version and exits.
 5. Each cycle goes to the Sink (Measurements, Event Engine) with the time of each request and the parsed value or the error.
 6. Only READ commands of the registry: requests come only from dialect.EncodeRead, and transport.Stream refuses all other bytes (SEC-037). The simulator recorder tests check each received command.
 7. Time: the Poller and the Device Manager use a Clock interface. Tests use a virtual clock, so 6 hours of polling run in seconds.
+
+## 8. Measurements (internal/measure, VLT-IS-004 TASK 03-00-00-004)
+
+| Name | Unit | Source |
+|------|------|--------|
+| input.voltage | V | Q1, QS, QGS |
+| input.fault_voltage | V | Q1, QS |
+| input.frequency | Hz | Q1, QS, QGS |
+| output.voltage | V | Q1, QS, QGS |
+| output.frequency | Hz | QGS |
+| output.current | A | QGS |
+| load.percent | % | Q1, QS, QGS |
+| battery.voltage | V | QS, QGS, QBV; Q1 as received (VLT-IS-002 TASK 03-00-00-005 step 4f) |
+| battery.charge | % | QBV |
+| battery.runtime | min | QBV |
+| ups.temperature | °C | Q1, QS, QGS |
+
+1. Tables (migration 0002): `measurements` (raw: ts, name, value, unit, source), `measurements_1m` and `measurements_1h` (ts, name, unit, min, max, mean, count). ts is Unix time in milliseconds (UTC), the start of the period for summaries.
+2. A field with no value (the parser gives Valid=false, for example "---") is not stored. vltd never stores zero in its place. NaN and infinite values are refused.
+3. All Measurements of one poll cycle are written in one transaction. If one row fails, no row of the cycle is stored.
+4. The hourly job (at start and every hour) makes the 1-minute values of all complete minutes from the raw values, and the 1-hour values of all complete hours from the 1-minute values (mean weighted by count). It makes the last summary period again, so a second run gives the same result. Then it deletes raw values older than 7 days and 1-minute values older than 400 days. 1-hour values have no limit.
+5. Query (measurements.query): name, range [from, to), step raw, 1m or 1h. Maximum 10000 rows.

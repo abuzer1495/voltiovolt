@@ -172,6 +172,7 @@ func TestCaptureRedaction(t *testing.T) {
 func TestParseArgs(t *testing.T) {
 	var sink bytes.Buffer
 	good := [][]string{
+		{"version"},
 		{"scan"},
 		{"probe"},
 		{"probe", "--transport", "serial", "--port", "/dev/ttyS0", "--dtr=off", "--rts=on"},
@@ -198,6 +199,7 @@ func TestParseArgs(t *testing.T) {
 		{"watch", "--minutes", "31"},
 		{"scan", "--transport", "serial"},
 		{"probe", "--transport", "usb"},
+		{"version", "--port", "COM3"},
 	}
 	for _, a := range bad {
 		if _, err := parseArgs(a, &sink); err == nil {

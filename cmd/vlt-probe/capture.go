@@ -16,8 +16,9 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/transport"
 )
 
-// toolVersion is the version of vlt-probe.
-const toolVersion = "0.1.0-dev"
+// toolVersion is the version of vlt-probe. The test build sets it with
+// -ldflags "-X main.toolVersion=..." (VLT-IS-007 TASK 03-00-00-001).
+var toolVersion = "0.1.0-dev"
 
 // Device is the device data in the Capture.
 type Device struct {

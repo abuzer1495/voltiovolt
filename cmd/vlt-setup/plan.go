@@ -10,6 +10,7 @@ import (
 
 // Subcommands. There are no other subcommands (TASK 03-00-00-002 step 1).
 const (
+	cmdVersion   = "version"
 	cmdInstall   = "dev-install"
 	cmdUninstall = "dev-uninstall"
 )

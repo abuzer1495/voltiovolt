@@ -23,6 +23,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client"
+	"github.com/abuzer1495/voltiovolt/internal/ipc/client/typed"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/redact"
@@ -169,7 +170,7 @@ func TestAllMethodsNoSecretInResponses(t *testing.T) {
 	// has its own test (TestRateLimit).
 	e.srv.rate = 10000
 	rec := &recorder{Conn: e.ln.dial(t)}
-	c := client.New(rec)
+	c := typed.New(rec)
 	secret := "S3cr3tValue-" + strings.Repeat("q", 20) + "-ZZZZ"
 
 	// First start: only hello, status, auth.status and set_pin.
@@ -359,9 +360,9 @@ func TestBadRequests(t *testing.T) {
 
 func TestConnectionLimit(t *testing.T) {
 	e := newEnv(t)
-	var cs []*client.Client
+	var cs []*typed.Client
 	for i := 0; i < MaxConns; i++ {
-		c := client.New(e.ln.dial(t))
+		c := typed.New(e.ln.dial(t))
 		if _, err := c.Hello(context.Background()); err != nil {
 			t.Fatal(err)
 		}
@@ -380,7 +381,7 @@ func TestConnectionLimit(t *testing.T) {
 	for e.srv.Conns() != MaxConns-1 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	c := client.New(e.ln.dial(t))
+	c := typed.New(e.ln.dial(t))
 	if _, err := c.Hello(context.Background()); err != nil {
 		t.Fatalf("connection after one closed: %v", err)
 	}
@@ -391,7 +392,7 @@ func TestRateLimit(t *testing.T) {
 	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
 	var mu sync.Mutex
 	e.srv.now = func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
-	c := client.New(e.ln.dial(t))
+	c := typed.New(e.ln.dial(t))
 	ctx := context.Background()
 	for i := 0; i < RequestsPerSec; i++ {
 		if _, err := c.Hello(ctx); err != nil {
@@ -436,7 +437,7 @@ func TestSessionIdle(t *testing.T) {
 	var mu sync.Mutex
 	e.srv.now = func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
 	step := func(d time.Duration) { mu.Lock(); now = now.Add(d); mu.Unlock() }
-	c := client.New(e.ln.dial(t))
+	c := typed.New(e.ln.dial(t))
 	if err := c.SetPIN(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +456,7 @@ func TestSessionIdle(t *testing.T) {
 	if err := c.Login(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
-	other := client.New(e.ln.dial(t))
+	other := typed.New(e.ln.dial(t))
 	if _, err := other.Audit(ctx, 0, 1); client.Code(err) != wire.CodeNotElevated {
 		t.Fatalf("other connection: %v", err)
 	}

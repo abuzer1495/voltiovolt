@@ -15,11 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/abuzer1495/voltiovolt/internal/device"
-	"github.com/abuzer1495/voltiovolt/internal/event"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
-	"github.com/abuzer1495/voltiovolt/internal/measure"
-	"github.com/abuzer1495/voltiovolt/internal/policy"
 )
 
 // Client is one IPC connection. It is safe for concurrent use; requests
@@ -251,15 +247,12 @@ func (c *Client) Audit(ctx context.Context, after int64, limit int) (r wire.Audi
 	return
 }
 
-// VLT-IS-004 TASK 03-00-00-008 methods.
-
-func (c *Client) DeviceStatus(ctx context.Context) (r device.Status, err error) {
-	err = c.Call(ctx, wire.MethodDeviceStatus, nil, &r)
-	return
-}
+// VLT-IS-004 TASK 03-00-00-008 methods. The methods with the result types
+// of vltd packages are in internal/ipc/client/typed, so that this package
+// does not link the Store and SQLite (VLT-IS-005 TASK 03-00-00-002 step 4.1).
 
 func (c *Client) SetDeviceSettings(ctx context.Context, values map[string]any) error {
-	m, err := rawMap(values)
+	m, err := RawMap(values)
 	if err != nil {
 		return err
 	}
@@ -274,44 +267,6 @@ func (c *Client) Unsubscribe(ctx context.Context) error {
 	return c.Call(ctx, wire.MethodUnsubscribe, nil, nil)
 }
 
-func (c *Client) Measurements(ctx context.Context, name string, from, to time.Time, step string) (unit string, rows []measure.Row, err error) {
-	var r wire.MeasurementsResult
-	err = c.Call(ctx, wire.MethodMeasurements, wire.MeasurementsParams{Name: name,
-		From: from.UTC().Format(time.RFC3339Nano), To: to.UTC().Format(time.RFC3339Nano), Step: step}, &r)
-	if err == nil {
-		err = json.Unmarshal(r.Rows, &rows)
-	}
-	return r.Unit, rows, err
-}
-
-func (c *Client) Events(ctx context.Context, before int64, limit int) (list []event.Stored, next int64, err error) {
-	var r wire.EventsListResult
-	err = c.Call(ctx, wire.MethodEventsList, wire.EventsListParams{Before: before, Limit: limit}, &r)
-	if err == nil {
-		err = json.Unmarshal(r.Events, &list)
-	}
-	return list, r.Next, err
-}
-
-func (c *Client) Policy(ctx context.Context) (r policy.Info, err error) {
-	err = c.Call(ctx, wire.MethodPolicyGet, nil, &r)
-	return
-}
-
-func (c *Client) SetPolicy(ctx context.Context, values map[string]any) (r policy.Info, err error) {
-	m, err := rawMap(values)
-	if err != nil {
-		return r, err
-	}
-	err = c.Call(ctx, wire.MethodPolicySet, wire.SettingsMapParams{Settings: m}, &r)
-	return
-}
-
-func (c *Client) Simulate(ctx context.Context) (r policy.Result, err error) {
-	err = c.Call(ctx, wire.MethodPolicySimulate, nil, &r)
-	return
-}
-
 func (c *Client) ActivatePolicy(ctx context.Context) error {
 	return c.Call(ctx, wire.MethodPolicyActivate, nil, nil)
 }
@@ -320,16 +275,12 @@ func (c *Client) DeactivatePolicy(ctx context.Context) error {
 	return c.Call(ctx, wire.MethodPolicyDeactivate, nil, nil)
 }
 
-func (c *Client) ShutdownStatus(ctx context.Context) (r policy.Countdown, err error) {
-	err = c.Call(ctx, wire.MethodShutdownStatus, nil, &r)
-	return
-}
-
 func (c *Client) CancelShutdown(ctx context.Context) error {
 	return c.Call(ctx, wire.MethodShutdownCancel, nil, nil)
 }
 
-func rawMap(values map[string]any) (map[string]json.RawMessage, error) {
+// RawMap marshals each value of a settings map.
+func RawMap(values map[string]any) (map[string]json.RawMessage, error) {
 	m := make(map[string]json.RawMessage, len(values))
 	for k, v := range values {
 		b, err := json.Marshal(v)

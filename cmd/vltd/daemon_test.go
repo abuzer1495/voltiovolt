@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client"
+	"github.com/abuzer1495/voltiovolt/internal/ipc/client/typed"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/platform"
 	"github.com/abuzer1495/voltiovolt/internal/store"
@@ -87,11 +88,11 @@ func dataDir(t *testing.T) string {
 	return dir
 }
 
-func dialTest(t *testing.T, addr string) *client.Client {
+func dialTest(t *testing.T, addr string) *typed.Client {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	c, err := client.Dial(ctx, addr)
+	c, err := typed.Dial(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}

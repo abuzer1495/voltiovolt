@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Theme follows the OS (prefers-color-scheme). Contrast 4.5:1 or more. */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #4d4d4d;
+  --panel: #f2f4f7;
+  --border: #8a8f98;
+  --accent: #0b57d0;
+  --accent-fg: #ffffff;
+  --ok: #146c2e;
+  --warn: #7a4a00;
+  --warn-bg: #fff4d6;
+  --crit: #a1141b;
+  --crit-bg: #fde7e8;
+  --focus: #0b57d0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171a;
+    --fg: #eceef1;
+    --muted: #b8bcc4;
+    --panel: #22252a;
+    --border: #7d838d;
+    --accent: #8ab4f8;
+    --accent-fg: #0b1a33;
+    --ok: #7ed492;
+    --warn: #ffd27a;
+    --warn-bg: #3a2c0a;
+    --crit: #ffb3b6;
+    --crit-bg: #3d1214;
+    --focus: #8ab4f8;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+a { color: var(--accent); }
+.layout { display: grid; grid-template-rows: auto auto 1fr; min-height: 100vh; }
+.top { display: flex; align-items: center; gap: 16px; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
+.brand { font-size: 18px; margin: 0; }
+.conn { display: flex; gap: 6px; align-items: center; }
+.conn-connected .conn-icon { color: var(--ok); }
+.conn-disconnected .conn-icon { color: var(--crit); }
+.conn-reason { color: var(--muted); }
+main { padding: 16px; }

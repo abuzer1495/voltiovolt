@@ -391,5 +391,10 @@ func (s *Service) Cancel(ctx context.Context, actor string) error {
 	return err
 }
 
+// SetUPSOff sets the sender of the UPS output off step (VLT-IS-006 TASK
+// 03-00-00-006). vltd gives the control.Controller; the step runs in a
+// new goroutine (async), because Tick runs also in the Poller goroutine.
+func (s *Service) SetUPSOff(u UPSOff) { s.eng.SetUPSOff(u, true) }
+
 // Countdown returns the countdown state (shutdown.status).
 func (s *Service) Countdown() Countdown { return s.eng.Countdown(s.clock.Now()) }

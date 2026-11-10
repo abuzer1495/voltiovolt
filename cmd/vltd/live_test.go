@@ -204,3 +204,72 @@ func TestPowerFailureIntegration(t *testing.T) {
 		t.Fatalf("battery.charge_estimate: %d %v", len(rows), err)
 	}
 }
+
+// TestUPSOffIntegration is VLT-IS-006 TASK 03-00-00-006 with the
+// simulator: at the end of the countdown vltd sends the shutdown and
+// restore command (verified with b1 = 1), then calls the executor. The
+// simulator gets only READ commands and this one CONTROL command.
+func TestUPSOffIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("about 25 seconds")
+	}
+	ctx := context.Background()
+	m := sim.NewModel(sim.ProfileQ1)
+	s := sim.New(m)
+	ex := &fakeExecutor{ch: make(chan string, 4)}
+	_, addr := startTestDaemon(t, dataDir(t), &testOnlyDEKProvider{dek: testOnlyDEK()}, withSim(s, ex))
+	c := dialTest(t, addr)
+	if err := c.SetPIN(ctx, pin1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Login(ctx, pin1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetDeviceSettings(ctx, map[string]any{"device.transport": "serial", "device.serial_port": "/dev/ttySIM0"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.SetPolicy(ctx, map[string]any{"countdown_seconds": 10, "ups_off.enabled": true, "ups_off.delay_minutes": 1, "ups_off.restore_minutes": 1}); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := c.Simulate(ctx); err != nil || !r.Passed {
+		t.Fatalf("simulate: %+v %v", r, err)
+	}
+	if err := c.ActivatePolicy(ctx); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, 30*time.Second, "device connected", func() bool {
+		ds, err := c.DeviceStatus(ctx)
+		return err == nil && ds.State == device.StateConnected
+	})
+	m.SetCharge(15)
+	m.SetMains(false)
+	select {
+	case a := <-ex.ch:
+		if a != "shutdown" {
+			t.Fatalf("executor call %q", a)
+		}
+	case <-time.After(60 * time.Second):
+		t.Fatalf("no executor call; controls %v", m.Controls())
+	}
+	if got := m.Controls(); len(got) != 1 || got[0] != "S01R0001" {
+		t.Fatalf("controls %v", got)
+	}
+	for _, cmd := range s.Received() {
+		if e, ok := dialect.LookupRead(cmd); (!ok || e.Class != dialect.ClassRead) && cmd != "S01R0001" {
+			t.Errorf("command %q is not a READ command or the expected CONTROL command", cmd)
+		}
+	}
+	res, err := c.Audit(ctx, 0, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, r := range res.Rows {
+		found[r.Action+" "+r.Result] = true
+	}
+	for _, want := range []string{"ups_control sent", "ups_control_verify verified", "policy_ups_off success", "policy_shutdown_request success"} {
+		if !found[want] {
+			t.Errorf("no audit entry %q", want)
+		}
+	}
+}

@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/abuzer1495/voltiovolt/internal/control"
 )
 
 // Step kinds of the Engine and the Simulation.
@@ -20,7 +22,17 @@ const (
 	StepCancelRefused   = "cancel_refused"
 	StepShutdownRequest = "shutdown_request"
 	StepShutdownFailed  = "shutdown_failed"
+	// VLT-IS-006 TASK 03-00-00-006: the UPS output off step.
+	StepUPSOff       = "ups_off"
+	StepUPSOffFailed = "ups_off_failed"
 )
+
+// UPSOff sends the shutdown and restore command to the UPS and verifies
+// b1 = 1 (internal/control.Controller). Only the Policy Engine has a
+// Policy Grant (SEC-098).
+type UPSOff interface {
+	ShutdownRestore(ctx context.Context, g control.Grant, delay time.Duration, restoreMinutes int) (control.Result, error)
+}
 
 // Cancel reasons.
 const (
@@ -94,7 +106,23 @@ type Engine struct {
 	lastCall   time.Time
 	lastErr    error
 	last       Input
+	ups        UPSOff
+	async      bool
+	wg         sync.WaitGroup
 }
+
+// SetUPSOff sets the UPS output off sender. With async, the UPS output off
+// step and the executor call run in a new goroutine: the verification
+// waits for the next polls, and Tick runs in the Poller goroutine. The
+// Simulation uses async false.
+func (e *Engine) SetUPSOff(u UPSOff, async bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.ups, e.async = u, async
+}
+
+// Wait waits for a running UPS output off step and executor call.
+func (e *Engine) Wait() { e.wg.Wait() }
 
 // NewEngine returns an inactive Engine.
 func NewEngine(cfg Config, exec Executor, audit Auditor, log *slog.Logger) *Engine {
@@ -162,6 +190,60 @@ func (e *Engine) cancelLocked(ctx context.Context, now time.Time, reason, actor 
 	e.log.Warn("policy: countdown cancelled", "reason", reason, "trigger", cd.Trigger)
 	e.record(ctx, actor, "policy_countdown_cancel", "success", map[string]any{"reason": reason, "trigger": cd.Trigger})
 	return Step{Time: now, Kind: StepCancel, Detail: reason, Data: map[string]any{"trigger": cd.Trigger}}
+}
+
+// upsOff is the UPS output off step (VLT-IS-006 TASK 03-00-00-006 step
+// 2.1 and 2.2). It returns the step. A failure does not stop the executor
+// call (step 2.3).
+func (e *Engine) upsOff(ctx context.Context, now time.Time, u UPSOff, cfg Config, trigger string) Step {
+	delay := time.Duration(cfg.UPSOffDelayMinutes) * time.Minute
+	d := map[string]any{"trigger": trigger, "delay_minutes": cfg.UPSOffDelayMinutes, "restore_minutes": cfg.UPSOffRestoreMinutes}
+	if u == nil {
+		err := errors.New("no UPS connection")
+		d["error"] = err.Error()
+		e.log.Error("policy: UPS output off step failed", "err", err)
+		e.record(ctx, "system", "policy_ups_off", "failure", d)
+		return Step{Time: now, Kind: StepUPSOffFailed, Detail: err.Error(), Data: d}
+	}
+	r, err := u.ShutdownRestore(ctx, control.PolicyGrant(), delay, cfg.UPSOffRestoreMinutes)
+	d["bytes"] = r.Bytes
+	d["sends"] = r.Sends
+	d["verified"] = r.Verified
+	if err != nil {
+		d["error"] = err.Error()
+		e.log.Error("policy: UPS output off step failed; the shutdown continues", "err", err)
+		e.record(ctx, "system", "policy_ups_off", "failure", d)
+		return Step{Time: now, Kind: StepUPSOffFailed, Detail: err.Error(), Data: d}
+	}
+	d["output_off_after_seconds"] = delay.Seconds()
+	e.log.Warn("policy: UPS output off command sent", "bytes", r.Bytes, "verified", r.Verified)
+	e.record(ctx, "system", "policy_ups_off", "success", d)
+	return Step{Time: now, Kind: StepUPSOff, Detail: r.Bytes, Data: d}
+}
+
+// finish is the end of the countdown: the UPS output off step when
+// ups_off.enabled is on, then the executor call.
+func (e *Engine) finish(ctx context.Context, now time.Time, trigger string) []Step {
+	if !e.cfg.UPSOffEnabled {
+		return []Step{e.call(ctx, now, trigger)}
+	}
+	u, cfg := e.ups, e.cfg
+	if !e.async {
+		s := e.upsOff(ctx, now, u, cfg, trigger)
+		return []Step{s, e.call(ctx, now, trigger)}
+	}
+	e.lastCall = now
+	e.wg.Add(1)
+	go func() {
+		defer e.wg.Done()
+		// Without the Engine lock: the verification waits for the polls.
+		s := e.upsOff(context.WithoutCancel(ctx), now, u, cfg, trigger)
+		_ = s
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		e.call(context.WithoutCancel(ctx), time.Now(), trigger)
+	}()
+	return []Step{{Time: now, Kind: StepUPSOff, Detail: "started", Data: map[string]any{"trigger": trigger, "delay_minutes": cfg.UPSOffDelayMinutes, "restore_minutes": cfg.UPSOffRestoreMinutes}}}
 }
 
 func (e *Engine) call(ctx context.Context, now time.Time, trigger string) Step {
@@ -237,7 +319,7 @@ func (e *Engine) Tick(ctx context.Context, now time.Time, in Input) []Step {
 			tr := e.cd.Trigger
 			e.cd = nil
 			e.requested = true
-			return append(steps, e.call(ctx, now, tr))
+			return append(steps, e.finish(ctx, now, tr)...)
 		}
 		return steps
 	}

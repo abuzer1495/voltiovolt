@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/control"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/event"
 	"github.com/abuzer1495/voltiovolt/internal/sim"
@@ -52,6 +53,17 @@ type ScenarioResult struct {
 	Pass     bool    `json:"pass"`
 	Calls    []Call  `json:"executor_calls"` // dry-run calls
 	RealMs   int64   `json:"real_ms"`
+	// UPSOffFailed is true when the UPS output off step failed (the
+	// scenario does not pass).
+	UPSOffFailed bool `json:"ups_off_failed,omitempty"`
+}
+
+// dryUPS is the UPS output off step of the Simulation: it makes the
+// command bytes and sends nothing (VLT-IS-006 TASK 03-00-00-006 step 5).
+type dryUPS struct{}
+
+func (dryUPS) ShutdownRestore(_ context.Context, g control.Grant, delay time.Duration, restore int) (control.Result, error) {
+	return control.DryShutdownRestore(g, delay, restore)
 }
 
 // Result is the Simulation result (step 6.4).
@@ -132,11 +144,14 @@ func simulate(c Config, now time.Time, fallback bool) Result {
 				sr.Deadline = CommLostDeadline(c).Seconds()
 				sr.Pass = sr.Pass && sr.At <= sr.Deadline
 			}
-			if !sr.Pass {
-				r.Passed = false
-			}
 		} else {
 			sr.Pass = true
+		}
+		if sr.UPSOffFailed {
+			sr.Pass = false
+		}
+		if !sr.Pass {
+			r.Passed = false
 		}
 		r.Scenarios = append(r.Scenarios, sr)
 	}
@@ -151,6 +166,8 @@ func runScenario(c Config, name string) ScenarioResult {
 	dry := &DryRun{}
 	eng := NewEngine(c, dry, nil, quiet)
 	eng.SetActive(true)
+	ups := &dryUPS{}
+	eng.SetUPSOff(ups, false)
 	ctx := context.Background()
 
 	res := ScenarioResult{Name: name, Outcome: OutcomeNone}
@@ -228,6 +245,8 @@ func runScenario(c Config, name string) ScenarioResult {
 				res.Outcome, res.At = OutcomeCancel, at(now)
 			case StepShutdownRequest:
 				res.Outcome, res.At = OutcomeShutdown, at(now)
+			case StepUPSOffFailed:
+				res.UPSOffFailed = true
 			}
 		}
 		// low_battery: an operator cancel is refused.

@@ -182,3 +182,45 @@ vltd has one flag: --version. It prints the version and exits.
 6. COMM_LOST: WARNING, or CRITICAL when ON_BATTERY is active. COMM_RESTORED: INFO. The Poller state gives them (3 failed fast polls).
 7. Each Event is stored in the events table (ts in Unix milliseconds, type, severity, data JSON). Each CRITICAL Event is written to the log with level ERROR. Subscribers (IPC push, Policy Engine) get each Event.
 8. events.list: newest first, paging by ID (rowid), 1 to 500 rows.
+
+## 10. Policy Engine and Simulation (internal/policy, VLT-IS-004 TASK 03-00-00-006)
+
+WARNING: An error in the Policy Engine can turn off a computer at the wrong time or not turn it off before the battery is empty.
+
+### 10.1 Settings (one Shutdown Policy in the MVP)
+
+| Setting | Default | Range |
+|---------|---------|-------|
+| policy.action | shutdown | shutdown, hibernate |
+| policy.trigger.on_battery_seconds | 300 | 0 (off) to 86400 |
+| policy.trigger.runtime_below_minutes | 5 | 0 (off) to 600 |
+| policy.trigger.charge_below_percent | 30 | 0 (off) to 100 |
+| policy.trigger.low_battery_flag | on | on, off |
+| policy.trigger.comm_lost_on_battery_seconds | 180 | 0 (off) to 86400 |
+| policy.countdown_seconds | 60 | 10 to 600 |
+| policy.cancel_when_mains_returns | on | on, off |
+| policy.force_close_applications | on (Windows) | on, off |
+
+### 10.2 Engine
+
+1. Input after each poll cycle and each second: ON_BATTERY, LOW_BATTERY and COMM_LOST from the Event Engine (the last known state during comm lost), battery.charge and battery.runtime.
+2. Triggers, in this order: on battery for `on_battery_seconds`; runtime below `runtime_below_minutes` on battery; charge below `charge_below_percent` on battery; LOW_BATTERY with `low_battery_flag` on; comm lost on battery for `comm_lost_on_battery_seconds`. Runtime and charge are not used during comm lost (old values).
+3. The first true trigger starts the countdown (`countdown_seconds`). Audit: `policy_countdown_start`.
+4. During the countdown: if the mains power returns (ON_BATTERY clear and no comm lost) and `cancel_when_mains_returns` is on, the countdown is cancelled. An operator with the elevated state can cancel (shutdown.cancel), but not while LOW_BATTERY is active. After an operator cancel, the triggers that were true do not start a new countdown until they are false again or the mains power returns; a new trigger starts a new countdown. Audit: `policy_countdown_cancel` with the reason (mains returned, operator, policy inactive), or `rejected`.
+5. At the end of the countdown, the Engine calls the executor (Shutdown or Hibernate) one time. Audit: `policy_shutdown_request`. If the call fails, the Engine tries again every 30 seconds while a trigger is true.
+6. The Policy Engine is the only caller of the executor (SEC-092). cmd/vltd gives the OS executor (internal/shutdown) to the Engine.
+
+### 10.3 Version and activation (SEC-055, SEC-093)
+
+1. Version: lowercase hex SHA-256 of the canonical JSON of the 9 policy Settings (keys sorted, no spaces).
+2. The policy is active only if `policy_state.active_version` is the current version and a passed Simulation of that version is in `policy_simulations`. The Service reads the Settings at each tick, so a change through policy.set or settings.set makes the policy inactive at once. policy.set also deletes the active version.
+3. An inactive policy starts no countdown and cancels a running countdown ("policy inactive").
+
+### 10.4 Simulation
+
+1. Scenarios: power_fail_long (mains fails at 10 s), power_fail_short (mains returns at half of the countdown), low_battery (charge 15 % at 30 s, bit 6; an operator cancel is tried and refused), comm_lost_on_battery (comm lost at 20 s).
+2. Each scenario uses the simulator model (no Transport), the real Event Engine without a database, a new Engine and the dry-run executor. A virtual clock moves in steps of 2 seconds. No command goes to a UPS and no OS function is called.
+3. Result: for each scenario the steps with virtual times (event, trigger, countdown_start, cancel, cancel_refused, shutdown_request), the outcome, the dry-run calls and the real time.
+4. Pass: power_fail_long and low_battery give a shutdown request, and power_fail_short gives a cancel. comm_lost_on_battery is reported only.
+5. The result and the version are stored in `policy_simulations` (migration 0003).
+6. Default policy result: power_fail_long: ON_BATTERY at 10 s, trigger at 310 s, request at 370 s. power_fail_short: cancel at 342 s. low_battery: trigger charge_below_percent at 30 s, request at 90 s. comm_lost_on_battery: trigger at 200 s, request at 260 s.

@@ -108,7 +108,7 @@ func TestPowerFailureIntegration(t *testing.T) {
 	}
 	waitFor(t, 30*time.Second, "device connected", func() bool {
 		ds, err := c.DeviceStatus(ctx)
-		return err == nil && ds.State == device.StateConnected && ds.Profile != nil && ds.Profile.Dialect == dialect.DialectQ1
+		return err == nil && ds.State == device.StateConnected && ds.Profile != nil && ds.Profile.Dialect == dialect.DialectMegatec
 	})
 	if err := c.Subscribe(ctx); err != nil {
 		t.Fatal(err)
@@ -185,5 +185,10 @@ func TestPowerFailureIntegration(t *testing.T) {
 	}
 	if _, rows, err := c.Measurements(ctx, "input.voltage", time.Now().Add(-time.Hour), time.Now().Add(time.Minute), "raw"); err != nil || len(rows) == 0 {
 		t.Fatalf("measurements.query: %d %v", len(rows), err)
+	}
+	// VLT-IS-006 TASK 03-00-00-003 step 8: the megatec Dialect gives
+	// battery.charge_estimate from Q1.
+	if _, rows, err := c.Measurements(ctx, "battery.charge_estimate", time.Now().Add(-time.Hour), time.Now().Add(time.Minute), "raw"); err != nil || len(rows) == 0 {
+		t.Fatalf("battery.charge_estimate: %d %v", len(rows), err)
 	}
 }

@@ -169,3 +169,18 @@ func TestHIDReports(t *testing.T) {
 		}
 	}
 }
+
+// TestProbeListOrder: the recorder tests compare the received commands
+// with ProbeList. This test fixes the order of VLT-IS-006 TASK
+// 03-00-00-003 step 4.
+func TestProbeListOrder(t *testing.T) {
+	want := []string{"Q1", "F", "I", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD"}
+	if len(ProbeList) != len(want) {
+		t.Fatalf("%v", ProbeList)
+	}
+	for i := range want {
+		if ProbeList[i] != want[i] {
+			t.Fatalf("%v, want %v", ProbeList, want)
+		}
+	}
+}

@@ -96,6 +96,9 @@ type Observation struct {
 	Load    *float64         // load.percent
 	Temp    *float64         // ups.temperature
 	Runtime *float64         // battery.runtime
+	// Input and output voltage of the same Q1 or QS response as Flags
+	// (AVR_ACTIVE "boost" or "buck", VLT-IS-006 TASK 03-00-00-003 step 9).
+	InV, OutV *float64
 }
 
 func valid[U dialect.Unit](q dialect.Quantity[U]) *float64 {
@@ -115,6 +118,7 @@ func (o *Observation) Add(cmd string, v any) {
 		if o.Flags == nil || cmd == "QS" {
 			f := x.Flags
 			o.Flags = &f
+			o.InV, o.OutV = valid(x.InputVoltage), valid(x.OutputVoltage)
 		}
 		if p := valid(x.Load); p != nil {
 			o.Load = p
@@ -308,7 +312,11 @@ func (e *Engine) Observe(ctx context.Context, o Observation) []Event {
 		} {
 			c := e.conds[x.typ]
 			if c.step(x.raw) {
-				emit(c, nil)
+				var extra map[string]any
+				if x.typ == AVRActive && c.active {
+					extra = avrMode(o.InV, o.OutV)
+				}
+				emit(c, extra)
 			}
 		}
 	}
@@ -456,4 +464,17 @@ func List(ctx context.Context, db *sql.DB, before int64, limit int) ([]Stored, e
 		out = append(out, s)
 	}
 	return out, rows.Err()
+}
+
+// avrMode is the AVR_ACTIVE data for b5 = 1 and b3 = 1 (VLT-REF-001 6.1,
+// STATIC, PUBLIC): "boost" when the input voltage is less than the output
+// voltage, else "buck". Without both voltages there is no "mode".
+func avrMode(in, out *float64) map[string]any {
+	if in == nil || out == nil {
+		return nil
+	}
+	if *in < *out {
+		return map[string]any{"mode": "boost"}
+	}
+	return map[string]any{"mode": "buck"}
 }

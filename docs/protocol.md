@@ -19,6 +19,12 @@ Source keys (refer to `docs/references.md`):
 | K1 | Linux kernel documentation, hidraw: <https://docs.kernel.org/hid/hidraw.html> |
 | K2 | Linux kernel documentation, introduction to HID report descriptors: <https://docs.kernel.org/hid/hidintro.html> |
 | W1 | Microsoft documentation, HIDP_CAPS: <https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidpi/ns-hidpi-_hidp_caps> |
+| R1 | VLT-REF-001 Revision 00, Owner interoperability reference (OD-24): `docs/reference/VLT-REF-001.md` |
+
+VLT-REF-001 status labels (section 9 and later):
+- **FIELD**: confirmed by field use on the Reference UPS computer.
+- **STATIC**: from the static analysis. Not verified with live traffic. A fact with the label STATIC only is also UNVERIFIED (VLT-REF-001 USE RULE 2).
+- **PUBLIC**: also in the public Megatec protocol document (M).
 
 ## 1. General frame
 
@@ -48,7 +54,7 @@ Source keys (refer to `docs/references.md`):
 | P-026 | "PEx" and "PDx" enable and disable UPS option flags. They are CONFIG commands. | registry (CONFIG) | A | UNVERIFIED |
 | P-027 | "F" is the rating information query. "I" is the UPS information query. | registry | M | VERIFIED |
 | P-028 | "QS", "QGS", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD", "QMOD" are queries in an extended Dialect. | registry | A; QMD, QMOD, QRI, QVFW also in M (21st century chapter) | UNVERIFIED |
-| P-029 | The Dialect assignment of each READ command in the registry (Q1, Voltronic-QS, Voltronic). | registry `Dialects` | Builder inference from A and M | UNVERIFIED |
+| P-029 | The Dialect assignment of each READ command in the registry (megatec, voltronic-qs, voltronic; names of VLT-IS-001 Rev 05, 00-10-00). | registry `Dialects` | Builder inference from A and M; megatec = Q1, F, I from R1 section 1 and 5 | UNVERIFIED (megatec: FIELD, R1) |
 
 NOTE: vltd polls in two groups (later instruction). Fast group: 2 commands or fewer, every 2 seconds. Slow group: all other READ commands, every 30 seconds. Source: VLT-IS-003 01-30-00 (VLT-IS-001 Revision 02, 03-20-00).
 
@@ -145,3 +151,35 @@ Source: [M] Megatec protocol document (<https://networkupstools.org/protocols/me
 2. QMOD and the QGS status bits are UNVERIFIED. vltd records them as data only and makes no Event from them. A change of the QWS value (2 polls in sequence) makes UPS_WARNING_BITS_CHANGED (INFO) with the old and the new value. The first QWS value makes no Event.
 3. If one cycle has QS and Q1, the QS bits are used.
 4. NOTE: with the Voltronic Dialect, QS is in the slow group (30 s). Thus ON_BATTERY and LOW_BATTERY can come up to 30 seconds after the change.
+
+## 9. Megatec Dialect (VLT-IS-006 TASK 03-00-00-003, source R1)
+
+The megatec Dialect is the path of the Reference UPS (OD-26). Each row has the label of VLT-REF-001. The "Status" column uses the rule above: STATIC only gives UNVERIFIED.
+
+| No. | Fact | Code | R1 section | Label | Status |
+|-----|------|------|------------|-------|--------|
+| P-140 | The Reference UPS is connected with a USB cable. The OS shows a virtual COM port (COM3 on the Reference UPS computer). | `transport.NewSerial` | Field evidence 1 | FIELD | VERIFIED |
+| P-141 | The serial Megatec path with Q1, F and I works with the Reference UPS. | Dialect `megatec` | Field evidence 4 | FIELD | VERIFIED |
+| P-142 | The USB-to-serial bridge chip and its VID and PID are not known. | none | Field evidence 6 | FIELD | UNVERIFIED (not known) |
+| P-143 | HID VID 0665 PID 5161 is not the path of the Reference UPS. It stays supported (OD-26). | `transport.VendorID`, `ProductID` | Field evidence 2, 4 | FIELD | VERIFIED (OD-26) |
+| P-144 | 2400 bit/s, 8 data bits, no parity, 1 stop bit. | `transport.NewSerial` | 2 | STATIC, PUBLIC | VERIFIED (M) |
+| P-145 | UPSilon 2000 does not set flow control, DTR or RTS. The port keeps the values of the driver. | `transport.SerialOptions` (VLT-IS-006 TASK 03-00-00-004) | 2 | STATIC | UNVERIFIED |
+| P-146 | A command is ASCII text, then CR, written in one write operation. No prefix, no length, no checksum. A response is ASCII text, then CR. | `dialect.EncodeRead`, `transport.Stream` | 3.1, 3.2 | STATIC, PUBLIC | VERIFIED (M) |
+| P-147 | UPSilon 2000 waits a maximum of 500 ms for the CR and sends a maximum of one command every 2 seconds. VLT uses its own values: response timeout 1500 ms, minimum gap 500 ms, fast group every 2 s. | `device.ResponseTimeout`, `device.MinGap`, `poller.FastPeriod` | 3.3, 3.4 | STATIC | UNVERIFIED (reference behavior only) |
+| P-148 | Megatec command list: Q1, F, I (READ); T, TL, Tnn (nn = 01 to 99), CT, Q, S..., S...R..., C (CONTROL). | registry | 5 | STATIC, PUBLIC; C: PUBLIC only | VERIFIED (M); C UNVERIFIED |
+| P-149 | The receiver selects the response type by the first byte and the CR position: "(" and CR at 46 = Q1; "#" and CR at 21 = F; "#" and CR at 38 = I. | `dialect.ParseQ1`, `ParseF`, `ParseI` | 6 | STATIC | UNVERIFIED |
+| P-150 | Q1: 47 bytes with the CR. Byte 0 "("; bytes 6, 12, 18, 22, 27, 32, 37 are spaces; byte 46 is CR. | `dialect.ParseQ1`, `Q1Len` | 6.1 | STATIC, PUBLIC | VERIFIED (M) |
+| P-151 | Q1 fields (offset, length): input V (1, 5), input fault V (7, 5), output V (13, 5), load % (19, 3), frequency Hz (23, 4), battery V (28, 4), temperature °C (33, 4), status bits (38, 8). | `dialect.q1Spans` | 6.1 | STATIC, PUBLIC | VERIFIED (M) |
+| P-152 | Q1 battery voltage: per cell on an on-line UPS, total on a standby UPS. | `measure.ChargeEstimate` | 6.1 | STATIC, PUBLIC | VERIFIED (M) |
+| P-153 | A numeric field can have leading spaces (example load "  7"). | `dialect.fixedQuantity` | 6.1 NOTE | STATIC | UNVERIFIED |
+| P-154 | A numeric field with only spaces has no value. | `dialect.fixedQuantity` | VLT-IS-006 TASK 03-00-00-003 step 2.4 (VLT rule) | none | VERIFIED (rule) |
+| P-155 | Status bits: character 38 is b7. b7 utility fail, b6 battery low, b5 AVR or bypass, b4 UPS failed, b3 standby type (0 = on-line), b2 test in progress, b1 shutdown active, b0 beeper on. | `dialect.Q1Flags` | 6.1 | STATIC, PUBLIC | VERIFIED (M) |
+| P-156 | b5 = 1 and b3 = 1: boost when the input voltage is less than the output voltage, else buck. b5 = 1 and b3 = 0: bypass. | `event.avrMode` (AVR_ACTIVE data "mode") | 6.1 | STATIC, PUBLIC | VERIFIED (M); boost or buck from the voltages: STATIC, UNVERIFIED |
+| P-157 | F: 22 bytes with the CR. Byte 0 "#"; bytes 6, 10, 16 are spaces; byte 21 is CR. Fields: rated V (1, 5), rated current A (7, 3), rated battery V (11, 5), rated frequency Hz (17, 4). | `dialect.ParseF`, `FLen` | 6.2 | STATIC, PUBLIC | VERIFIED (M) |
+| P-158 | F: the number format in a field can change: "004" or "4.3", "024.0" or "24.00". | `dialect.isNumber` | 6.2 NOTE | STATIC | UNVERIFIED |
+| P-159 | I: 39 bytes with the CR. Byte 0 "#"; bytes 16 and 27 are spaces; byte 38 is CR. Fields: company (1, 15), model (17, 10), version (28, 10), filled with spaces on the right. | `dialect.ParseI`, `ILen` | 6.3 | STATIC, PUBLIC | VERIFIED (M) |
+| P-160 | The Q1 response has no battery capacity. VLT calculates battery.charge_estimate: on-line linear 1.667 V to 2.267 V per cell; standby linear 10.0 V to 13.6 V per 12 V block, blocks = F rated battery V / 12. VLT does not round a value above 90 to 100 (VLT-IS-006, different from UPSilon 2000). | `measure.ChargeEstimate` | 7 | STATIC | UNVERIFIED |
+| P-161 | The scale of the F battery voltage compared with the Q1 battery voltage on the Reference UPS is not known. | `measure.ChargeEstimate` | 10.2 | STATIC | UNVERIFIED (Owner test T-01) |
+| P-162 | Synthetic test vectors of 6.1, 6.2 and 6.3 (not captures). | `internal/dialect/megatec_test.go` | 6 | synthetic | test data |
+
+Probe List (VLT-IS-006 TASK 03-00-00-003 step 4): Q1, F, I, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, QID, QVFW, QMD. Dialect selection: voltronic if QGS answers, voltronic-qs if QS answers, megatec if Q1 answers. Poll groups of megatec: fast Q1 (2 s), slow none, once F and I (at start and every 6 h).

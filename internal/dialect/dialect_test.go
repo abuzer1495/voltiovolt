@@ -22,7 +22,7 @@ func TestEncoderRejects(t *testing.T) {
 }
 
 func TestEncoderReadCommands(t *testing.T) {
-	probe := []string{"Q1", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "F", "I", "QID", "QVFW", "QMD"}
+	probe := []string{"Q1", "F", "I", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD"}
 	for _, s := range probe {
 		b, err := EncodeRead(s)
 		if err != nil {
@@ -270,9 +270,11 @@ func TestFrameErrors(t *testing.T) {
 		{"wrong start", cr("#" + q1[1:]), 0},
 		{"too long", cr("(" + strings.Repeat("1", MaxResponseLen)), 0},
 		{"field count", cr("(209.7 209.7 219.7 019 50.0 2.32 23.3"), 0},
-		{"field width", cr("(209.70 209.7 219.7 019 50.0 2.32 23.3 00000001"), 1},
+		// Fixed positions (VLT-IS-006): a wrong width is a length error.
+		{"field width", cr("(209.70 209.7 219.7 019 50.0 2.32 23.3 00000001"), 0},
 		{"number format", cr("(209.7 209.7 219.7 0x9 50.0 2.32 23.3 00000001"), 4},
-		{"bits", cr("(209.7 209.7 219.7 019 50.0 2.32 23.3 0000002"), 8},
+		{"bits short", cr("(209.7 209.7 219.7 019 50.0 2.32 23.3 0000002"), 0},
+		{"bits", cr("(209.7 209.7 219.7 019 50.0 2.32 23.3 00000002"), 8},
 		{"double space", cr("(209.7  209.7 219.7 019 50.0 2.32 23.3 00000001"), 0},
 		{"CR inside", []byte("(209.7\r209.7 219.7 019 50.0 2.32 23.3 00000001\r"), 0},
 		{"non-ASCII", cr("(209.7 209.7 219.7 019 50.0 2.32 23.3 0000000\xff"), 0},

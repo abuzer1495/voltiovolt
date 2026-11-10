@@ -52,9 +52,9 @@ func PlanFor(p device.Profile) Plan {
 	switch p.Dialect {
 	case dialect.DialectVoltronic:
 		base = Plan{Fast: []string{"QS", "QGS"}, Slow: []string{"QMOD", "QBV", "QWS", "QFLAG"}, Once: []string{"QRI", "I", "QVFW", "QMD"}}
-	case dialect.DialectQS:
+	case dialect.DialectVoltronicQS:
 		base = Plan{Fast: []string{"QS", "QMOD"}, Slow: []string{"QBV", "QWS"}, Once: []string{"F", "I"}}
-	case dialect.DialectQ1:
+	case dialect.DialectMegatec:
 		base = Plan{Fast: []string{"Q1"}, Once: []string{"F", "I"}}
 	}
 	keep := func(l []string) []string {

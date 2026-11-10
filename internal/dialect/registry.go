@@ -20,11 +20,15 @@ const (
 // Dialect is one variant of the Megatec Q protocol family.
 type Dialect string
 
-// Known Dialects.
+// Known Dialects. Names of VLT-IS-001 Rev 05, 00-10-00 (VLT-IS-006 01-30-00).
 const (
-	DialectQ1        Dialect = "Q1"
-	DialectQS        Dialect = "Voltronic-QS"
-	DialectVoltronic Dialect = "Voltronic"
+	// DialectMegatec: Q1, F and I (VLT-REF-001 sections 5 and 6). This is
+	// the path of the Reference UPS (OD-26, FIELD).
+	DialectMegatec Dialect = "megatec"
+	// DialectVoltronicQS: the QS family.
+	DialectVoltronicQS Dialect = "voltronic-qs"
+	// DialectVoltronic: the QGS family.
+	DialectVoltronic Dialect = "voltronic"
 )
 
 // ResponseType names the parser for the response of a READ command.
@@ -59,23 +63,24 @@ type Entry struct {
 	Response ResponseType
 }
 
-var allDialects = []Dialect{DialectQ1, DialectQS, DialectVoltronic}
+var allDialects = []Dialect{DialectMegatec, DialectVoltronicQS, DialectVoltronic}
 
 // registry is the one command table of VLT.
 //
 // "D" is in no class. It is not in this table, and VLT never sends it.
 var registry = []Entry{
-	// READ commands. The order is the Probe List order of VLT-IS-002 03-50-01.
+	// READ commands. The order is the Probe List order of VLT-IS-006
+	// TASK 03-00-00-003 step 4.
 	{Name: "Q1", Class: ClassRead, Dialects: allDialects, Response: RespQ1},
-	{Name: "QS", Class: ClassRead, Dialects: []Dialect{DialectQS, DialectVoltronic}, Response: RespQS},
+	{Name: "F", Class: ClassRead, Dialects: allDialects, Response: RespF},
+	{Name: "I", Class: ClassRead, Dialects: allDialects, Response: RespI},
+	{Name: "QS", Class: ClassRead, Dialects: []Dialect{DialectVoltronicQS, DialectVoltronic}, Response: RespQS},
 	{Name: "QGS", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQGS},
 	{Name: "QMOD", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQMOD},
 	{Name: "QBV", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQBV},
 	{Name: "QWS", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQWS},
 	{Name: "QFLAG", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQFLAG},
 	{Name: "QRI", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQRI},
-	{Name: "F", Class: ClassRead, Dialects: allDialects, Response: RespF},
-	{Name: "I", Class: ClassRead, Dialects: allDialects, Response: RespI},
 	{Name: "QID", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQID},
 	{Name: "QVFW", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQVFW},
 	{Name: "QMD", Class: ClassRead, Dialects: []Dialect{DialectVoltronic}, Response: RespQMD},

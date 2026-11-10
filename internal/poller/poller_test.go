@@ -125,9 +125,9 @@ func TestPlanFor(t *testing.T) {
 		want Plan
 	}{
 		{dialect.DialectVoltronic, all, Plan{Fast: []string{"QS", "QGS"}, Slow: []string{"QMOD", "QBV", "QWS", "QFLAG"}, Once: []string{"QRI", "I", "QVFW", "QMD"}}},
-		{dialect.DialectQS, all, Plan{Fast: []string{"QS", "QMOD"}, Slow: []string{"QBV", "QWS"}, Once: []string{"F", "I"}}},
-		{dialect.DialectQS, []string{"Q1", "QS", "F", "I"}, Plan{Fast: []string{"QS"}, Once: []string{"F", "I"}}},
-		{dialect.DialectQ1, all, Plan{Fast: []string{"Q1"}, Once: []string{"F", "I"}}},
+		{dialect.DialectVoltronicQS, all, Plan{Fast: []string{"QS", "QMOD"}, Slow: []string{"QBV", "QWS"}, Once: []string{"F", "I"}}},
+		{dialect.DialectVoltronicQS, []string{"Q1", "QS", "F", "I"}, Plan{Fast: []string{"QS"}, Once: []string{"F", "I"}}},
+		{dialect.DialectMegatec, all, Plan{Fast: []string{"Q1"}, Once: []string{"F", "I"}}},
 	} {
 		got := PlanFor(device.Profile{Dialect: c.d, Supported: c.sup})
 		if !reflect.DeepEqual(got, c.want) {

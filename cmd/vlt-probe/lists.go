@@ -3,10 +3,11 @@
 package main
 
 // The command lists are constants in the code. There is no flag for a raw
-// command. Source: VLT-IS-002 03-50-01.
+// command. Source: VLT-IS-002 03-50-01; Probe List order of VLT-IS-006 TASK
+// 03-00-00-003 step 4.
 
 // probeList is the Probe List, in its fixed order.
-var probeList = [...]string{"Q1", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "F", "I", "QID", "QVFW", "QMD"}
+var probeList = [...]string{"Q1", "F", "I", "QS", "QGS", "QMOD", "QBV", "QWS", "QFLAG", "QRI", "QID", "QVFW", "QMD"}
 
 // watchList is the Watch List.
 var watchList = [...]string{"Q1", "QS", "QGS", "QMOD", "QBV", "QWS"}

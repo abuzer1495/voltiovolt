@@ -30,23 +30,28 @@ const (
 	LoadPercent       = "load.percent"
 	BatteryVoltage    = "battery.voltage"
 	BatteryCharge     = "battery.charge"
-	BatteryRuntime    = "battery.runtime"
-	UPSTemperature    = "ups.temperature"
+	// BatteryChargeEstimate is the charge estimate of the megatec Dialect
+	// from the Q1 battery voltage (VLT-IS-006 TASK 03-00-00-003 step 8).
+	// It is separate from battery.charge (QBV).
+	BatteryChargeEstimate = "battery.charge_estimate"
+	BatteryRuntime        = "battery.runtime"
+	UPSTemperature        = "ups.temperature"
 )
 
 // Units of the names.
 var Units = map[string]string{
-	InputVoltage:      "V",
-	InputFaultVoltage: "V",
-	InputFrequency:    "Hz",
-	OutputVoltage:     "V",
-	OutputFrequency:   "Hz",
-	OutputCurrent:     "A",
-	LoadPercent:       "%",
-	BatteryVoltage:    "V",
-	BatteryCharge:     "%",
-	BatteryRuntime:    "min",
-	UPSTemperature:    "°C",
+	InputVoltage:          "V",
+	InputFaultVoltage:     "V",
+	InputFrequency:        "Hz",
+	OutputVoltage:         "V",
+	OutputFrequency:       "Hz",
+	OutputCurrent:         "A",
+	LoadPercent:           "%",
+	BatteryVoltage:        "V",
+	BatteryCharge:         "%",
+	BatteryChargeEstimate: "%",
+	BatteryRuntime:        "min",
+	UPSTemperature:        "°C",
 }
 
 // Retention (step 4).

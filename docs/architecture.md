@@ -284,3 +284,20 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 3. The 1-second tick runs the Policy Engine (on battery time, countdown end) and sends the push messages.
 4. Stop: IPC, then the Device Manager, the Poller and the tick, then the Store.
 5. Integration test TestPowerFailureIntegration (cmd/vltd): vltd with the simulator Transport (Q1 profile) and a fake executor. The test sets the PIN, sets countdown_seconds to 10, runs the Simulation, activates the policy, subscribes, and sets mains off and charge 15 % in the simulator. It checks the ON_BATTERY and LOW_BATTERY Events, the countdown and status push frames, the refused cancel, one fake executor call, the stored Events and Measurements, and that the simulator got only READ commands. It runs on Linux and Windows. No real shutdown.
+
+## 13. VLT GUI (VLT-IS-005)
+
+### 13.1 Parts
+
+| Part | Directory | Notes |
+|------|-----------|-------|
+| Wails application | cmd/vlt-gui | Separate Go module (cmd/vlt-gui/go.mod) with Wails v3.0.0. Linux: cgo, GTK 4 and WebKitGTK 6.0. Windows: WebView2, no cgo. Build tag `production` (no dev server, no devtools). Embeds the built front end (cmd/vlt-gui/frontend/dist). |
+| Go side | internal/gui | Root module, CGO_ENABLED=0. Imports internal/ipc/client and internal/ipc/wire only (no Store, Vault, SQLite or policy package; TestNoStoreImports). Manager: connection, reconnect every 5 s, push messages, lock timer, tray state. API: the bound methods. |
+| Front end | web/ | TypeScript, Vite, Preact, uPlot. No other runtime npm package. |
+
+### 13.2 Bindings and events
+
+1. The front end calls `internal/gui.API` methods with the Wails runtime (`Call.ByName("github.com/abuzer1495/voltiovolt/internal/gui.API.<Method>")`). The runtime is served by the VLT GUI at /wails/runtime.js. The front end has no IPC access.
+2. A method error is a code (for example `not_elevated`, `vault_locked`, `not_connected`). The front end shows the text of the code from the i18n files.
+3. vltd push messages go to the front end as Wails events: `vlt:status`, `vlt:event`, `vlt:countdown`. GUI state events: `vlt:conn`, `vlt:auth`, `vlt:tray`.
+4. A close of the VLT GUI (window close or tray Quit) closes the IPC connection only. vltd continues.

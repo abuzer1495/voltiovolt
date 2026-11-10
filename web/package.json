@@ -1,0 +1,23 @@
+{
+  "name": "vlt-gui-web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "licenses": "node scripts/check-licenses.mjs"
+  },
+  "dependencies": {
+    "preact": "11.1.0",
+    "uplot": "1.6.32"
+  },
+  "devDependencies": {
+    "happy-dom": "21.0.4",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

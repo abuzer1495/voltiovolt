@@ -1,0 +1,12 @@
+{
+  "app.name": "VLT",
+  "app.tagline": "UPS izleyici",
+  "conn.connecting": "vltd'ye bağlanılıyor …",
+  "conn.connected": "vltd'ye bağlı",
+  "conn.disconnected": "vltd ile bağlantı yok",
+  "conn.reason.access_denied": "Erişim reddedildi",
+  "conn.reason.not_running": "vltd çalışmıyor veya bağlantı noktası yok",
+  "conn.reason.protocol": "vltd protokolü uyumlu değil",
+  "conn.reason.connection_lost": "vltd ile bağlantı koptu",
+  "conn.reason.error": "Bağlantı hatası"
+}

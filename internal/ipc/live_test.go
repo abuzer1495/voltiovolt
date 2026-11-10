@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client"
+	"github.com/abuzer1495/voltiovolt/internal/ipc/client/typed"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/measure"
 	"github.com/abuzer1495/voltiovolt/internal/redact"
@@ -18,7 +19,7 @@ import (
 
 // liveMethods calls each method of VLT-IS-004 TASK 03-00-00-008 in the
 // elevated state (part of TestAllMethodsNoSecretInResponses, step 4).
-func liveMethods(t *testing.T, ctx context.Context, e *env, c *client.Client, secret string) {
+func liveMethods(t *testing.T, ctx context.Context, e *env, c *typed.Client, secret string) {
 	t.Helper()
 	now := time.Now().UTC()
 	db := e.st.DB()
@@ -151,7 +152,7 @@ func waitSubs(t *testing.T, h *Hub, n int) {
 	}
 }
 
-func nextPush(t *testing.T, c *client.Client) wire.Push {
+func nextPush(t *testing.T, c *typed.Client) wire.Push {
 	t.Helper()
 	select {
 	case p := <-c.Pushes():
@@ -167,8 +168,8 @@ func nextPush(t *testing.T, c *client.Client) wire.Push {
 func TestPushAccess(t *testing.T) {
 	ctx := context.Background()
 	e := newEnv(t)
-	c := client.New(e.ln.dial(t))
-	other := client.New(e.ln.dial(t))
+	c := typed.New(e.ln.dial(t))
+	other := typed.New(e.ln.dial(t))
 	if err := c.Subscribe(ctx); client.Code(err) != wire.CodePINNotSet {
 		t.Fatalf("subscribe before PIN: %v", err)
 	}

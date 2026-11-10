@@ -1,0 +1,12 @@
+{
+  "app.name": "VLT",
+  "app.tagline": "UPS monitor",
+  "conn.connecting": "Connecting to vltd …",
+  "conn.connected": "Connected to vltd",
+  "conn.disconnected": "No connection to vltd",
+  "conn.reason.access_denied": "Access denied",
+  "conn.reason.not_running": "vltd does not run or the endpoint is not there",
+  "conn.reason.protocol": "The vltd protocol is not compatible",
+  "conn.reason.connection_lost": "The connection to vltd was lost",
+  "conn.reason.error": "Connection error"
+}

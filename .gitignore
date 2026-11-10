@@ -29,3 +29,8 @@ Thumbs.db
 
 # Reports contain account data (OD-12). Do not commit them.
 VLT-RPT-*.md
+
+# VLT GUI (VLT-IS-005): npm packages and the built front end.
+/web/node_modules/
+/cmd/vlt-gui/frontend/dist/
+/cmd/vlt-gui/dist/

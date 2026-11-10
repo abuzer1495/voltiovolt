@@ -76,6 +76,7 @@ func run(addr string) error {
 		},
 	})
 	m.SetEmitter(emitter{app})
+	m.SetOpenURL(app.Browser.OpenURL)
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   "main",
 		Title:  "VLT",

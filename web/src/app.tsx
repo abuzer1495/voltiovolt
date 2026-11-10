@@ -7,6 +7,7 @@ import { t, useLang } from './i18n';
 import { Dashboard } from './screens/dashboard';
 import { Device } from './screens/device';
 import { Events } from './screens/events';
+import { General } from './screens/general';
 import { History } from './screens/history';
 import { Login, SetPin } from './screens/pin';
 import { Policy } from './screens/policy';
@@ -27,6 +28,7 @@ export const routes: Route[] = [
   { id: 'events', label: 'nav.events', comp: Events },
   { id: 'policy', label: 'nav.policy', comp: Policy },
   { id: 'security', label: 'nav.security', comp: Security },
+  { id: 'general', label: 'nav.general', comp: General },
 ];
 
 function currentRoute(): string {

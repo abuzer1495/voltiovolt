@@ -49,6 +49,15 @@ const (
 	SettingSessionIdleMinutes = "auth.session_idle_minutes"
 	SettingLanguage           = "ui.language"
 
+	// Notification Router (VLT-IS-007 TASK 03-00-00-003 step 2): for each
+	// Channel, on or off and the minimum severity (default WARNING).
+	SettingNotifyDesktopEnabled   = "notify.desktop.enabled"
+	SettingNotifyDesktopSeverity  = "notify.desktop.min_severity"
+	SettingNotifyTelegramEnabled  = "notify.telegram.enabled"
+	SettingNotifyTelegramSeverity = "notify.telegram.min_severity"
+	SettingNotifyEmailEnabled     = "notify.email.enabled"
+	SettingNotifyEmailSeverity    = "notify.email.min_severity"
+
 	// Device Settings (VLT-IS-004 TASK 03-00-00-003 step 1).
 	// VLT-IS-006 TASK 03-00-00-004: transport default "not_configured";
 	// DTR and RTS "unchanged", "on" or "off".
@@ -270,6 +279,14 @@ func DefaultSettings() []SettingDef {
 		// VLT-IS-003 TASK 03-00-00-005 step 7.2: 10 minutes without a request.
 		{Key: SettingSessionIdleMinutes, Type: TypeInt, Default: json.RawMessage(`10`), Check: intRange(1, 120)},
 		{Key: SettingLanguage, Type: TypeString, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
+		// VLT-IS-007 TASK 03-00-00-003 step 2. The desktop Channel is on by
+		// default; Telegram and e-mail need their settings first.
+		{Key: SettingNotifyDesktopEnabled, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
+		{Key: SettingNotifyDesktopSeverity, Type: TypeString, Default: json.RawMessage(`"WARNING"`), Check: oneOf("INFO", "WARNING", "CRITICAL")},
+		{Key: SettingNotifyTelegramEnabled, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
+		{Key: SettingNotifyTelegramSeverity, Type: TypeString, Default: json.RawMessage(`"WARNING"`), Check: oneOf("INFO", "WARNING", "CRITICAL")},
+		{Key: SettingNotifyEmailEnabled, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
+		{Key: SettingNotifyEmailSeverity, Type: TypeString, Default: json.RawMessage(`"WARNING"`), Check: oneOf("INFO", "WARNING", "CRITICAL")},
 		// VLT-IS-004 TASK 03-00-00-003 step 1, changed by VLT-IS-006 TASK
 		// 03-00-00-004: default transport "not_configured" (OD-27, SEC-099),
 		// DTR and RTS "unchanged" (VLT-REF-001 section 2). A stored value of

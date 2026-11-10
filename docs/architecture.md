@@ -404,3 +404,12 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 6. Test end: b2 changes from 1 to 0. The result is TEST_PASSED if b4 and b6 stayed 0 while b2 was 1, else TEST_FAILED.
 7. Audit entries: `ups_control` (result "sent" for each send, "failure" with the error, "no send" for the beeper), `ups_control_verify` ("verified" or "not verified"), `ups_test_end` (TEST_PASSED or TEST_FAILED).
 8. Simulator: the model reacts to T, Tnn, TL, CT, Q, the shutdown and restore command and C. It gives no response to a CONTROL command. Test: b2 = 1 for the test time (TL: until the charge is less than 20 %). Shutdown: b1 = 1, output off after the delay, output on after the restore time if mains power is present (without mains the model waits for mains; the real behavior is UNVERIFIED, VLT-REF-001 5.1 item 4). Beeper: b0 changes. Tests: internal/control/sim_test.go (TestSimTestAndBeeper, TestSimTestFailed, TestSimCancelTest, TestSimShutdownRestore, TestSimNoRestoreWithoutMains); each checks that the simulator received only READ commands and the expected CONTROL commands, with 500 ms or more between two requests.
+
+## 15. Notification Router (internal/notify, VLT-IS-007 TASK 03-00-00-003)
+
+- Input: each Event of the Event Engine (`events.Subscribe` in `cmd/vltd/live.go`) and the countdown state of the Policy Engine (one call each tick; the Router sends a message only when the state changes).
+- Settings for each Channel (`desktop`, `telegram`, `email`): `notify.<channel>.enabled` and `notify.<channel>.min_severity` (INFO, WARNING, CRITICAL; default WARNING). Default: desktop on, Telegram and e-mail off.
+- Flood control: the first Event of a type goes at once. More Events of the same type in the next 60 s go in one combined message at the end of the 60 s window.
+- Queue: one queue for each Channel. A failed send is tried again after 10 s, 30 s, 1 min, 5 min, then every 5 min. After 1 hour the message is dropped (log entry). A message sent after a failed send has the text "Late message" and the original time.
+- Templates: English and Turkish (`templates.go`). The language is the Setting `ui.language`. The content is the Event, the time, the mode, input voltage, load, battery charge and runtime when available. No Secret and no serial number.
+- Channels implement `notify.Channel` (`Name`, `Send`). The Channels are added in TASK 03-00-00-004 to 006.

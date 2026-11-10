@@ -1,6 +1,6 @@
 # Security
 
-This file is a summary of the security requirements of VLT-IS-001 Revision 00 (section 02-00-00), with the changes of VLT-IS-002 01-30-00 (VLT-IS-001 Revision 01). The full source text is in `docs/instructions/`. If this file and the instructions do not agree, the instructions apply.
+This file is a summary of the security requirements of VLT-IS-001 Revision 00 (section 02-00-00), with the changes of VLT-IS-002 01-30-00 (VLT-IS-001 Revision 01) and VLT-IS-003 01-30-00 (VLT-IS-001 Revision 02). It also has the GitHub rules of VLT-IS-002 02-00-00. The full source text is in `docs/instructions/`. If this file and the instructions do not agree, the instructions apply.
 
 ## 1. Priority
 
@@ -37,7 +37,7 @@ This file is a summary of the security requirements of VLT-IS-001 Revision 00 (s
 | SEC-004 | Linux: the installer (root) creates and wraps the DEK with systemd-creds (TPM2 plus the host key when a TPM2 chip is available). vltd reads the DEK through LoadCredentialEncrypted=. vltd does not start systemd-creds. | VLT-IS-002 01-30-00 (SEC-004), QA-02 |
 | SEC-005 | Linux without TPM2: systemd-creds uses the host key only. Show a "reduced protection" notice in the VLT GUI. |  |
 | SEC-006 | A copy of the database on a different host MUST NOT decrypt. Write a test for this. |  |
-| SEC-007 | Keep the PIN and the Remote PIN only as Argon2id hashes. | Text not changed. VLT-IS-002 replaces the Remote PIN with a TOTP Remote code (OD-08) and changes S-08 to "PIN hash". A TOTP key (S-11) cannot be a hash. Open question in VLT-RPT-002. |
+| SEC-007 | Keep the PIN only as an Argon2id hash. The TOTP key (S-11) is a Secret in the Vault. | VLT-IS-003 01-30-00 (answer QA-1 to VLT-RPT-002) |
 
 ### 02-10-03 Exposure
 
@@ -128,6 +128,28 @@ WARNING: CONTROL commands and CONFIG commands can stop power to the protected eq
 | SEC-073 | Do not change the scope. Write scope proposals in your report. |  |
 | SEC-074 | If an instruction is not clear, do not guess. Write a question in your report. |  |
 
+### GitHub and build rules (VLT-IS-002 02-00-00, VLT-IS-003 01-30-00)
+
+| ID | Requirement | Change |
+|----|-------------|--------|
+| SEC-080 | Use only the login abuzer1495 for all GitHub API calls and all git pushes. | VLT-IS-002 02-00-00 |
+| SEC-081 | Before the first push of each task, confirm the login with the GitHub API. Write the result in the Command log. | VLT-IS-002 02-00-00 |
+| SEC-082 | Set the git author and committer in the local configuration of this repository only. Name: abuzer1495. E-mail: the GitHub no-reply address of abuzer1495. | VLT-IS-002 02-00-00 |
+| SEC-083 | Do not change the global git configuration. Use a token for each command when possible. If you must change the active gh login, change it back after the task. Write it in the report. | VLT-IS-002 02-00-00 |
+| SEC-084 | Do not write the name of any other GitHub login in the repository. | VLT-IS-002 02-00-00 |
+| SEC-085 | One task, one branch, one pull request. Branch name: vlt-is-00N/<task-name>. | VLT-IS-002 02-00-00, VLT-IS-003 02-00-00 |
+| SEC-086 | The instruction gives Owner approval to merge each pull request of the instruction. Conditions: all required checks pass, and the pull request contains only the work of its task. Use squash merge. | VLT-IS-002 02-00-00 |
+| SEC-087 | Do not commit binaries. Do not commit Capture files. | VLT-IS-002 02-00-00 |
+| SEC-088 | Do not export GH_TOKEN or any other token in the shell. Give a token only as a prefix of one command. At the start and at the end of each task, check that no token variable is in the environment. Report only "present" or "absent". | New: VLT-IS-003 01-30-00 |
+| SEC-089 | Do not read, clone, list or change a repository other than abuzer1495/voltiovolt. | New: VLT-IS-003 01-30-00 |
+
+### vltd rules (VLT-IS-003 01-30-00)
+
+| ID | Requirement | Change |
+|----|-------------|--------|
+| SEC-090 | vltd starts and runs when the Vault is not available. Then all functions that need a Secret are off. The VLT GUI shows the Vault state. | New: VLT-IS-003 01-30-00 |
+| SEC-091 | Test-only code (fake DEK provider, fake host binding) is only in _test.go files. A shipped binary MUST NOT contain it. | New: VLT-IS-003 01-30-00 |
+
 NOTE: VLT-IS-001 has no SEC-008, SEC-009, SEC-017 to SEC-019, SEC-026 to SEC-029, SEC-039, SEC-052 to SEC-054, SEC-059 and SEC-069.
 
 ## 4. Threat model summary
@@ -146,3 +168,21 @@ VLT-IS-001 has no separate threat model section. This summary is made from VLT-I
 | T-08 | Source code and supply chain | Copied GPL or proprietary code, bad licenses, vulnerable or malicious dependencies, leaked tokens, history rewrite | SEC-060 to SEC-068 |
 | T-09 | Builder output | Invented facts, versions or test results | SEC-070 to SEC-074 |
 | T-10 | Alarm delivery during a power failure | Internet Channels fail when the modem and router are not on UPS power | VLT-IS-001 03-50-00 item 1 (first-run wizard warning) |
+
+## 5. Redaction rules (VLT-IS-003 TASK 03-00-00-002)
+
+Package `internal/redact`:
+
+1. The type `redact.Secret` holds Secret bytes behind a pointer.
+2. These methods return the text "[REDACTED]": String, GoString, Format (all verbs), MarshalJSON, MarshalText and LogValue. A Secret in an unexported struct field shows only a pointer address.
+3. Only the method `Expose` gives the bytes. Use it only in the Vault and in Channel code.
+4. The log/slog handler `redact.Handler` replaces each attribute of the Secret type with "[REDACTED]". It also applies `redact.Scrub` to the message, to attribute keys, to text values, to error values and to the text form of all other values.
+5. `redact.Scrub` removes:
+   - the path segment "/bot" with a token (result: "/bot[REDACTED]"),
+   - bare Telegram bot tokens (8 to 10 digits, ":", 35 characters),
+   - "Authorization:" header values (to the end of the line),
+   - "Bearer" tokens,
+   - URL query values with the names token, key, secret, password and access_token.
+6. Package `internal/logging` makes the vltd logger. All output goes through `redact.Handler`. Linux: standard error (journal). Windows: `<data directory>\logs\vltd.log`, 5 files of 10 MiB each.
+7. Tests use fake token values made at run time. No token text is in the repository.
+

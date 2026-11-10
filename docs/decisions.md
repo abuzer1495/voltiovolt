@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00. The source text is in `docs/instructions/VLT-IS-002.md`.
+This file has one row for each decision in VLT-IS-002 01-00-00 and VLT-IS-003 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -42,3 +42,18 @@ This file has one row for each decision in VLT-IS-002 01-00-00. The source text 
 | CH-14 | 2026-11-10 | VLT-IS-001 03-20-00: Add "Q" to the CONTROL class. "D" is in no class. | VLT-IS-002 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 01) |
 | CH-15 | 2026-11-10 | VLT-IS-001 03-40-00: Power quality is an "EN 50160-based estimate". | VLT-IS-002 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 01) |
 | CH-16 | 2026-11-10 | VLT-IS-001 05-10-00: Replaced by 05-10-00 of VLT-IS-002. | VLT-IS-002 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 01) |
+| QA-1 | 2026-11-10 | Accepted. New SEC-007 text: "Keep the PIN only as an Argon2id hash. The TOTP key (S-11) is a Secret in the Vault." | VLT-IS-003 Rev 00, 01-10-00 |
+| QA-2 | 2026-11-10 | The minimum time of 500 ms between requests has priority. A watch cycle starts 2 seconds after the start of the previous cycle, or at the end of the previous cycle. Use the later time. D-07 is accepted. | VLT-IS-003 Rev 00, 01-10-00 |
+| QA-3 | 2026-11-10 | Accepted. The CI guard of D-01 stays. | VLT-IS-003 Rev 00, 01-10-00 |
+| OD-14 | 2026-11-10 | Author name in squash commits (QO-01): Accepted. The name is already public on the GitHub profile. The Owner can change the profile name. The Builder does no action. | VLT-IS-003 Rev 00, 01-20-00 |
+| OD-15 | 2026-11-10 | CODE_OF_CONDUCT.md contact (QO-02): Keep the text "the repository Owner on GitHub". Keep the attribution section of the Contributor Covenant without changes. | VLT-IS-003 Rev 00, 01-20-00 |
+| OD-16 | 2026-11-10 | Dependabot security updates (QO-03): On. The Builder sets it in TASK 03-00-00-001. The Builder does not merge Dependabot pull requests. The Builder lists them in each report. | VLT-IS-003 Rev 00, 01-20-00 |
+| OD-17 | 2026-11-10 | Confirmation of settings in the GitHub UI (QO-04): The Owner does this. It is not a Builder task. | VLT-IS-003 Rev 00, 01-20-00 |
+| OD-18 | 2026-11-10 | Deviations D-01 to D-14 of VLT-RPT-002: Accepted. D-13 makes the new rule SEC-088. | VLT-IS-003 Rev 00, 01-20-00 |
+| OD-19 | 2026-11-10 | GitHub token: If the Owner installs a fine-grained token for abuzer1495/voltiovolt only, use that token for all work. Then do not use any other token. Write which token type you used in the Command log. | VLT-IS-003 Rev 00, 01-20-00 |
+| CH-17 | 2026-11-10 | VLT-IS-001 SEC-007: New text: "Keep the PIN only as an Argon2id hash. The TOTP key (S-11) is a Secret in the Vault." | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
+| CH-18 | 2026-11-10 | SEC-088 (new): Do not export GH_TOKEN or any other token in the shell. Give a token only as a prefix of one command. At the start and at the end of each task, check that no token variable is in the environment. Report only "present" or "absent". | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
+| CH-19 | 2026-11-10 | SEC-089 (new): Do not read, clone, list or change a repository other than abuzer1495/voltiovolt. | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
+| CH-20 | 2026-11-10 | SEC-090 (new): vltd starts and runs when the Vault is not available. Then all functions that need a Secret are off. The VLT GUI shows the Vault state. | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
+| CH-21 | 2026-11-10 | SEC-091 (new): Test-only code (fake DEK provider, fake host binding) is only in _test.go files. A shipped binary MUST NOT contain it. | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
+| CH-22 | 2026-11-10 | VLT-IS-001 03-20-00: Add NOTE: vltd polls in two groups (later instruction). Fast group: 2 commands or fewer, every 2 seconds. Slow group: all other READ commands, every 30 seconds. | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |

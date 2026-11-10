@@ -6,6 +6,8 @@ Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clau
 
 | Name | Version | License | Reason | Used by |
 |------|---------|---------|--------|---------|
+| golang.org/x/sys | v0.50.0 | BSD-3-Clause | hidraw (unix) and SetupAPI, hid.dll (windows) without cgo | internal/transport, internal/sim |
+| go.bug.st/serial | v1.8.0 | BSD-3-Clause | Serial Transport (no cgo on Windows and Linux) | internal/transport |
 
 ## CI tools (not in VLT binaries)
 

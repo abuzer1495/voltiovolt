@@ -303,8 +303,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: WebKitGTK and GTK packages for Wails v3.0.0 (GTK 4, WebKitGTK 6.0)
-        # Source: wails v3.0.0 pkg/application/linux_cgo.go ("#cgo linux
+      - name: WebKitGTK and GTK packages for Wails v3.1.0 (GTK 4, WebKitGTK 6.0)
+        # Source: wails v3.1.0 pkg/application/linux_cgo.go ("#cgo linux
         # pkg-config: gtk4 webkitgtk-6.0"), internal/assetserver/webview/
         # webkit_linux.go (libsoup-3.0, gio-unix-2.0),
         # pkg/application/global_shortcut_linux_x11.go (x11) and

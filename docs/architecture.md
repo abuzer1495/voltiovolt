@@ -305,7 +305,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 
 | Part | Directory | Notes |
 |------|-----------|-------|
-| Wails application | cmd/vlt-gui | Separate Go module (cmd/vlt-gui/go.mod) with Wails v3.0.0. Linux: cgo, GTK 4 and WebKitGTK 6.0. Windows: WebView2, no cgo. Build tag `production` (no dev server, no devtools). Embeds the built front end (cmd/vlt-gui/frontend/dist). |
+| Wails application | cmd/vlt-gui | Separate Go module (cmd/vlt-gui/go.mod) with Wails v3.1.0 (VLT-IS-007). Linux: cgo, GTK 4 and WebKitGTK 6.0. Windows: WebView2, no cgo. Build tag `production` (no dev server, no devtools). Embeds the built front end (cmd/vlt-gui/frontend/dist). |
 | Go side | internal/gui | Root module, CGO_ENABLED=0. Imports internal/ipc/client and internal/ipc/wire only (no Store, Vault, SQLite or policy package; TestNoStoreImports). Manager: connection, reconnect every 5 s, push messages, lock timer, tray state. API: the bound methods. |
 | Front end | web/ | TypeScript, Vite, Preact, uPlot. No other runtime npm package. |
 

@@ -9,6 +9,7 @@ Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clau
 | golang.org/x/sys | v0.50.0 | BSD-3-Clause | hidraw (unix) and SetupAPI, hid.dll (windows) without cgo | internal/transport, internal/sim |
 | go.bug.st/serial | v1.8.0 | BSD-3-Clause | Serial Transport (no cgo on Windows and Linux) | internal/transport |
 | github.com/creack/pty | v1.1.24 | MIT | pty endpoint of the simulator (Linux) | internal/sim, cmd/vlt-sim (not in vltd) |
+| golang.org/x/crypto | v0.58.0 | BSD-3-Clause | Argon2id PIN hash (argon2 package) (VLT-IS-003 TASK 03-00-00-005) | internal/auth |
 | modernc.org/sqlite | v1.62.0 | BSD-3-Clause | Store: SQLite without cgo (VLT-IS-003 TASK 03-00-00-003) | internal/store |
 | modernc.org/libc | v1.80.1 (indirect) | BSD-3-Clause | Required by modernc.org/sqlite | internal/store |
 | modernc.org/mathutil | v1.7.1 (indirect) | BSD-3-Clause | Required by modernc.org/sqlite | internal/store |

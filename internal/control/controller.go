@@ -209,7 +209,7 @@ func (c *Controller) Observe(s Status) {
 	}
 	c.mu.Unlock()
 	if ended != nil {
-		c.record(context.Background(), "ups_test_end", "test", ended.Result, map[string]any{
+		c.record(context.Background(), "system", "ups_test_end", "test", ended.Result, map[string]any{
 			"start": ended.Start.UTC().Format(time.RFC3339), "end": ended.End.UTC().Format(time.RFC3339),
 			"ups_failed": ended.UPSFailed, "battery_low": ended.BatteryLow,
 		})
@@ -269,11 +269,20 @@ func (c *Controller) polls(ctx context.Context, at time.Time, n int, f func(Stat
 	return false, seen
 }
 
-func (c *Controller) record(ctx context.Context, action, target, result string, d map[string]any) {
+// actorOf returns the audit actor of a Grant source: "gui" for an IPC
+// request, "system" for the Policy Engine and the test end.
+func actorOf(s Source) string {
+	if s == SourceIPC {
+		return "gui"
+	}
+	return "system"
+}
+
+func (c *Controller) record(ctx context.Context, actor, action, target, result string, d map[string]any) {
 	if c.Audit == nil {
 		return
 	}
-	if err := c.Audit.Record(ctx, "vltd", action, target, result, d); err != nil && c.Log != nil {
+	if err := c.Audit.Record(ctx, actor, action, target, result, d); err != nil && c.Log != nil {
 		c.Log.Error("control: audit", "action", action, "err", err)
 	}
 }
@@ -307,12 +316,13 @@ func (c *Controller) run(ctx context.Context, cmd Command, needStatus bool) (Res
 	f := cmd.Func()
 	res := Result{Func: f, Bytes: cmd.Text()}
 	base := map[string]any{"func": string(f), "bytes": cmd.Text(), "source": string(cmd.Source())}
+	actor := actorOf(cmd.Source())
 	fail := func(err error) (Result, error) {
 		d := map[string]any{"error": err.Error()}
 		for k, v := range base {
 			d[k] = v
 		}
-		c.record(ctx, "ups_control", string(f), "failure", d)
+		c.record(ctx, actor, "ups_control", string(f), "failure", d)
 		return res, err
 	}
 	if !cmd.Valid() {
@@ -337,21 +347,21 @@ func (c *Controller) run(ctx context.Context, cmd Command, needStatus bool) (Res
 			return fail(fmt.Errorf("send: %w", err))
 		}
 		res.Sends++
-		c.record(ctx, "ups_control", string(f), "sent", map[string]any{"func": string(f), "bytes": cmd.Text(), "source": string(cmd.Source()), "send": res.Sends})
+		c.record(ctx, actor, "ups_control", string(f), "sent", map[string]any{"func": string(f), "bytes": cmd.Text(), "source": string(cmd.Source()), "send": res.Sends})
 		polls := r.between
 		if res.Sends == r.maxSends || polls == 0 {
 			polls = Polls
 		}
 		if ok, n := c.polls(ctx, at, polls, func(s Status) bool { return r.ok(prev, s) }); ok {
 			res.Verified = true
-			c.record(ctx, "ups_control_verify", string(f), "verified", map[string]any{"func": string(f), "sends": res.Sends, "polls": n})
+			c.record(ctx, actor, "ups_control_verify", string(f), "verified", map[string]any{"func": string(f), "sends": res.Sends, "polls": n})
 			return res, nil
 		}
 		if ctx.Err() != nil {
 			break
 		}
 	}
-	c.record(ctx, "ups_control_verify", string(f), "not verified", map[string]any{"func": string(f), "sends": res.Sends})
+	c.record(ctx, actor, "ups_control_verify", string(f), "not verified", map[string]any{"func": string(f), "sends": res.Sends})
 	return fail(ErrNotVerify)
 }
 
@@ -372,11 +382,11 @@ func (c *Controller) StartTest(ctx context.Context, g Grant, kind Func, minutes 
 		err = fmt.Errorf("%w: %s", ErrNotPermitted, kind)
 	}
 	if err != nil {
-		c.record(ctx, "ups_control", string(kind), "failure", map[string]any{"func": string(kind), "error": err.Error()})
+		c.record(ctx, actorOf(g.Source()), "ups_control", string(kind), "failure", map[string]any{"func": string(kind), "error": err.Error()})
 		return Result{Func: kind}, err
 	}
 	if s, ok := c.LastStatus(); ok && s.Flags.UtilityFail {
-		c.record(ctx, "ups_control", string(kind), "failure", map[string]any{"func": string(kind), "error": ErrOnBattery.Error()})
+		c.record(ctx, actorOf(g.Source()), "ups_control", string(kind), "failure", map[string]any{"func": string(kind), "error": ErrOnBattery.Error()})
 		return Result{Func: kind}, ErrOnBattery
 	}
 	return c.run(ctx, cmd, true)
@@ -386,7 +396,7 @@ func (c *Controller) StartTest(ctx context.Context, g Grant, kind Func, minutes 
 func (c *Controller) CancelTest(ctx context.Context, g Grant) (Result, error) {
 	cmd, err := EncodeCancelTest(g)
 	if err != nil {
-		c.record(ctx, "ups_control", string(FuncCancelTest), "failure", map[string]any{"func": string(FuncCancelTest), "error": err.Error()})
+		c.record(ctx, actorOf(g.Source()), "ups_control", string(FuncCancelTest), "failure", map[string]any{"func": string(FuncCancelTest), "error": err.Error()})
 		return Result{Func: FuncCancelTest}, err
 	}
 	return c.run(ctx, cmd, true)
@@ -397,16 +407,16 @@ func (c *Controller) CancelTest(ctx context.Context, g Grant) (Result, error) {
 func (c *Controller) SetBeeper(ctx context.Context, g Grant, on bool) (Result, error) {
 	cmd, err := EncodeBeeperToggle(g)
 	if err != nil {
-		c.record(ctx, "ups_control", string(FuncBeeper), "failure", map[string]any{"func": string(FuncBeeper), "error": err.Error()})
+		c.record(ctx, actorOf(g.Source()), "ups_control", string(FuncBeeper), "failure", map[string]any{"func": string(FuncBeeper), "error": err.Error()})
 		return Result{Func: FuncBeeper}, err
 	}
 	s, ok := c.LastStatus()
 	if !ok {
-		c.record(ctx, "ups_control", string(FuncBeeper), "failure", map[string]any{"func": string(FuncBeeper), "error": ErrNoStatus.Error()})
+		c.record(ctx, actorOf(g.Source()), "ups_control", string(FuncBeeper), "failure", map[string]any{"func": string(FuncBeeper), "error": ErrNoStatus.Error()})
 		return Result{Func: FuncBeeper}, ErrNoStatus
 	}
 	if s.Flags.BeeperOn == on {
-		c.record(ctx, "ups_control", string(FuncBeeper), "no send", map[string]any{"func": string(FuncBeeper), "wanted_on": on})
+		c.record(ctx, actorOf(g.Source()), "ups_control", string(FuncBeeper), "no send", map[string]any{"func": string(FuncBeeper), "wanted_on": on})
 		return Result{Func: FuncBeeper, NoSend: true, Verified: true}, nil
 	}
 	return c.run(ctx, cmd, true)
@@ -417,8 +427,19 @@ func (c *Controller) SetBeeper(ctx context.Context, g Grant, on bool) (Result, e
 func (c *Controller) ShutdownRestore(ctx context.Context, g Grant, delay time.Duration, restoreMinutes int) (Result, error) {
 	cmd, err := EncodeShutdownRestore(g, delay, restoreMinutes)
 	if err != nil {
-		c.record(ctx, "ups_control", string(FuncShutdownRestore), "failure", map[string]any{"func": string(FuncShutdownRestore), "error": err.Error()})
+		c.record(ctx, actorOf(g.Source()), "ups_control", string(FuncShutdownRestore), "failure", map[string]any{"func": string(FuncShutdownRestore), "error": err.Error()})
 		return Result{Func: FuncShutdownRestore}, err
 	}
 	return c.run(ctx, cmd, false)
+}
+
+// DryShutdownRestore checks the inputs and returns the bytes of the
+// shutdown and restore command without a send (the dry-run Simulation of
+// the Policy Engine, VLT-IS-006 TASK 03-00-00-006 step 5).
+func DryShutdownRestore(g Grant, delay time.Duration, restoreMinutes int) (Result, error) {
+	cmd, err := EncodeShutdownRestore(g, delay, restoreMinutes)
+	if err != nil {
+		return Result{Func: FuncShutdownRestore}, err
+	}
+	return Result{Func: FuncShutdownRestore, Bytes: cmd.Text()}, nil
 }

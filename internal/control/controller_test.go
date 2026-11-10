@@ -19,7 +19,12 @@ type fakeAudit struct {
 	rows []auditRow
 }
 
-func (a *fakeAudit) Record(_ context.Context, _, action, target, result string, _ map[string]any) error {
+// Record accepts only the actors of internal/audit (gui, telegram,
+// system), like audit.Log.
+func (a *fakeAudit) Record(_ context.Context, actor, action, target, result string, _ map[string]any) error {
+	if actor != "gui" && actor != "system" {
+		return errors.New("bad actor " + actor)
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.rows = append(a.rows, auditRow{action, target, result})

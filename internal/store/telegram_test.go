@@ -32,3 +32,33 @@ func TestTelegramChats(t *testing.T) {
 		t.Fatalf("chats %+v", cs)
 	}
 }
+
+func TestEmailSettingChecks(t *testing.T) {
+	defs := map[string]SettingDef{}
+	for _, d := range DefaultSettings() {
+		defs[d.Key] = d
+	}
+	for _, c := range []struct {
+		key, val string
+		ok       bool
+	}{
+		{SettingEmailServer, `"smtp.gmail.com"`, true},
+		{SettingEmailServer, `"smtp.gmail.com:465"`, false},
+		{SettingEmailServer, `"a b"`, false},
+		{SettingEmailSecurity, `"starttls"`, true},
+		{SettingEmailSecurity, `"none"`, false},
+		{SettingEmailUser, `"me@gmail.com"`, true},
+		{SettingEmailUser, `"a\r\nb"`, false},
+		{SettingEmailFrom, `""`, true},
+		{SettingEmailFrom, `"Me <me@gmail.com>"`, false},
+		{SettingEmailTo, `["a@example.com","b@example.com"]`, true},
+		{SettingEmailTo, `["a@example.com","a@example.com"]`, false},
+		{SettingEmailTo, `["1@x.com","2@x.com","3@x.com","4@x.com","5@x.com","6@x.com"]`, false},
+		{SettingEmailTo, `["a@example.com\r\nBcc: b@example.com"]`, false},
+	} {
+		err := defs[c.key].Check([]byte(c.val))
+		if (err == nil) != c.ok {
+			t.Errorf("%s = %s: err %v", c.key, c.val, err)
+		}
+	}
+}

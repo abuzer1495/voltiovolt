@@ -16,6 +16,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/measure"
 	"github.com/abuzer1495/voltiovolt/internal/notify"
+	"github.com/abuzer1495/voltiovolt/internal/notify/email"
 	"github.com/abuzer1495/voltiovolt/internal/notify/telegram"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/poller"
@@ -44,6 +45,7 @@ type live struct {
 	router *notify.Router
 	// telegram is the Telegram Channel (VLT-IS-007 TASK 03-00-00-005).
 	telegram *telegram.Bot
+	email    *email.Mailer
 
 	mu       sync.Mutex
 	commLost bool
@@ -349,6 +351,9 @@ func (d *daemon) startLive(ctx context.Context) error {
 		Status:   l.telegramStatus,
 		Language: notify.StoreLanguage(d.st)})
 	l.router.AddChannel(l.telegram)
+	// The e-mail Channel (VLT-IS-007 TASK 03-00-00-006).
+	l.email = email.New(email.Config{Settings: email.StoreSettings(d.st), Secrets: d.vt, Log: d.log})
+	l.router.AddChannel(l.email)
 	// The UPS output off step of the Shutdown Policy (VLT-IS-006 TASK
 	// 03-00-00-006) uses the Controller with the Policy Grant.
 	pol.SetUPSOff(l.ctl)

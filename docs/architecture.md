@@ -430,3 +430,12 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 5. Commands of paired chats: /status and /durum (also with the suffix @botname) give the same text: mode, input and output voltage, load, battery charge, runtime, Shutdown Policy (active and action), last Event. The language is the Setting ui.language. Other text gives the list of commands.
 6. Send: the Notification text goes to each paired chat (sendMessage). The Router tries again only when no chat got the message.
 7. Tests: a fake Telegram HTTPS server (httptest.NewTLSServer). No test connects to api.telegram.org.
+
+### 15.3 e-mail Channel (internal/notify/email, VLT-IS-007 TASK 03-00-00-006)
+
+1. Settings: `email.smtp.server` (host name), `email.smtp.port` (default 465), `email.smtp.security` (`tls`: implicit TLS, port 465; `starttls`: port 587), `email.smtp.user`, `email.from`, `email.to` (1 to 5 plain addresses). The Channel sends only when the server, the sender and at least one receiver are set.
+2. The password is the Secret S-04 (Vault ID `smtp.password`). vltd reads it from the Vault only for SMTP AUTH PLAIN, after TLS is active.
+3. Preset "Gmail": smtp.gmail.com, port 465, TLS. The GUI shows the help text about the Google app password (TASK 03-00-00-007).
+4. TLS 1.2 or later; the server certificate is verified with the system CAs. In the `starttls` mode, if the server does not offer STARTTLS or the STARTTLS handshake fails, vltd sends nothing and does not use the password.
+5. Message: subject "[VLT][severity] Event" (one line, Q-encoded), UTF-8 text, quoted-printable. Addresses and the subject cannot add header lines.
+6. Tests: a fake SMTP server (implicit TLS and STARTTLS, a test CA). No test connects to a real server.

@@ -58,6 +58,15 @@ const (
 	SettingNotifyEmailEnabled     = "notify.email.enabled"
 	SettingNotifyEmailSeverity    = "notify.email.min_severity"
 
+	// e-mail Channel (VLT-IS-007 TASK 03-00-00-006 step 1). The password is
+	// the Secret S-04 in the Vault, not a Setting.
+	SettingEmailServer   = "email.smtp.server"
+	SettingEmailPort     = "email.smtp.port"
+	SettingEmailSecurity = "email.smtp.security" // tls (port 465) or starttls (port 587)
+	SettingEmailUser     = "email.smtp.user"
+	SettingEmailFrom     = "email.from"
+	SettingEmailTo       = "email.to"
+
 	// Device Settings (VLT-IS-004 TASK 03-00-00-003 step 1).
 	// VLT-IS-006 TASK 03-00-00-004: transport default "not_configured";
 	// DTR and RTS "unchanged", "on" or "off".
@@ -134,6 +143,84 @@ func serialPortList(v json.RawMessage) error {
 		}
 		if seen[s] {
 			return errors.New("a name is in the list two times")
+		}
+		seen[s] = true
+	}
+	return nil
+}
+
+// MaxEmailReceivers is the maximum number of receiver addresses (VLT-IS-007
+// TASK 03-00-00-006 step 1).
+const MaxEmailReceivers = 5
+
+var hostName = regexp.MustCompile(`^(|[A-Za-z0-9]([A-Za-z0-9-]{0,62})(\.[A-Za-z0-9]([A-Za-z0-9-]{0,62}))*)$`)
+
+func smtpServer(v json.RawMessage) error {
+	var s string
+	if err := strictJSON(v, &s); err != nil {
+		return fmt.Errorf("value must be a text: %w", err)
+	}
+	if len(s) > 253 || !hostName.MatchString(s) {
+		return errors.New("value must be empty or a host name (for example smtp.gmail.com)")
+	}
+	return nil
+}
+
+// plainText accepts a text of max characters or fewer without control
+// characters.
+func plainText(max int) func(json.RawMessage) error {
+	return func(v json.RawMessage) error {
+		var s string
+		if err := strictJSON(v, &s); err != nil {
+			return fmt.Errorf("value must be a text: %w", err)
+		}
+		if len(s) > max {
+			return fmt.Errorf("value must have %d characters or fewer", max)
+		}
+		for _, c := range s {
+			if c < 0x20 || c == 0x7f {
+				return errors.New("value must not contain control characters")
+			}
+		}
+		return nil
+	}
+}
+
+// emailAddress is a plain address "name@domain" without a display name.
+var emailAddressRe = regexp.MustCompile(`^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]{1,64}@[A-Za-z0-9]([A-Za-z0-9-]{0,62})(\.[A-Za-z0-9]([A-Za-z0-9-]{0,62}))+$`)
+
+// ValidEmailAddress tells if s is a plain e-mail address.
+func ValidEmailAddress(s string) bool { return len(s) <= 254 && emailAddressRe.MatchString(s) }
+
+func emailFrom(v json.RawMessage) error {
+	var s string
+	if err := strictJSON(v, &s); err != nil {
+		return fmt.Errorf("value must be a text: %w", err)
+	}
+	if s != "" && !ValidEmailAddress(s) {
+		return errors.New("value must be empty or an e-mail address")
+	}
+	return nil
+}
+
+func emailList(v json.RawMessage) error {
+	var l []string
+	if err := strictJSON(v, &l); err != nil {
+		return fmt.Errorf("value must be a list of texts: %w", err)
+	}
+	if l == nil {
+		return errors.New("value must be a list (use [] for no address)")
+	}
+	if len(l) > MaxEmailReceivers {
+		return fmt.Errorf("value must have %d addresses or fewer", MaxEmailReceivers)
+	}
+	seen := map[string]bool{}
+	for _, s := range l {
+		if !ValidEmailAddress(s) {
+			return errors.New("each value must be an e-mail address")
+		}
+		if seen[s] {
+			return errors.New("an address is in the list two times")
 		}
 		seen[s] = true
 	}
@@ -287,6 +374,14 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingNotifyTelegramSeverity, Type: TypeString, Default: json.RawMessage(`"WARNING"`), Check: oneOf("INFO", "WARNING", "CRITICAL")},
 		{Key: SettingNotifyEmailEnabled, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
 		{Key: SettingNotifyEmailSeverity, Type: TypeString, Default: json.RawMessage(`"WARNING"`), Check: oneOf("INFO", "WARNING", "CRITICAL")},
+		// VLT-IS-007 TASK 03-00-00-006 step 1. 1 to 5 receivers are
+		// necessary to send; the empty defaults mean "not configured".
+		{Key: SettingEmailServer, Type: TypeString, Default: json.RawMessage(`""`), Check: smtpServer},
+		{Key: SettingEmailPort, Type: TypeInt, Default: json.RawMessage(`465`), Check: intRange(1, 65535)},
+		{Key: SettingEmailSecurity, Type: TypeString, Default: json.RawMessage(`"tls"`), Check: oneOf("tls", "starttls")},
+		{Key: SettingEmailUser, Type: TypeString, Default: json.RawMessage(`""`), Check: plainText(254)},
+		{Key: SettingEmailFrom, Type: TypeString, Default: json.RawMessage(`""`), Check: emailFrom},
+		{Key: SettingEmailTo, Type: TypeStrings, Default: json.RawMessage(`[]`), Check: emailList},
 		// VLT-IS-004 TASK 03-00-00-003 step 1, changed by VLT-IS-006 TASK
 		// 03-00-00-004: default transport "not_configured" (OD-27, SEC-099),
 		// DTR and RTS "unchanged" (VLT-REF-001 section 2). A stored value of

@@ -65,6 +65,9 @@ jobs:
         run: |
           if [ -z "$(go list ./... 2>/dev/null)" ]; then echo "No Go packages yet."; exit 0; fi
           go test ./...
+      - name: Windows DPAPI and ACL tests, verbose (VLT-IS-003 03-00-00-004 step 9.6)
+        if: runner.os == 'Windows'
+        run: go test -count=1 -v -run 'TestDPAPIRoundTrip|TestVaultWithDPAPI|TestCheckDataDirWindows' ./internal/vault ./internal/store
       - name: go test -race (Linux; the race detector needs cgo, test only)
         if: runner.os == 'Linux'
         env:

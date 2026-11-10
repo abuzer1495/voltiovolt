@@ -186,3 +186,20 @@ Package `internal/redact`:
 6. Package `internal/logging` makes the vltd logger. All output goes through `redact.Handler`. Linux: standard error (journal). Windows: `<data directory>\logs\vltd.log`, 5 files of 10 MiB each.
 7. Tests use fake token values made at run time. No token text is in the repository.
 
+## 6. Vault design (VLT-IS-003 TASK 03-00-00-004)
+
+WARNING: An error in the Vault can expose all user Secrets.
+
+1. DEK: 32 bytes from crypto/rand.
+2. Encryption: AES-256-GCM. A new 96-bit random nonce for each encryption. Additional data: "vlt-secret-v1|" + Secret ID + "|" + version. A ciphertext moved to a different Secret ID or version does not decrypt.
+3. Linux host binding: systemd decrypts the credential `vlt-dek` (LoadCredentialEncrypted=) before vltd starts. vltd reads `$CREDENTIALS_DIRECTORY/vlt-dek` (exactly 32 bytes). vltd never starts systemd-creds. vltd reads the key mode from `/etc/vltd/key-mode` (root-owned, not writable by group or others): host, tpm2 or host+tpm2. "host" gives the state "reduced protection" (SEC-005). A missing or bad key mode file also gives "reduced protection" (reason "key mode unknown").
+4. Windows host binding: at the first start, vltd makes the DEK and wraps it with CryptProtectData (user scope of NT SERVICE\vltd, not CRYPTPROTECT_LOCAL_MACHINE, flag CRYPTPROTECT_UI_FORBIDDEN, no prompt structure). Entropy: "VoltioVolt-DEK-v1" + the install ID (meta table). File: `vault.dek` in the data directory.
+5. Canary: when the Vault is made, vltd stores the Secret `vlt.canary` with a known value. At each start, vltd decrypts it. If this fails, the state is "locked" (reason "host binding failed"); vltd writes an audit entry and a log entry, without the canary value.
+6. States: available, reduced protection, locked, not configured. In "locked" and "not configured", Set, Delete, Use and settings writes return an error; vltd continues (SEC-090). Secret status (set or not set, hint, updated_at) works in all states.
+7. Functions: Set (version + 1), Delete, Status (never the value), Use (buffer cleared after the function returns), Reset (confirmation text "RESET VAULT"; deletes all Secrets; Windows: new DEK; Linux: same DEK, new canary; valid settings get a new MAC).
+8. A go/ast test fails if a package outside internal/vault calls Use. The allow list is empty.
+9. Settings integrity: the Store keeps an HMAC-SHA256 of key, value and version for each settings row. The MAC key comes from the DEK through HKDF-SHA256 (no salt, info "vlt-settings-mac-v1", 32 bytes). A row with a MAC that is not correct is not used: vltd uses the default value and writes an audit entry and a log entry.
+10. Secret IDs: letters, digits, ".", "_" and "-", 64 characters or fewer. The prefix "vlt." is reserved.
+11. Hint: the last 4 characters of a Secret of 16 characters or more. No hint for a shorter Secret.
+12. Test-only DEK providers are only in _test.go files (SEC-091).
+

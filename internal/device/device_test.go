@@ -212,7 +212,8 @@ func TestConfigFromStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c != (Config{Transport: TransportAuto, DTR: true, RTS: false}) {
+	want := Config{Transport: TransportNotConfigured, DTR: transport.LineUnchanged, RTS: transport.LineUnchanged, AllowedPorts: []string{}}
+	if !reflect.DeepEqual(c, want) {
 		t.Fatalf("%+v", c)
 	}
 	for _, bad := range []struct{ k, v string }{
@@ -220,6 +221,13 @@ func TestConfigFromStore(t *testing.T) {
 		{store.SettingDeviceSerial, `"../etc/passwd"`},
 		{store.SettingDeviceSerial, `"/dev/tty USB0"`},
 		{store.SettingDeviceDTR, `"yes"`},
+		{store.SettingDeviceDTR, `true`}, // the old type
+		{store.SettingDeviceRTS, `false`},
+		{store.SettingDeviceAllowedPorts, `null`},
+		{store.SettingDeviceAllowedPorts, `[""]`},
+		{store.SettingDeviceAllowedPorts, `["COM3","COM3"]`},
+		{store.SettingDeviceAllowedPorts, `"COM3"`},
+		{store.SettingDeviceAllowedPorts, `["COM1","COM2","COM3","COM4","COM5","COM6","COM7","COM8","COM9","COM10","COM11","COM12","COM13","COM14","COM15","COM16","COM17"]`},
 	} {
 		for _, d := range store.DefaultSettings() {
 			if d.Key == bad.k && d.Check(json.RawMessage(bad.v)) == nil {
@@ -231,7 +239,12 @@ func TestConfigFromStore(t *testing.T) {
 		{store.SettingDeviceTransport, `"serial"`},
 		{store.SettingDeviceSerial, `"/dev/ttyUSB0"`},
 		{store.SettingDeviceSerial, `"COM3"`},
-		{store.SettingDeviceRTS, `true`},
+		{store.SettingDeviceRTS, `"on"`},
+		{store.SettingDeviceDTR, `"off"`},
+		{store.SettingDeviceDTR, `"unchanged"`},
+		{store.SettingDeviceTransport, `"not_configured"`},
+		{store.SettingDeviceAllowedPorts, `[]`},
+		{store.SettingDeviceAllowedPorts, `["COM3","/dev/ttyUSB0"]`},
 	} {
 		for _, d := range store.DefaultSettings() {
 			if d.Key == good.k {
@@ -263,7 +276,12 @@ func TestManager(t *testing.T) {
 	s := sim.New(sim.NewModel(sim.ProfileQ1))
 	polls := make(chan Profile, 4)
 	m := &Manager{
-		Config: func(context.Context) (Config, error) { return DefaultConfig(), nil },
+		Config: func(context.Context) (Config, error) {
+			c := DefaultConfig()
+			c.Transport = TransportSerial
+			c.SerialPort = "sim0"
+			return c, nil
+		},
 		List: func(ctx context.Context, c Config) ([]Candidate, error) {
 			mu.Lock()
 			defer mu.Unlock()

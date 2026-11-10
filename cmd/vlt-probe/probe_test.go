@@ -174,7 +174,8 @@ func TestParseArgs(t *testing.T) {
 	good := [][]string{
 		{"scan"},
 		{"probe"},
-		{"probe", "--transport", "serial", "--port", "/dev/ttyS0", "--dtr=false", "--rts=true"},
+		{"probe", "--transport", "serial", "--port", "/dev/ttyS0", "--dtr=off", "--rts=on"},
+		{"probe", "--transport", "serial", "--port", "COM3", "--dtr", "unchanged"},
 		{"watch", "--minutes", "30"},
 	}
 	for _, a := range good {
@@ -188,6 +189,8 @@ func TestParseArgs(t *testing.T) {
 		{"probe", "--command", "Q"},
 		{"probe", "--raw", "S01"},
 		{"probe", "Q"},
+		{"probe", "--transport", "serial", "--port", "COM3", "--dtr=true"},
+		{"probe", "--transport", "serial", "--port", "COM3", "--rts", "high"},
 		{"probe", "--port", "/dev/ttyS0"},
 		{"probe", "--transport", "serial"},
 		{"probe", "--minutes", "5"},

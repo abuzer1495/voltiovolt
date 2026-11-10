@@ -119,7 +119,8 @@ function setup() {
   fake.handlers.SystemStatus = () => ({ vault: { state: 'reduced protection', reason: 'no TPM2' }, store: { state: 'ok', schema_version: 3 } });
   fake.handlers.Audit = () => ({ rows: [{ seq: 1, ts: '2026-11-10T10:00:00Z', actor: 'user', action: 'auth.login', target: '', result: 'ok' }], next: 0 });
   fake.handlers.Events = () => ({ events: [], next: 0 });
-  fake.handlers.DeviceStatus = () => ({});
+  fake.handlers.DeviceStatus = () => ({ state: 'port busy', since: '', config: { transport: 'serial', serial_port: 'COM3', serial_dtr: 'unchanged', serial_rts: 'unchanged', allowed_ports: [] } });
+  fake.handlers.DevicePorts = () => ({ ports: [{ name: 'COM3', is_usb: true, vid: '1a86', pid: '7523', product: 'USB Serial' }, { name: 'COM1', is_usb: false }] });
   fake.handlers.About = () => ({ version: 'test', vltd_version: '0.5.0', protocol: 1, gui_protocol: 1, license: 'AGPL-3.0-or-later', source: 'https://github.com/abuzer1495/voltiovolt' });
   app.set({ auth: { pin_set: true, elevated: true } as never, conn: { state: 'connected', since: '' }, policy: p as never });
 }

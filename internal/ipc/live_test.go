@@ -35,7 +35,7 @@ func liveMethods(t *testing.T, ctx context.Context, e *env, c *typed.Client, sec
 	if err != nil || ds.State != "connected" || ds.Profile == nil || ds.Profile.SerialNumber != redact.Redacted {
 		t.Fatalf("device.status: %+v %v", ds, err)
 	}
-	if err := c.SetDeviceSettings(ctx, map[string]any{store.SettingDeviceTransport: "serial", store.SettingDeviceDTR: true}); err != nil {
+	if err := c.SetDeviceSettings(ctx, map[string]any{store.SettingDeviceTransport: "serial", store.SettingDeviceDTR: "on"}); err != nil {
 		t.Fatalf("device.settings.set: %v", err)
 	}
 	if e.dev.restarts != 1 {
@@ -44,6 +44,13 @@ func liveMethods(t *testing.T, ctx context.Context, e *env, c *typed.Client, sec
 	if err := c.SetDeviceSettings(ctx, map[string]any{store.SettingDeviceTransport: "usb"}); client.Code(err) != wire.CodeInvalid {
 		t.Fatalf("bad transport: %v", err)
 	}
+	if err := c.SetDeviceSettings(ctx, map[string]any{store.SettingDeviceDTR: true}); client.Code(err) != wire.CodeInvalid {
+		t.Fatalf("old DTR type: %v", err)
+	}
+	if err := c.SetDeviceSettings(ctx, map[string]any{store.SettingDeviceAllowedPorts: []string{"COM3"}}); err != nil {
+		t.Fatalf("allowed ports: %v", err)
+	}
+	deviceScan(t, ctx, e, c)
 	if err := c.SetDeviceSettings(ctx, map[string]any{store.SettingSessionIdleMinutes: 5}); client.Code(err) != wire.CodeInvalid {
 		t.Fatalf("not a Device Setting: %v", err)
 	}
@@ -177,19 +184,25 @@ func TestPushAccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, m := range []string{wire.MethodDeviceSettingsSet, wire.MethodPolicySet, wire.MethodPolicySimulate,
-		wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodShutdownCancel} {
+		wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodShutdownCancel, wire.MethodDeviceScan} {
 		var params any
 		if m == wire.MethodDeviceSettingsSet || m == wire.MethodPolicySet {
 			params = wire.SettingsMapParams{Settings: map[string]json.RawMessage{"x": json.RawMessage(`1`)}}
+		}
+		if m == wire.MethodDeviceScan {
+			params = wire.DeviceScanParams{Ports: []string{"sim1"}, Confirmation: wire.ScanConfirmation}
 		}
 		if err := c.Call(ctx, m, params, nil); client.Code(err) != wire.CodeNotElevated {
 			t.Errorf("%s without elevation: %v", m, err)
 		}
 	}
-	for _, m := range []string{wire.MethodDeviceStatus, wire.MethodPolicyGet, wire.MethodShutdownStatus, wire.MethodSubscribe} {
+	for _, m := range []string{wire.MethodDeviceStatus, wire.MethodPolicyGet, wire.MethodShutdownStatus, wire.MethodSubscribe, wire.MethodDevicePorts} {
 		if err := c.Call(ctx, m, nil, nil); err != nil {
 			t.Errorf("%s: %v", m, err)
 		}
+	}
+	if n := len(e.sims["sim1"].Received()); n != 0 {
+		t.Errorf("device.scan without elevation sent %d commands", n)
 	}
 	waitSubs(t, e.hub, 1)
 	for i := 0; i < 3; i++ {
@@ -227,4 +240,51 @@ func TestHubDropsForSlowClient(t *testing.T) {
 	}
 	h.remove(s)
 	h.remove(s)
+}
+
+// deviceScan: device.ports opens no port; device.scan needs the text
+// "SCAN PORTS" and sends only "Q1" CR to the marked ports (SEC-099).
+func deviceScan(t *testing.T, ctx context.Context, e *env, c *typed.Client) {
+	t.Helper()
+	ps, err := c.DevicePorts(ctx)
+	if err != nil || len(ps) != 3 || ps[1].Product != "USB Serial" || !ps[1].IsUSB {
+		t.Fatalf("device.ports: %+v %v", ps, err)
+	}
+	for name, s := range e.sims {
+		if n := len(s.Received()); n != 0 {
+			t.Fatalf("device.ports sent %d commands to %s", n, name)
+		}
+	}
+	if _, err := c.DeviceScan(ctx, []string{"sim1"}, "scan ports"); client.Code(err) != wire.CodeInvalid {
+		t.Fatalf("wrong confirmation: %v", err)
+	}
+	if _, err := c.DeviceScan(ctx, []string{"COM9"}, wire.ScanConfirmation); client.Code(err) != wire.CodeInvalid {
+		t.Fatalf("port not in the list: %v", err)
+	}
+	res, err := c.DeviceScan(ctx, []string{"sim1", "sim0"}, wire.ScanConfirmation)
+	if err != nil || len(res) != 2 || res[0].Result != "response" || !res[0].ValidQ1 || res[1].Result != "busy" {
+		t.Fatalf("device.scan: %+v %v", res, err)
+	}
+	if got := e.sims["sim1"].Received(); len(got) != 1 || got[0] != "Q1" {
+		t.Fatalf("sim1 got %q", got)
+	}
+	// sim0 is the port of the Poller; sim2 is not marked.
+	for _, name := range []string{"sim0", "sim2"} {
+		if n := len(e.sims[name].Received()); n != 0 {
+			t.Fatalf("%s got %d commands", name, n)
+		}
+	}
+	rows, err := e.au.List(ctx, 0, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := 0
+	for _, r := range rows {
+		if r.Action == "device_scan" {
+			found++
+		}
+	}
+	if found != 3 { // wrong confirmation, port not in the list, scan
+		t.Fatalf("%d device_scan audit entries, want 3", found)
+	}
 }

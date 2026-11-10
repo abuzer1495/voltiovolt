@@ -89,7 +89,9 @@ Before a PIN is set, only system.hello, system.status, auth.status and auth.set_
 | vault.reset | Yes, and confirmation "RESET VAULT" | confirmation | ok |
 | audit.list | Yes | after (seq), limit (1 to 500, default 100) | rows, next |
 | device.status | No | none | state, since, config, profile (serial_number "[REDACTED]") |
-| device.settings.set | Yes | settings {device.transport, device.serial_port, device.serial_dtr, device.serial_rts} | ok; detection starts again |
+| device.settings.set | Yes | settings {device.transport, device.serial_port, device.serial_dtr, device.serial_rts, device.serial.allowed_ports} | ok; detection starts again |
+| device.ports | No | none | ports [name, is_usb, vid, pid, product]; opens no port (VLT-IS-006) |
+| device.scan | Yes, and confirmation "SCAN PORTS" | ports (1 to 8 names of the OS list), confirmation | results [name, result, valid_q1]; sends only "Q1" CR to each marked port (VLT-IS-006) |
 | status.subscribe | No | none | ok; then push frames |
 | status.unsubscribe | No | none | ok |
 | measurements.query | No | name, from, to (RFC 3339), step (raw, 1m, 1h) | name, unit, step, rows [ts, min, max, mean, count, source] |
@@ -142,20 +144,22 @@ vltd has one flag: --version. It prints the version and exits.
 
 ### 7.1 Device Manager (internal/device, TASK 03-00-00-003)
 
-1. Device Settings: `device.transport` (auto, hid or serial; default auto), `device.serial_port` (empty, `/dev/<name>` or `COM<n>`; empty means all serial ports), `device.serial_dtr` (default on), `device.serial_rts` (default off). None of them is a Secret.
-2. Candidates with "auto": first the HID devices with VID 0665 and PID 5161, then the serial ports. With "hid": HID only. With "serial": serial only. If `device.serial_port` has a name, only that serial port.
+1. Device Settings (changed by VLT-IS-006 TASK 03-00-00-004, OD-27, SEC-099): `device.transport` (not_configured, auto, hid or serial; default not_configured), `device.serial_port` (empty, `/dev/<name>` or `COM<n>`; the port that the user selected), `device.serial.allowed_ports` (list of up to 16 port names for "auto"; default empty), `device.serial_dtr` and `device.serial_rts` (unchanged, on or off; default unchanged). None of them is a Secret. A stored DTR or RTS value of the old type (true or false) fails the check, so vltd uses the default.
+2. Candidates (`device.ListerFor`): "not_configured": none; the Device Manager does not call the lister and sends no byte (state "not configured"). "hid": the HID devices with VID 0665 and PID 5161. "serial": only `device.serial_port`; if it is empty, none. "auto": the HID devices with VID 0665 and PID 5161, then only the ports in `device.serial.allowed_ports`. The lister never takes the serial port list of the OS for a candidate.
 3. On each candidate, the Device Manager sends the Probe List in order (VLT-IS-006 order: Q1, F, I, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, QID, QVFW, QMD), with 500 ms between requests and a response timeout of 1500 ms. Dialects: megatec (Q1 answers), voltronic-qs (QS answers), voltronic (QGS answers); the first match in the order voltronic, voltronic-qs, megatec is used. A command without a valid response is skipped; the next command follows.
-4. Dialect selection: Voltronic if QGS answers, QS if QS answers, Q1 if only Q1 answers. If no Dialect is found, the next candidate follows. If no candidate gives a Dialect, the state is "no device" and a new detection follows after 1, 2, 5, 10, 30, 30 ... seconds.
+4. Dialect selection: voltronic if QGS answers, voltronic-qs if QS answers, megatec if only Q1 answers. If no Dialect is found, the next candidate follows. If no candidate gives a Dialect, the state is "no device" and a new detection follows after 1, 2, 5, 10, 30, 30 ... seconds.
 5. Device profile: Transport, port, Dialect, supported commands, nominal values (QRI, else F), model data (I, QMD, QVFW). The QID value is never kept: the profile shows `serial_number: "[REDACTED]"` if QID answers.
-6. States: detecting, no device, connected, comm lost, stopped. `Restart` (device.settings.set) stops the Poller and starts a new detection with the current Settings.
+6. States: not configured, detecting, no device, port busy, connected, comm lost, stopped. "port busy": a serial port did not open because another program uses it (go.bug.st/serial PortBusy: Linux EBUSY, Windows ERROR_ACCESS_DENIED); the GUI shows help to stop UPSilon 2000 and the RupsMon service. `Restart` (device.settings.set) stops the Poller and starts a new detection with the current Settings.
+7. Serial lines: with "unchanged", the Transport gives no initial line values to go.bug.st/serial and does not call SetDTR or SetRTS. On Linux the library then does not change the lines. On Windows the library v1.8.0 always sets DTR and RTS on at open (docs/protocol.md P-121).
+8. Port scan (`device.Scanner`, device.ports and device.scan): device.ports lists the serial ports of the OS with the USB product, VID and PID (no USB serial number) and opens no port. device.scan (elevated, confirmation "SCAN PORTS") accepts 1 to 8 marked ports that are in the OS list, opens each one with the current DTR and RTS Settings, sends only "Q1" CR and returns "response" (with valid_q1), "no response", "busy" or "error". The port of the running Poller is not opened ("busy"). Each call writes the audit entry device_scan.
 
 ### 7.2 Poller (internal/poller, TASK 03-00-00-003)
 
 | Dialect | Fast group (every 2 s) | Slow group (every 30 s) | Once (at start and every 6 h) |
 |---------|------------------------|-------------------------|-------------------------------|
-| Voltronic | QS, QGS (VLT-IS-005) | QMOD, QBV, QWS, QFLAG (VLT-IS-005) | QRI, I, QVFW, QMD |
-| QS | QS, QMOD (if supported) | QBV, QWS (if supported) | F, I |
-| Q1 | Q1 | none | F, I |
+| voltronic | QS, QGS (VLT-IS-005) | QMOD, QBV, QWS, QFLAG (VLT-IS-005) | QRI, I, QVFW, QMD |
+| voltronic-qs | QS, QMOD (if supported) | QBV, QWS (if supported) | F, I |
+| megatec | Q1 | none | F, I |
 
 1. A command that did not answer at detection is not polled.
 2. The minimum time between two requests is 500 ms. The Poller sends one command at a time. A due fast cycle goes before the next command of a running slow or once cycle.
@@ -309,7 +313,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 | Connection, About, Last, Rules, SetTrayTexts, OpenSource | none | no |
 | SystemStatus | system.status | no |
 | AuthStatus, SetPIN, Login, Logout | auth.status, auth.set_pin, auth.login, auth.logout | SetPIN for a change only |
-| DeviceStatus, SetDeviceSettings | device.status, device.settings.set | set only |
+| DeviceStatus, SetDeviceSettings, DevicePorts, DeviceScan | device.status, device.settings.set, device.ports, device.scan | set and scan only |
 | Measurements | measurements.query (in parts of 9000 rows) | no |
 | Events | events.list | no |
 | Policy, SetPolicy, Simulate, ActivatePolicy, DeactivatePolicy | policy.get, policy.set, policy.simulate, policy.activate, policy.deactivate | all except Policy |
@@ -331,7 +335,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 |--------|----------|
 | Set PIN / Login | First start: only "Set PIN" with the rules. Login shows the block time. |
 | Dashboard | Mode with icon and text, values, countdown banner with Cancel, Fallback banner, last Events. |
-| Device | device.status, device settings (elevated). |
+| Device | device.status; port list with the USB description, "Scan" (WARNING, typed text "SCAN PORTS", elevated), "Use this port" (elevated, confirmation); port busy help; device settings (elevated). |
 | History | uPlot charts for 1 h, 24 h, 7 d, 30 d, 1 y; a text table for each chart. |
 | Events | events.list with paging, filter by severity and type. |
 | Shutdown Policy | policy.get, edit with default and range per field, Simulation with steps, Activate only after a passed Simulation of the current version, Deactivate, shutdown.status. |

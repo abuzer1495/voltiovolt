@@ -8,8 +8,8 @@
 // Usage:
 //
 //	vlt-probe scan
-//	vlt-probe probe [--transport hid|serial] [--port NAME] [--dtr=true] [--rts=false]
-//	vlt-probe watch [--transport hid|serial] [--port NAME] [--minutes 1..30] [--dtr=true] [--rts=false]
+//	vlt-probe probe [--transport hid|serial] [--port NAME] [--dtr unchanged|on|off] [--rts unchanged|on|off]
+//	vlt-probe watch [--transport hid|serial] [--port NAME] [--minutes 1..30] [--dtr unchanged|on|off] [--rts unchanged|on|off]
 package main
 
 import (
@@ -31,14 +31,14 @@ type config struct {
 	transport string
 	port      string
 	minutes   int
-	dtr       bool
-	rts       bool
+	dtr       string
+	rts       string
 }
 
 const usage = `Usage:
   vlt-probe scan
-  vlt-probe probe [--transport hid|serial] [--port NAME] [--dtr=true|false] [--rts=true|false]
-  vlt-probe watch [--transport hid|serial] [--port NAME] [--minutes 1..30] [--dtr=true|false] [--rts=true|false]
+  vlt-probe probe [--transport hid|serial] [--port NAME] [--dtr unchanged|on|off] [--rts unchanged|on|off]
+  vlt-probe watch [--transport hid|serial] [--port NAME] [--minutes 1..30] [--dtr unchanged|on|off] [--rts unchanged|on|off]
 `
 
 func parseArgs(args []string, stderr io.Writer) (config, error) {
@@ -57,8 +57,9 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	fs.StringVar(&c.transport, "transport", "hid", "Transport: hid or serial")
 	fs.StringVar(&c.port, "port", "", "serial port name (serial only)")
 	fs.IntVar(&c.minutes, "minutes", defaultWatchMinute, "watch time in minutes, 1 to 30 (watch only)")
-	fs.BoolVar(&c.dtr, "dtr", true, "DTR line on (serial only)")
-	fs.BoolVar(&c.rts, "rts", false, "RTS line on (serial only)")
+	// VLT-IS-006 TASK 03-00-00-004 step 1: default "unchanged".
+	fs.StringVar(&c.dtr, "dtr", string(transport.LineUnchanged), "DTR line: unchanged, on or off (serial only)")
+	fs.StringVar(&c.rts, "rts", string(transport.LineUnchanged), "RTS line: unchanged, on or off (serial only)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return c, err
 	}
@@ -69,6 +70,12 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
 	if c.transport != "hid" && c.transport != "serial" {
 		return c, fmt.Errorf("--transport must be hid or serial")
+	}
+	if _, err := transport.ParseLine(c.dtr); err != nil {
+		return c, errors.New("--dtr must be unchanged, on or off")
+	}
+	if _, err := transport.ParseLine(c.rts); err != nil {
+		return c, errors.New("--rts must be unchanged, on or off")
 	}
 	if c.mode == "scan" && len(set) > 0 {
 		return c, errors.New("scan has no flags")
@@ -138,7 +145,7 @@ func scan(w io.Writer) error {
 func openTransport(c config, w io.Writer, warnings *[]string) (transport.Transport, func() *transport.HIDDevice) {
 	opts := transport.Options{Timeout: timeoutMillis * time.Millisecond, MinInterval: commandGapMillis * time.Millisecond}
 	if c.transport == "serial" {
-		so := transport.SerialOptions{DTR: c.dtr, RTS: c.rts, Warn: func(m string) {
+		so := transport.SerialOptions{DTR: transport.Line(c.dtr), RTS: transport.Line(c.rts), Warn: func(m string) {
 			fmt.Fprintln(w, "Warning:", m)
 			*warnings = append(*warnings, m)
 		}}
@@ -165,7 +172,7 @@ func session(ctx context.Context, c config, t transport.Transport, info func() *
 	defer t.Close()
 	capt := newCapture(c.transport, c.mode, start)
 	if c.transport == "serial" {
-		capt.SerialCfg = fmt.Sprintf("%d bit/s, 8 data bits, no parity, 1 stop bit, DTR %v, RTS %v", transport.SerialBaud, c.dtr, c.rts)
+		capt.SerialCfg = fmt.Sprintf("%d bit/s, 8 data bits, no parity, 1 stop bit, DTR %s, RTS %s", transport.SerialBaud, c.dtr, c.rts)
 	}
 	capt.Device = deviceData(info())
 	if warnings != nil {

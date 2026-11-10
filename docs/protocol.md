@@ -131,7 +131,7 @@ Format (sample): `(209.7 50.0 219.7 50.0 000.8 019 374.9 374.3 041.8 ---.- 023.3
 | No. | Fact | Code | Source | Status |
 |-----|------|------|--------|--------|
 | P-120 | 2400 bit/s, 8 data bits, no parity, 1 stop bit. | `transport.NewSerial` | IS2 03-00-00-006 step 4 | UNVERIFIED for the Reference UPS |
-| P-121 | DTR on and RTS off at open time. | `transport.DefaultSerialOptions` | IS2 03-00-00-006 step 4 | UNVERIFIED for the Reference UPS |
+| P-121 | VLT-IS-006: DTR and RTS default "unchanged": VLT does not set the lines at open and after open (UPSilon 2000 does not set them, R1 section 2, STATIC). go.bug.st/serial v1.8.0: Linux `serial_unix.go` lines 249 to 268 change the lines only when `Mode.InitialStatusBits` is not nil, so with "unchanged" the library does not touch them (the kernel tty layer can still raise DTR and RTS at open; not read, UNVERIFIED). Windows `serial_windows.go` lines 399 to 410 always write the DTR and RTS control flags at open; with nil the lines are on. On Windows "unchanged" thus gives DTR on and RTS on. The values "on" and "off" set the line: on Windows at open when both lines are set (`Mode.InitialStatusBits`), else after open with SetDTR or SetRTS; on Linux always after open, because with `InitialStatusBits` set the library fails the open on a device without modem lines (lines 250 to 254, "error getting modem bits status"). A failed SetDTR or SetRTS gives a warning and the port stays open. | `transport.SerialOptions`, `transport.initialBits` | R1 2; go.bug.st/serial v1.8.0 source (R-10) | Library behavior VERIFIED (source read 2026-11-10); need of the Reference UPS UNVERIFIED (Owner test T-01) |
 
 ## 8. Status bits and Events (VLT-IS-004 TASK 03-00-00-005)
 

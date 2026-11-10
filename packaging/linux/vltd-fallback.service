@@ -20,6 +20,9 @@ Environment=VLT_FALLBACK_MODE=1
 User=vltd
 Group=vltd
 SupplementaryGroups=vlt
+# VLT-IS-006 TASK 03-00-00-004 step 4: access to /dev/ttyUSB* and /dev/ttyACM*.
+# The lines are added to the list (systemd).
+SupplementaryGroups=dialout
 StateDirectory=vltd
 StateDirectoryMode=0700
 RuntimeDirectory=vltd

@@ -27,7 +27,9 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/redact"
+	"github.com/abuzer1495/voltiovolt/internal/sim"
 	"github.com/abuzer1495/voltiovolt/internal/store"
+	"github.com/abuzer1495/voltiovolt/internal/transport"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
 )
 
@@ -93,6 +95,8 @@ type env struct {
 	hub *Hub
 	pol *policy.Service
 	dry *policy.DryRun
+	// sims are the simulator serial ports of device.scan. No real port.
+	sims map[string]*sim.Sim
 }
 
 func quiet() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
@@ -120,8 +124,17 @@ func newEnv(t *testing.T) *env {
 	dev := &fakeDevice{status: device.Status{State: device.StateConnected, Profile: &device.Profile{
 		Transport: device.TransportSerial, Port: "sim0", Dialect: dialect.DialectVoltronic, SerialNumber: redact.Redacted}}}
 	hub := NewHub()
+	sims := map[string]*sim.Sim{"sim0": sim.New(sim.NewModel(sim.ProfileQ1)), "sim1": sim.New(sim.NewModel(sim.ProfileQ1)), "sim2": sim.New(sim.NewModel(sim.ProfileQ1))}
+	scan := &device.Scanner{
+		List: func() ([]transport.SerialPortInfo, error) {
+			return []transport.SerialPortInfo{{Name: "sim0"}, {Name: "sim1", IsUSB: true, VID: "1a86", PID: "7523", Product: "USB Serial"}, {Name: "sim2"}}, nil
+		},
+		NewSerial: func(name string, _ transport.SerialOptions, _ transport.Options) transport.Transport {
+			return sims[name].StreamTransport(transport.Options{Timeout: 50 * time.Millisecond, MinInterval: time.Nanosecond, FlushTime: time.Millisecond})
+		},
+	}
 	srv := NewServer(Backend{Store: st, Vault: v, Auth: auth.New(st, au, quiet()), Audit: au, Version: "test", Log: quiet(),
-		Device: dev, Policy: pol, Hub: hub})
+		Device: dev, Policy: pol, Hub: hub, Ports: scan})
 	ln := newPipeListener()
 	done := make(chan error, 1)
 	go func() { done <- srv.Serve(ln, nil) }()
@@ -131,7 +144,7 @@ func newEnv(t *testing.T) *env {
 			t.Errorf("Serve: %v", err)
 		}
 	})
-	return &env{srv: srv, ln: ln, st: st, au: au, dev: dev, hub: hub, pol: pol, dry: dry}
+	return &env{srv: srv, ln: ln, st: st, au: au, dev: dev, hub: hub, pol: pol, dry: dry, sims: sims}
 }
 
 // fakeDevice is a fake Device Manager (SEC-091: only in _test.go).

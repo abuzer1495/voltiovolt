@@ -51,6 +51,8 @@ func methodCases(secret []byte) map[string]methodCase {
 		"Audit":             {[]any{int64(0), 50}, wire.MethodAuditList},
 		"Settings":          {nil, wire.MethodSettingsList},
 		"SetLanguage":       {[]any{"tr"}, wire.MethodSettingsSet},
+		"DevicePorts":       {nil, wire.MethodDevicePorts},
+		"DeviceScan":        {[]any{[]string{"COM3"}, ScanConfirmation}, wire.MethodDeviceScan},
 	}
 }
 
@@ -61,7 +63,8 @@ func allFake(t *testing.T) *fakeServer {
 		wire.MethodEventsList, wire.MethodPolicyGet, wire.MethodShutdownStatus, wire.MethodShutdownCancel,
 		wire.MethodDeviceStatus, wire.MethodDeviceSettingsSet, wire.MethodMeasurements, wire.MethodPolicySet,
 		wire.MethodPolicySimulate, wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodSecretSet,
-		wire.MethodVaultReset, wire.MethodAuditList, wire.MethodSettingsList, wire.MethodSettingsSet} {
+		wire.MethodVaultReset, wire.MethodAuditList, wire.MethodSettingsList, wire.MethodSettingsSet,
+		wire.MethodDevicePorts, wire.MethodDeviceScan} {
 		f.handle(m, func(json.RawMessage) (any, *wire.Error) { return map[string]any{"ok": true}, nil })
 	}
 	f.handle(wire.MethodSecretStatus, func(json.RawMessage) (any, *wire.Error) {

@@ -52,8 +52,8 @@ Flags:
 | `--transport` | `hid` (default) or `serial` | |
 | `--port` | serial port name, for example `COM3` or `/dev/ttyUSB0` | serial only |
 | `--minutes` | 1 to 30 (default 1) | watch only |
-| `--dtr` | `true` (default) or `false` | serial only |
-| `--rts` | `true` or `false` (default) | serial only |
+| `--dtr` | `unchanged` (default), `on` or `off`. With `unchanged`, vlt-probe does not set the line (on Windows the serial library sets it on at open; refer to docs/protocol.md P-121). | serial only |
+| `--rts` | `unchanged` (default), `on` or `off`. Same rule as `--dtr`. | serial only |
 
 Serial example: `vlt-probe probe --transport serial --port COM3`
 
@@ -145,8 +145,8 @@ Seçenekler:
 | `--transport` | `hid` (varsayılan) veya `serial` | |
 | `--port` | seri bağlantı noktası adı, örneğin `COM3` veya `/dev/ttyUSB0` | yalnızca serial |
 | `--minutes` | 1 ile 30 arası (varsayılan 1) | yalnızca watch |
-| `--dtr` | `true` (varsayılan) veya `false` | yalnızca serial |
-| `--rts` | `true` veya `false` (varsayılan) | yalnızca serial |
+| `--dtr` | `unchanged` (varsayılan), `on` veya `off`. `unchanged` ile vlt-probe hattı ayarlamaz (Windows'ta seri kitaplık açılışta hattı açık yapar; docs/protocol.md P-121). | yalnızca serial |
+| `--rts` | `unchanged` (varsayılan), `on` veya `off`. `--dtr` ile aynı kural. | yalnızca serial |
 
 Seri bağlantı örneği: `vlt-probe probe --transport serial --port COM3`
 

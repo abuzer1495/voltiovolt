@@ -11,6 +11,7 @@ import { setLang, t } from '../src/i18n';
 import { canActivate, FIELDS } from '../src/policyform';
 import { Policy, PolicyForm } from '../src/screens/policy';
 import { Login, PinRules, SetPin } from '../src/screens/pin';
+import { Device, SCAN_TEXT } from '../src/screens/device';
 import { app } from '../src/state';
 import * as fake from './fakebridge';
 
@@ -226,5 +227,61 @@ describe('activation button rule', () => {
   it('the button is off when locked', async () => {
     await policyScreen(pol({ last_simulation: passed('v1abcdef0123456789') }), false);
     expect(byText(t('policy.activate')).disabled).toBe(true);
+  });
+});
+
+// VLT-IS-006 TASK 03-00-00-004 step 3.4 and TASK 03-00-00-008: the port
+// list, the scan of the marked ports only, "Use this port", the port busy
+// help. The bridge is a fake: no port is opened.
+describe('Device screen ports', () => {
+  function setupDevice(state: string) {
+    app.set({ auth: { pin_set: true, elevated: true } as never });
+    fake.handlers.DeviceStatus = () => ({ state, since: '', config: { transport: 'not_configured', serial_port: '', serial_dtr: 'unchanged', serial_rts: 'unchanged', allowed_ports: [] } });
+    fake.handlers.DevicePorts = () => ({ ports: [{ name: 'COM3', is_usb: true, vid: '1a86', pid: '7523', product: 'USB Serial' }, { name: 'COM4', is_usb: false }] });
+    fake.handlers.DeviceScan = () => ({ results: [{ name: 'COM3', result: 'response', valid_q1: true }] });
+  }
+  async function showDevice() {
+    await show(<Device />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+  it('shows the port busy help and the scan warning', async () => {
+    setupDevice('port busy');
+    await showDevice();
+    expect(root.textContent).toContain('Another program uses this port. Stop UPSilon 2000 and the RupsMon service, or the other program, then try again.');
+    expect(root.textContent).toContain('VLT sends the text Q1 to each marked port. Mark only ports with a UPS.');
+    expect(root.textContent).toContain('USB Serial 1a86:7523');
+  });
+  it('scans only the marked ports after the confirmation text', async () => {
+    setupDevice('not configured');
+    await showDevice();
+    const scanBtn = byText(t('device.scan.button'));
+    expect(scanBtn.disabled).toBe(true);
+    const box = root.querySelector('input[aria-label="' + t('device.ports.mark.label', { name: 'COM3' }) + '"]') as HTMLInputElement;
+    await act(async () => {
+      box.click();
+    });
+    await type('#scan-text', 'scan ports');
+    expect(byText(t('device.scan.button')).disabled).toBe(true);
+    await type('#scan-text', SCAN_TEXT);
+    expect(byText(t('device.scan.button')).disabled).toBe(false);
+    await click(byText(t('device.scan.button')));
+    const scans = fake.calls.filter((c) => c.method === 'DeviceScan');
+    expect(scans).toEqual([{ method: 'DeviceScan', args: [['COM3'], SCAN_TEXT] }]);
+    expect(root.textContent).toContain(t('device.scan.result.response.q1'));
+  });
+  it('uses a port after the confirmation', async () => {
+    setupDevice('not configured');
+    await showDevice();
+    const use = root.querySelector('button[aria-label="' + t('device.ports.use.label', { name: 'COM4' }) + '"]') as HTMLButtonElement;
+    await click(use);
+    expect(fake.calls.some((c) => c.method === 'SetDeviceSettings')).toBe(false);
+    const confirm = [...root.querySelectorAll('button')].filter((x) => x.textContent?.trim() === t('device.ports.use.button'));
+    await click(confirm[confirm.length - 1]);
+    const set = fake.calls.filter((c) => c.method === 'SetDeviceSettings');
+    expect(set.length).toBe(1);
+    expect(set[0].args[0]).toEqual({ 'device.transport': 'serial', 'device.serial_port': 'COM4' });
+    expect(fake.calls.some((c) => c.method === 'DeviceScan')).toBe(false);
   });
 });

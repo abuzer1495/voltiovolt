@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"sort"
 
 	"github.com/abuzer1495/voltiovolt/internal/redact"
@@ -47,7 +48,36 @@ type Setting struct {
 const (
 	SettingSessionIdleMinutes = "auth.session_idle_minutes"
 	SettingLanguage           = "ui.language"
+
+	// Device Settings (VLT-IS-004 TASK 03-00-00-003 step 1).
+	SettingDeviceTransport = "device.transport"   // auto, hid or serial
+	SettingDeviceSerial    = "device.serial_port" // empty: all serial ports
+	SettingDeviceDTR       = "device.serial_dtr"
+	SettingDeviceRTS       = "device.serial_rts"
 )
+
+// serialPortName accepts an empty text, a Linux device path /dev/<name>
+// or a Windows COM port name.
+var serialPortName = regexp.MustCompile(`^(|/dev/[A-Za-z0-9._-]{1,32}|COM[1-9][0-9]{0,2})$`)
+
+func serialPort(v json.RawMessage) error {
+	var s string
+	if err := strictJSON(v, &s); err != nil {
+		return fmt.Errorf("value must be a text: %w", err)
+	}
+	if !serialPortName.MatchString(s) {
+		return errors.New("value must be empty, /dev/<name> or COM<n>")
+	}
+	return nil
+}
+
+func isBool(v json.RawMessage) error {
+	var b bool
+	if err := strictJSON(v, &b); err != nil {
+		return fmt.Errorf("value must be true or false: %w", err)
+	}
+	return nil
+}
 
 func intRange(lo, hi int) func(json.RawMessage) error {
 	return func(v json.RawMessage) error {
@@ -165,6 +195,12 @@ func DefaultSettings() []SettingDef {
 		// VLT-IS-003 TASK 03-00-00-005 step 7.2: 10 minutes without a request.
 		{Key: SettingSessionIdleMinutes, Type: TypeInt, Default: json.RawMessage(`10`), Check: intRange(1, 120)},
 		{Key: SettingLanguage, Type: TypeString, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
+		// VLT-IS-004 TASK 03-00-00-003 step 1. DTR on and RTS off are the
+		// defaults of VLT-IS-002 (transport.DefaultSerialOptions).
+		{Key: SettingDeviceTransport, Type: TypeString, Default: json.RawMessage(`"auto"`), Check: oneOf("auto", "hid", "serial")},
+		{Key: SettingDeviceSerial, Type: TypeString, Default: json.RawMessage(`""`), Check: serialPort},
+		{Key: SettingDeviceDTR, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
+		{Key: SettingDeviceRTS, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
 	}
 }
 

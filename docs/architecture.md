@@ -122,3 +122,30 @@ Recovery from "locked": vault.reset with the confirmation "RESET VAULT" deletes 
 
 vltd has one flag: --version. It prints the version and exits.
 
+
+## 7. Monitoring core (VLT-IS-004)
+
+### 7.1 Device Manager (internal/device, TASK 03-00-00-003)
+
+1. Device Settings: `device.transport` (auto, hid or serial; default auto), `device.serial_port` (empty, `/dev/<name>` or `COM<n>`; empty means all serial ports), `device.serial_dtr` (default on), `device.serial_rts` (default off). None of them is a Secret.
+2. Candidates with "auto": first the HID devices with VID 0665 and PID 5161, then the serial ports. With "hid": HID only. With "serial": serial only. If `device.serial_port` has a name, only that serial port.
+3. On each candidate, the Device Manager sends the Probe List (VLT-IS-002 03-50-01) in order, with 500 ms between requests. A command without a valid response is skipped; the next command follows.
+4. Dialect selection: Voltronic if QGS answers, QS if QS answers, Q1 if only Q1 answers. If no Dialect is found, the next candidate follows. If no candidate gives a Dialect, the state is "no device" and a new detection follows after 1, 2, 5, 10, 30, 30 ... seconds.
+5. Device profile: Transport, port, Dialect, supported commands, nominal values (QRI, else F), model data (I, QMD, QVFW). The QID value is never kept: the profile shows `serial_number: "[REDACTED]"` if QID answers.
+6. States: detecting, no device, connected, comm lost, stopped. `Restart` (device.settings.set) stops the Poller and starts a new detection with the current Settings.
+
+### 7.2 Poller (internal/poller, TASK 03-00-00-003)
+
+| Dialect | Fast group (every 2 s) | Slow group (every 30 s) | Once (at start and every 6 h) |
+|---------|------------------------|-------------------------|-------------------------------|
+| Voltronic | QGS, QMOD | QS, QBV, QWS, QFLAG | QRI, I, QVFW, QMD |
+| QS | QS, QMOD (if supported) | QBV, QWS (if supported) | F, I |
+| Q1 | Q1 | none | F, I |
+
+1. A command that did not answer at detection is not polled.
+2. The minimum time between two requests is 500 ms. The Poller sends one command at a time. A due fast cycle goes before the next command of a running slow or once cycle.
+3. A cycle starts one period after the start of the previous cycle of its group, or at the end of the previous cycle (the later time, VLT-IS-003 QA-2).
+4. A fast poll fails if no command of the fast group gives a valid response. After 3 failed fast polls in sequence, the state is "comm lost". The Poller closes the Transport and opens it again after 1, 2, 5, 10, 30, 30 ... seconds. After each open, it sends Q1, QS and QGS and selects the Dialect. If the Dialect is the same, the state is "connected" and all groups start again (the once group too). If the Dialect is different, the Poller stops and the Device Manager starts a new detection.
+5. Each cycle goes to the Sink (Measurements, Event Engine) with the time of each request and the parsed value or the error.
+6. Only READ commands of the registry: requests come only from dialect.EncodeRead, and transport.Stream refuses all other bytes (SEC-037). The simulator recorder tests check each received command.
+7. Time: the Poller and the Device Manager use a Clock interface. Tests use a virtual clock, so 6 hours of polling run in seconds.

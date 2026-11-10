@@ -1,0 +1,31 @@
+# Go build output
+/dist/
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/vlt-probe
+/vlt-sim
+/vltd
+
+# Go fuzz cache output is in the Go cache. Failing inputs in testdata/fuzz
+# are kept on purpose.
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Capture files (SEC-087). Do not commit Capture files.
+*.vltcap.json
+
+# Reports contain account data (OD-12). Do not commit them.
+VLT-RPT-*.md

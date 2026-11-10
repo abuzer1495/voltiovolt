@@ -29,6 +29,7 @@ var (
 	ErrBlocked   = errors.New("auth: PIN entry is blocked")
 	ErrNoPIN     = errors.New("auth: no PIN is set")
 	ErrIncorrect = errors.New("auth: PIN is not correct")
+	ErrPINIsSet  = errors.New("auth: a PIN is already set")
 )
 
 // Auditor writes audit entries.
@@ -117,6 +118,17 @@ func (m *Manager) PINSet(ctx context.Context) (bool, error) {
 // SetPIN sets a new PIN. The caller (IPC) checks the permission: first
 // start, or elevated state.
 func (m *Manager) SetPIN(ctx context.Context, actor, pin string) error {
+	return m.setPIN(ctx, actor, pin, false)
+}
+
+// SetInitialPIN sets the first PIN. It returns ErrPINIsSet if a PIN is
+// already set. The check and the write are one step, so two requests at
+// first start cannot both set a PIN.
+func (m *Manager) SetInitialPIN(ctx context.Context, actor, pin string) error {
+	return m.setPIN(ctx, actor, pin, true)
+}
+
+func (m *Manager) setPIN(ctx context.Context, actor, pin string, initial bool) error {
 	if err := ValidatePIN(pin); err != nil {
 		m.record(ctx, actor, "pin_set", "rejected", map[string]any{"reason": err.Error()})
 		return err
@@ -127,6 +139,16 @@ func (m *Manager) SetPIN(ctx context.Context, actor, pin string) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if initial {
+		cur, _, _, err := m.state(ctx)
+		if err != nil {
+			return err
+		}
+		if cur != "" {
+			m.record(ctx, actor, "pin_set", "rejected", map[string]any{"reason": "a PIN is already set"})
+			return ErrPINIsSet
+		}
+	}
 	if err := m.st.SetAuthState(ctx, map[string]string{keyPINHash: h, keyFailures: "0", keyBlockUntil: ""}); err != nil {
 		return err
 	}

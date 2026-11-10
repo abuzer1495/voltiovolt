@@ -145,8 +145,11 @@ func TestLockout(t *testing.T) {
 	if err := m.SetPIN(ctx, "gui", "123456"); !errors.Is(err, ErrPINWeak) {
 		t.Fatalf("weak PIN: %v", err)
 	}
-	if err := m.SetPIN(ctx, "gui", "7a3k9z"); err != nil {
+	if err := m.SetInitialPIN(ctx, "gui", "7a3k9z"); err != nil {
 		t.Fatal(err)
+	}
+	if err := m.SetInitialPIN(ctx, "gui", "9q8w7e"); !errors.Is(err, ErrPINIsSet) {
+		t.Fatalf("second initial PIN: %v", err)
 	}
 	if _, err := m.Login(ctx, "gui", "7a3k9z"); err != nil {
 		t.Fatalf("correct PIN: %v", err)
@@ -197,7 +200,7 @@ func TestLockout(t *testing.T) {
 	}
 	// Audit entries: PIN set, correct entries, incorrect entries, blocks.
 	if au.count("pin_set:success") != 1 || au.count("pin_entry:success") != 2 || au.count("pin_entry:failure") != 14 ||
-		au.count("pin_block:success") != 10 || au.count("pin_entry:blocked") != 2 || au.count("pin_set:rejected") != 1 {
+		au.count("pin_block:success") != 10 || au.count("pin_entry:blocked") != 2 || au.count("pin_set:rejected") != 2 {
 		t.Fatalf("audit rows: %v", au.rows)
 	}
 }

@@ -68,6 +68,22 @@ jobs:
       - name: Windows DPAPI and ACL tests, verbose (VLT-IS-003 03-00-00-004 step 9.6)
         if: runner.os == 'Windows'
         run: go test -count=1 -v -run 'TestDPAPIRoundTrip|TestVaultWithDPAPI|TestCheckDataDirWindows' ./internal/vault ./internal/store
+      - name: SEC-091 check (no test DEK provider in vltd)
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          if grep -rl --include='*.go' --exclude='*_test.go' 'testOnly' . ; then
+            echo "testOnly code in a non-test file"; exit 1
+          fi
+          GOOS=linux go build -o "$RUNNER_TEMP/vltd-linux" ./cmd/vltd
+          GOOS=windows go build -o "$RUNNER_TEMP/vltd-windows.exe" ./cmd/vltd
+          for b in "$RUNNER_TEMP/vltd-linux" "$RUNNER_TEMP/vltd-windows.exe"; do
+            n="$(go tool nm "$b" | grep -c testOnly || true)"
+            echo "$b: $n testOnly symbols"
+            [ "$n" = 0 ]
+          done
       - name: go test -race (Linux; the race detector needs cgo, test only)
         if: runner.os == 'Linux'
         env:

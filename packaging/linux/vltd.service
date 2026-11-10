@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# vltd systemd unit for development installs (VLT-IS-003 TASK 03-00-00-008).
+# This is not a package. Install steps: docs/user/dev-service.md.
+#
+# The DEK: /etc/credstore.encrypted/vlt-dek (made by vlt-dev-init.sh).
+# StateDirectoryMode=0700, RuntimeDirectoryMode=0750, SupplementaryGroups=vlt
+# and TimeoutStopSec=10 are added to the values of the instruction: vltd
+# checks mode 0700 of /var/lib/vltd, the socket directory /run/vltd must
+# have mode 0750 and group vlt, and vltd must be a member of vlt to set the
+# socket group.
+
+[Unit]
+Description=VoltioVolt UPS service (development)
+Documentation=https://github.com/abuzer1495/voltiovolt
+After=local-fs.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/vltd
+User=vltd
+Group=vltd
+SupplementaryGroups=vlt
+LoadCredentialEncrypted=vlt-dek:/etc/credstore.encrypted/vlt-dek
+StateDirectory=vltd
+StateDirectoryMode=0700
+RuntimeDirectory=vltd
+RuntimeDirectoryMode=0750
+UMask=0077
+TimeoutStopSec=10
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+CapabilityBoundingSet=
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

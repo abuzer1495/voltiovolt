@@ -111,6 +111,10 @@ function setup() {
     version: 'abc', active: false, fallback: false, last_simulation: null,
   };
   fake.handlers.Policy = () => p;
+  fake.handlers.Connection = () => ({ state: 'connected', since: '' });
+  fake.handlers.Last = () => ({});
+  fake.handlers.AuthStatus = () => ({ pin_set: true, elevated: true });
+  fake.handlers.Settings = () => ({ settings: [] });
   fake.handlers.ShutdownStatus = () => ({ active: false, remaining_seconds: 0, cancelable: true, requested: false });
   fake.handlers.SystemStatus = () => ({ vault: { state: 'reduced protection', reason: 'no TPM2' }, store: { state: 'ok', schema_version: 3 } });
   fake.handlers.Audit = () => ({ rows: [{ seq: 1, ts: '2026-11-10T10:00:00Z', actor: 'user', action: 'auth.login', target: '', result: 'ok' }], next: 0 });

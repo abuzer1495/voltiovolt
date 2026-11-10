@@ -109,6 +109,7 @@ type Manager struct {
 	idle     time.Duration
 	lockT    *time.Timer
 	onTray   func(TrayState)
+	texts    TrayTexts
 }
 
 // NewManager returns a Manager. An empty addr is the default endpoint.

@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { ComponentType } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
+import { CountdownBanner, FallbackBanner } from './banners';
 import { ConnProblem, ConnState } from './components';
 import { t, useLang } from './i18n';
+import { Dashboard } from './screens/dashboard';
 import { Login, SetPin } from './screens/pin';
 import { Security } from './screens/security';
 import { app, lock, refreshAuth, start } from './state';
 import { useStore } from './store';
-
-function Placeholder() {
-  return <p>{t('app.tagline')}</p>;
-}
 
 export interface Route {
   id: string;
@@ -19,7 +17,7 @@ export interface Route {
 }
 
 export const routes: Route[] = [
-  { id: 'dashboard', label: 'nav.dashboard', comp: Placeholder },
+  { id: 'dashboard', label: 'nav.dashboard', comp: Dashboard },
   { id: 'security', label: 'nav.security', comp: Security },
 ];
 
@@ -43,7 +41,7 @@ export function App() {
   const auth = s.auth;
   const firstStart = connected && auth !== null && !auth.pin_set;
   const elevated = !!auth?.elevated;
-  const Screen = routes.find((r) => r.id === route)?.comp ?? Placeholder;
+  const Screen = routes.find((r) => r.id === route)?.comp ?? Dashboard;
 
   return (
     <div class="layout">
@@ -80,6 +78,8 @@ export function App() {
           <SetPin onDone={refreshAuth} />
         ) : (
           <>
+            <FallbackBanner fallback={!!s.policy?.fallback} />
+            <CountdownBanner cd={s.countdown} elevated={elevated} lowBattery={!!s.status?.ups?.low_battery} />
             {unlock && !elevated ? <Login blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} /> : null}
             <Screen />
           </>

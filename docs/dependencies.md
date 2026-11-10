@@ -27,17 +27,16 @@ Note on go-winio (VLT-IS-003 TASK 03-00-00-007 step 3.4). Choice: github.com/Mic
 
 ## Go modules in the VLT GUI (cmd/vlt-gui, separate module; VLT-IS-005)
 
-cmd/vlt-gui is a separate Go module (cmd/vlt-gui/go.mod) with `replace github.com/abuzer1495/voltiovolt => ../..`. So Wails and its cgo code are not in the root module, and `CGO_ENABLED=0 go build ./...` of the root module does not build them. SEC-094: each version below was published 14 days or more before 2026-11-10 (publish time from proxy.golang.org `.info`). The other modules that Wails v3.0.0 lists in its go.mod are not linked into vlt-gui (go list -deps, linux and windows, tag production).
+cmd/vlt-gui is a separate Go module (cmd/vlt-gui/go.mod) with `replace github.com/abuzer1495/voltiovolt => ../..`. So Wails and its cgo code are not in the root module, and `CGO_ENABLED=0 go build ./...` of the root module does not build them. VLT-IS-007 TASK 03-00-00-002: Wails v3.1.0 (SEC-094 is suspended, VLT-IS-007 01-30-00; v3.1.0 is the latest stable version on 2026-11-11). The other modules that Wails v3.1.0 lists in its go.mod (for example github.com/ebitengine/purego v0.11.1 and golang.org/x/term v0.46.0, both indirect in go.mod) are not linked into vlt-gui (go list -deps, linux and windows, tag production).
 
 | Name | Version | Published (proxy.golang.org) | License | Reason | Used by |
 |------|---------|------------------------------|---------|--------|---------|
-| github.com/wailsapp/wails/v3 | v3.0.0 | 2026-10-26T10:57:44Z | MIT | GUI framework: WebView window, bindings, events, tray icon (TASK 03-00-00-002). v3.1.0 (2026-11-01) is the latest stable but is only 9 days old (SEC-094). | cmd/vlt-gui |
-| github.com/adrg/xdg | v0.5.3 (indirect) | 2024-10-31T16:19:38Z | MIT | Required by Wails (XDG directories) | cmd/vlt-gui |
+| github.com/wailsapp/wails/v3 | v3.1.0 | 2026-11-01T11:57:25Z | MIT | GUI framework: WebView window, bindings, events, tray icon (VLT-IS-005 TASK 03-00-00-002; updated from v3.0.0 by VLT-IS-007 TASK 03-00-00-002). | cmd/vlt-gui |
 | github.com/go-ole/go-ole | v1.3.0 (indirect) | 2023-08-04T03:10:36Z | MIT | Required by Wails on Windows (COM for WebView2) | cmd/vlt-gui (Windows) |
 | github.com/godbus/dbus/v5 | v5.2.4 (indirect) | already in the root module | BSD-2-Clause | Required by Wails on Linux (tray) | cmd/vlt-gui (Linux) |
 | github.com/Microsoft/go-winio, golang.org/x/sys | as above | already in the root module | MIT, BSD-3-Clause | internal/ipc/client, Wails | cmd/vlt-gui |
 
-Linux system packages for the cgo build of Wails v3.0.0 (CI job gui-linux): build-essential, pkg-config, libgtk-4-dev, libwebkitgtk-6.0-dev, libsoup-3.0-dev, libx11-dev. Sources: wails v3.0.0 pkg/application/linux_cgo.go (`#cgo linux pkg-config: gtk4 webkitgtk-6.0`; the GTK 3 files need the build tag gtk3), internal/assetserver/webview/webkit_linux.go (`gtk4 webkitgtk-6.0 libsoup-3.0 gio-unix-2.0`), pkg/application/global_shortcut_linux_x11.go (`x11`), internal/doctor/packagemanager/apt.go (Debian and Ubuntu package names).
+Linux system packages for the cgo build of Wails v3.1.0 (CI jobs gui-linux and test-build-linux; the same as for v3.0.0): build-essential, pkg-config, libgtk-4-dev, libwebkitgtk-6.0-dev, libsoup-3.0-dev, libx11-dev. Sources: wails v3.1.0 pkg/application/linux_cgo.go (`#cgo linux pkg-config: gtk4 webkitgtk-6.0`; the GTK 3 files need the build tag gtk3), internal/assetserver/webview/webkit_linux.go (`gtk4 webkitgtk-6.0 libsoup-3.0 gio-unix-2.0`), pkg/application/global_shortcut_linux_x11.go (`x11`), internal/doctor/packagemanager/apt.go (Debian and Ubuntu package names).
 
 ## npm packages of the VLT GUI front end (web/; VLT-IS-005)
 

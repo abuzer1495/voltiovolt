@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"golang.org/x/sys/windows"
 )
 
 // TestReasonCode checks the constant against Microsoft Learn, "System
@@ -118,5 +120,19 @@ func TestWindowsHibernateFallback(t *testing.T) {
 		if len(a.entries) != 2 || a.entries[0].action != "os_hibernate_fallback" {
 			t.Fatalf("%+v: audit %+v", c, a.entries)
 		}
+	}
+}
+
+// TestPrivilegeResult: a nonzero return with ERROR_NOT_ALL_ASSIGNED is an
+// error (Microsoft Learn, AdjustTokenPrivileges).
+func TestPrivilegeResult(t *testing.T) {
+	if err := privilegeResult(1, windows.ERROR_SUCCESS); err != nil {
+		t.Fatal(err)
+	}
+	if err := privilegeResult(1, windows.ERROR_NOT_ALL_ASSIGNED); !errors.Is(err, errNotAllAssigned) {
+		t.Fatalf("not all assigned: %v", err)
+	}
+	if err := privilegeResult(0, windows.ERROR_ACCESS_DENIED); err == nil {
+		t.Fatal("zero return without an error")
 	}
 }

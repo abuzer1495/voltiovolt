@@ -6,7 +6,9 @@ package shutdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -27,6 +29,9 @@ var (
 	modpowrprof               = windows.NewLazySystemDLL("powrprof.dll")
 	procSetSuspendState       = modpowrprof.NewProc("SetSuspendState")
 	procIsPwrHibernateAllowed = modpowrprof.NewProc("IsPwrHibernateAllowed")
+
+	modadvapi32               = windows.NewLazySystemDLL("advapi32.dll")
+	procAdjustTokenPrivileges = modadvapi32.NewProc("AdjustTokenPrivileges")
 )
 
 // winCalls are the Windows functions. Tests replace them.
@@ -66,12 +71,33 @@ func enableShutdownPrivilege() error {
 	}
 	tp := windows.Tokenprivileges{PrivilegeCount: 1}
 	tp.Privileges[0] = windows.LUIDAndAttributes{Luid: luid, Attributes: windows.SE_PRIVILEGE_ENABLED}
-	if err := windows.AdjustTokenPrivileges(tok, false, &tp, 0, nil, nil); err != nil {
+	// AdjustTokenPrivileges returns nonzero also when the token does not
+	// have the privilege; then GetLastError is ERROR_NOT_ALL_ASSIGNED
+	// (Microsoft Learn, AdjustTokenPrivileges). x/sys/windows checks only
+	// the return value, so call the function here and check both.
+	r, _, e := procAdjustTokenPrivileges.Call(uintptr(tok), 0, uintptr(unsafe.Pointer(&tp)), 0, 0, 0)
+	if err := privilegeResult(r, e); err != nil {
 		return fmt.Errorf("AdjustTokenPrivileges: %w", err)
 	}
-	// AdjustTokenPrivileges succeeds with ERROR_NOT_ALL_ASSIGNED when the
-	// token does not have the privilege. x/sys/windows returns it as an
-	// error, so a nil error means that the privilege is enabled.
+	return nil
+}
+
+// errNotAllAssigned is returned when the token does not have
+// SeShutdownPrivilege.
+var errNotAllAssigned = errors.New("SeShutdownPrivilege is not assigned to the process token (ERROR_NOT_ALL_ASSIGNED)")
+
+// privilegeResult checks the return value and the last error of
+// AdjustTokenPrivileges.
+func privilegeResult(r uintptr, lastErr error) error {
+	if r == 0 {
+		if lastErr == nil {
+			return errors.New("failed")
+		}
+		return lastErr
+	}
+	if errors.Is(lastErr, windows.ERROR_NOT_ALL_ASSIGNED) {
+		return errNotAllAssigned
+	}
 	return nil
 }
 

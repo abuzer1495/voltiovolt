@@ -244,7 +244,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 
 1. `shutdown.Executor` implements `policy.Executor`: `Shutdown(ctx, reason)` and `Hibernate(ctx, reason)`. cmd/vltd makes it with the Setting policy.force_close_applications and the Audit Log, and gives it to the Policy Engine. The Simulation and all tests use dry-run or fake executors.
 2. Windows:
-    1. Enable SE_SHUTDOWN_NAME (SeShutdownPrivilege) in the process token with AdjustTokenPrivileges. vlt-setup gives the privilege to the service (security.md section 10).
+    1. Enable SE_SHUTDOWN_NAME (SeShutdownPrivilege) in the process token with AdjustTokenPrivileges. A nonzero return with GetLastError = ERROR_NOT_ALL_ASSIGNED means that the token does not have the privilege; the executor then gives an error and does not call InitiateSystemShutdownEx. vlt-setup gives the privilege to the service (security.md section 10).
     2. Shutdown: `InitiateSystemShutdownExW(NULL, message, 0, force_close_applications, FALSE, 0x0006000C)`. Timeout 0: no dialog box. The reason code is SHTDN_REASON_MAJOR_POWER (0x00060000) | SHTDN_REASON_MINOR_ENVIRONMENT (0x0000000C), "Power Failure: Environment", unplanned (source: Microsoft Learn, System Shutdown Reason Codes).
     3. Hibernate: if `IsPwrHibernateAllowed` is false or `SetSuspendState(TRUE, FALSE, FALSE)` fails, the executor writes the audit entry `os_hibernate_fallback` and does a Shutdown.
 3. Linux (github.com/godbus/dbus/v5, system bus, one connection for each request):

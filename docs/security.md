@@ -290,3 +290,10 @@ CI tests of vlt-setup only read the system (API presence, structure encoding, a 
 2. No IPC method calls the executor. shutdown.cancel can only stop a countdown.
 3. No test calls the OS: the Windows tests replace the Windows functions, the Linux tests use a fake D-Bus object, and the Policy and Simulation tests use dry-run executors.
 4. Risk: the reason code is unplanned. An unplanned shutdown can make a system state data (SSD) file, which can make the shutdown slower (Microsoft Learn, InitiateSystemShutdownExW). See VLT-RPT-004.
+
+## 12. IPC methods of VLT-IS-004 (TASK 03-00-00-008)
+
+1. The changing methods (device.settings.set, policy.set, policy.simulate, policy.activate, policy.deactivate, shutdown.cancel) need the elevated state. The other new methods need a set PIN.
+2. No IPC method calls the shutdown executor (SEC-092). TestAllMethodsNoSecretInResponses calls all new methods and checks that the dry-run executor has no call.
+3. A slow push client cannot block vltd: the push queue of each connection has a limit (64 frames).
+4. The new methods are in the no-Secret response test (TestAllMethodsNoSecretInResponses).

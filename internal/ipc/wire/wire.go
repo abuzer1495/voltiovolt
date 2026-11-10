@@ -152,6 +152,9 @@ const (
 	CodeRateLimited      = "rate_limited"
 	CodeFrameTooLarge    = "frame_too_large"
 	CodeInternal         = "internal"
+	CodeUnavailable      = "unavailable"   // the part of vltd is not running
+	CodeNoSimulation     = "no_simulation" // policy.activate without a passed Simulation
+	CodeLowBattery       = "low_battery"   // shutdown.cancel while LOW_BATTERY is active
 )
 
 // Methods of protocol version 1.
@@ -169,6 +172,21 @@ const (
 	MethodSecretDelete = "secret.delete"
 	MethodVaultReset   = "vault.reset"
 	MethodAuditList    = "audit.list"
+
+	// VLT-IS-004 TASK 03-00-00-008.
+	MethodDeviceStatus      = "device.status"
+	MethodDeviceSettingsSet = "device.settings.set"
+	MethodSubscribe         = "status.subscribe"
+	MethodUnsubscribe       = "status.unsubscribe"
+	MethodMeasurements      = "measurements.query"
+	MethodEventsList        = "events.list"
+	MethodPolicyGet         = "policy.get"
+	MethodPolicySet         = "policy.set"
+	MethodPolicySimulate    = "policy.simulate"
+	MethodPolicyActivate    = "policy.activate"
+	MethodPolicyDeactivate  = "policy.deactivate"
+	MethodShutdownStatus    = "shutdown.status"
+	MethodShutdownCancel    = "shutdown.cancel"
 )
 
 // Methods lists all methods.
@@ -176,6 +194,34 @@ var Methods = []string{
 	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodLogin, MethodLogout,
 	MethodSettingsList, MethodSettingsSet, MethodSecretStatus, MethodSecretSet, MethodSecretDelete,
 	MethodVaultReset, MethodAuditList,
+	MethodDeviceStatus, MethodDeviceSettingsSet, MethodSubscribe, MethodUnsubscribe, MethodMeasurements,
+	MethodEventsList, MethodPolicyGet, MethodPolicySet, MethodPolicySimulate, MethodPolicyActivate,
+	MethodPolicyDeactivate, MethodShutdownStatus, MethodShutdownCancel,
+}
+
+// Push messages (VLT-IS-004 TASK 03-00-00-008 step 1). The server sends
+// them only after status.subscribe.
+const (
+	PushStatus    = "status"    // every 2 seconds
+	PushEvent     = "event"     // one for each Event
+	PushCountdown = "countdown" // every second during a countdown
+)
+
+// Push is {"v":1,"push":text,"data":object}. It has no id.
+type Push struct {
+	V    int             `json:"v"`
+	Push string          `json:"push"`
+	Data json.RawMessage `json:"data"`
+}
+
+// Frame is the union of Response and Push for a client decoder.
+type Frame struct {
+	V      int             `json:"v"`
+	ID     int64           `json:"id"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  *Error          `json:"error,omitempty"`
+	Push   string          `json:"push,omitempty"`
+	Data   json.RawMessage `json:"data,omitempty"`
 }
 
 // Parameters.
@@ -201,6 +247,21 @@ type (
 	AuditListParams struct {
 		After int64 `json:"after"`
 		Limit int   `json:"limit"`
+	}
+	// SettingsMapParams is for device.settings.set and policy.set:
+	// {"settings":{"key":value}}.
+	SettingsMapParams struct {
+		Settings map[string]json.RawMessage `json:"settings"`
+	}
+	MeasurementsParams struct {
+		Name string `json:"name"`
+		From string `json:"from"` // RFC 3339
+		To   string `json:"to"`   // RFC 3339
+		Step string `json:"step"` // raw, 1m or 1h
+	}
+	EventsListParams struct {
+		Before int64 `json:"before"` // 0: the newest
+		Limit  int   `json:"limit"`
 	}
 )
 
@@ -266,5 +327,15 @@ type (
 	AuditListResult struct {
 		Rows []AuditRow `json:"rows"`
 		Next int64      `json:"next"`
+	}
+	MeasurementsResult struct {
+		Name string          `json:"name"`
+		Unit string          `json:"unit"`
+		Step string          `json:"step"`
+		Rows json.RawMessage `json:"rows"`
+	}
+	EventsListResult struct {
+		Events json.RawMessage `json:"events"`
+		Next   int64           `json:"next"` // the before value of the next page; 0: no more
 	}
 )

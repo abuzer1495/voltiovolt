@@ -13,7 +13,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -42,6 +41,12 @@ type Backend struct {
 	Audit   *audit.Log
 	Version string
 	Log     *slog.Logger
+
+	// VLT-IS-004 TASK 03-00-00-008. A nil field gives the error
+	// "unavailable" for its methods.
+	Device DeviceControl
+	Policy PolicyControl
+	Hub    *Hub
 }
 
 // PeerCheck accepts or refuses a new connection and returns the peer
@@ -163,12 +168,17 @@ type conn struct {
 	session auth.Session
 	tokens  float64
 	last    time.Time
+
+	wmu   sync.Mutex // one frame at a time (responses and push frames)
+	subMu sync.Mutex
+	sub   *subscriber
 }
 
 func (s *Server) handle(c net.Conn, peer string) {
 	defer s.wg.Done()
 	cn := &conn{s: s, c: c, peer: peer, tokens: s.rate, last: s.now()}
 	defer func() {
+		cn.unsubscribe()
 		cn.session.Drop()
 		c.Close()
 		s.mu.Lock()
@@ -220,10 +230,22 @@ func (cn *conn) readFrame() ([]byte, error) {
 }
 
 func (cn *conn) write(r wire.Response) error {
+	cn.wmu.Lock()
+	defer cn.wmu.Unlock()
 	if err := cn.c.SetWriteDeadline(time.Now().Add(cn.s.partial)); err != nil {
 		return err
 	}
 	return wire.WriteFrame(cn.c, r)
+}
+
+// writeRaw writes one encoded JSON value (a push frame) as a frame.
+func (cn *conn) writeRaw(b []byte) error {
+	cn.wmu.Lock()
+	defer cn.wmu.Unlock()
+	if err := cn.c.SetWriteDeadline(time.Now().Add(cn.s.partial)); err != nil {
+		return err
+	}
+	return wire.WriteFrame(cn.c, json.RawMessage(b))
 }
 
 // allow is a token bucket: 20 requests each second, burst 20.
@@ -269,6 +291,21 @@ var methodAccess = map[string]access{
 	wire.MethodSecretDelete: elevated,
 	wire.MethodVaultReset:   elevated,
 	wire.MethodAuditList:    elevated,
+
+	// VLT-IS-004 TASK 03-00-00-008 step 2.
+	wire.MethodDeviceStatus:      readOnly,
+	wire.MethodDeviceSettingsSet: elevated,
+	wire.MethodSubscribe:         readOnly,
+	wire.MethodUnsubscribe:       readOnly,
+	wire.MethodMeasurements:      readOnly,
+	wire.MethodEventsList:        readOnly,
+	wire.MethodPolicyGet:         readOnly,
+	wire.MethodPolicySet:         elevated,
+	wire.MethodPolicySimulate:    elevated,
+	wire.MethodPolicyActivate:    elevated,
+	wire.MethodPolicyDeactivate:  elevated,
+	wire.MethodShutdownStatus:    readOnly,
+	wire.MethodShutdownCancel:    elevated,
 }
 
 func (cn *conn) idle(ctx context.Context) time.Duration {
@@ -557,6 +594,8 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 			res.Next = r.Seq
 		}
 		return res, nil
+
+	default:
+		return cn.dispatchLive(ctx, req)
 	}
-	return nil, &wire.Error{Code: wire.CodeUnknownMethod, Message: fmt.Sprintf("unknown method %q", req.Method)}
 }

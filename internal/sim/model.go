@@ -66,6 +66,14 @@ func (m *Model) HasFault(f Fault) bool {
 	return m.faults[f]
 }
 
+// SetCharge sets the battery charge in percent. Below 20 % the model sets
+// status bit 6 (battery low).
+func (m *Model) SetCharge(p float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Charge = p
+}
+
 // SetMains sets the mains state.
 func (m *Model) SetMains(on bool) {
 	m.mu.Lock()

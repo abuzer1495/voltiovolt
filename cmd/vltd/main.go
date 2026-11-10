@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Command vltd is the VLT service (VLT-IS-003 TASK 03-00-00-008). This is
-// the service skeleton: logging, data directory check, Store, Vault, audit
-// chain verification and IPC. It does not talk to a UPS yet.
+// Command vltd is the VLT service (VLT-IS-003 TASK 03-00-00-008,
+// VLT-IS-004): logging, data directory check, Store, Vault, audit chain
+// verification, Device Manager and Poller, Measurements, Event Engine,
+// Policy Engine with the OS shutdown executor, and IPC.
 //
 // Flags: --version only.
 package main
@@ -12,10 +13,15 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/abuzer1495/voltiovolt/internal/audit"
+	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/ipc"
 	"github.com/abuzer1495/voltiovolt/internal/logging"
 	"github.com/abuzer1495/voltiovolt/internal/platform"
+	"github.com/abuzer1495/voltiovolt/internal/policy"
+	"github.com/abuzer1495/voltiovolt/internal/shutdown"
 	"github.com/abuzer1495/voltiovolt/internal/store"
+	"github.com/abuzer1495/voltiovolt/internal/transport"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
 )
 
@@ -55,6 +61,11 @@ func run() int {
 		Log:        log,
 		LogCloser:  closer,
 		Version:    version,
+		Lister:     device.OSLister(transport.Options{}),
+		// SEC-092: the OS executor goes only to the Policy Engine.
+		MakeExecutor: func(forceClose func() bool, au *audit.Log) policy.Executor {
+			return shutdown.New(shutdown.Options{ForceClose: forceClose, Audit: au, Log: log})
+		},
 	})
 	if err := platform.Run("vltd", d, log); err != nil {
 		log.Error("vltd stopped with an error", "err", err)

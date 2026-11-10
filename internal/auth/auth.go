@@ -20,9 +20,29 @@ const (
 	FirstBlock    = 5 * time.Minute
 	MaxBlock      = 24 * time.Hour
 	keyPINHash    = "pin_hash"
-	keyFailures   = "failed_count"
-	keyBlockUntil = "block_until"
+	keyFailures   = "failed_count:"
+	keyBlockUntil = "block_until:"
+
+	// SECURITY_ALERT (QI-2): more than AlertFailures failures of all
+	// sources in AlertWindow.
+	AlertFailures    = 100
+	AlertWindow      = time.Hour
+	ActionAlert      = "SECURITY_ALERT"
+	keyWindowStart   = "fail_window_start"
+	keyWindowCount   = "fail_window_count"
+	keyWindowAlerted = "fail_window_alerted"
 )
+
+// Source is the source of a PIN entry (VLT-IS-004 QI-2, SEC-024): the actor
+// and the peer identity (Linux: "uid:<n>", Windows: "sid:<SID>", later
+// Telegram: "chat:<id>"). The counter and the block are per source.
+type Source struct {
+	Actor string
+	Peer  string
+}
+
+// Key returns the auth_state key part of the source.
+func (s Source) Key() string { return s.Actor + "|" + s.Peer }
 
 // Errors.
 var (
@@ -72,33 +92,54 @@ type Status struct {
 	BlockUntil time.Time `json:"block_until,omitzero"`
 }
 
-func (m *Manager) state(ctx context.Context) (hash string, failures int, blockUntil time.Time, err error) {
-	hash, err = m.st.GetAuthState(ctx, keyPINHash)
+func (m *Manager) pinHash(ctx context.Context) (string, error) {
+	h, err := m.st.GetAuthState(ctx, keyPINHash)
 	if errors.Is(err, store.ErrNotFound) {
-		hash, err = "", nil
+		return "", nil
+	}
+	return h, err
+}
+
+func (m *Manager) getInt(ctx context.Context, key string) (int, error) {
+	v, err := m.st.GetAuthState(ctx, key)
+	if errors.Is(err, store.ErrNotFound) || v == "" {
+		return 0, nil
 	}
 	if err != nil {
+		return 0, err
+	}
+	n, _ := strconv.Atoi(v)
+	return n, nil
+}
+
+func (m *Manager) getTime(ctx context.Context, key string) (time.Time, error) {
+	v, err := m.st.GetAuthState(ctx, key)
+	if errors.Is(err, store.ErrNotFound) || v == "" {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	t, _ := time.Parse(time.RFC3339Nano, v)
+	return t, nil
+}
+
+func (m *Manager) state(ctx context.Context, src Source) (hash string, failures int, blockUntil time.Time, err error) {
+	if hash, err = m.pinHash(ctx); err != nil {
 		return
 	}
-	if v, e := m.st.GetAuthState(ctx, keyFailures); e == nil {
-		failures, _ = strconv.Atoi(v)
-	} else if !errors.Is(e, store.ErrNotFound) {
-		err = e
+	if failures, err = m.getInt(ctx, keyFailures+src.Key()); err != nil {
 		return
 	}
-	if v, e := m.st.GetAuthState(ctx, keyBlockUntil); e == nil && v != "" {
-		blockUntil, _ = time.Parse(time.RFC3339Nano, v)
-	} else if e != nil && !errors.Is(e, store.ErrNotFound) {
-		err = e
-	}
+	blockUntil, err = m.getTime(ctx, keyBlockUntil+src.Key())
 	return
 }
 
-// Status returns the PIN state.
-func (m *Manager) Status(ctx context.Context) (Status, error) {
+// Status returns the PIN state for one source.
+func (m *Manager) Status(ctx context.Context, src Source) (Status, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	h, f, b, err := m.state(ctx)
+	h, f, b, err := m.state(ctx, src)
 	if err != nil {
 		return Status{}, err
 	}
@@ -111,8 +152,10 @@ func (m *Manager) Status(ctx context.Context) (Status, error) {
 
 // PINSet reports whether a PIN is set.
 func (m *Manager) PINSet(ctx context.Context) (bool, error) {
-	s, err := m.Status(ctx)
-	return s.PINSet, err
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	h, err := m.pinHash(ctx)
+	return h != "", err
 }
 
 // SetPIN sets a new PIN. The caller (IPC) checks the permission: first
@@ -140,7 +183,7 @@ func (m *Manager) setPIN(ctx context.Context, actor, pin string, initial bool) e
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if initial {
-		cur, _, _, err := m.state(ctx)
+		cur, err := m.pinHash(ctx)
 		if err != nil {
 			return err
 		}
@@ -149,7 +192,7 @@ func (m *Manager) setPIN(ctx context.Context, actor, pin string, initial bool) e
 			return ErrPINIsSet
 		}
 	}
-	if err := m.st.SetAuthState(ctx, map[string]string{keyPINHash: h, keyFailures: "0", keyBlockUntil: ""}); err != nil {
+	if err := m.st.SetAuthState(ctx, map[string]string{keyPINHash: h}); err != nil {
 		return err
 	}
 	m.log.Info("PIN set")
@@ -176,10 +219,13 @@ func blockFor(n int) time.Duration {
 // Login checks the PIN. It returns nil for a correct PIN, ErrIncorrect for
 // an incorrect PIN, ErrBlocked during a block (the PIN is not checked) and
 // ErrNoPIN when no PIN is set.
-func (m *Manager) Login(ctx context.Context, actor, pin string) (time.Time, error) {
+//
+// The counter and the block are for src only (SEC-024 Revision 03).
+func (m *Manager) Login(ctx context.Context, src Source, pin string) (time.Time, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	h, failures, blockUntil, err := m.state(ctx)
+	actor := src.Actor
+	h, failures, blockUntil, err := m.state(ctx, src)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -188,7 +234,7 @@ func (m *Manager) Login(ctx context.Context, actor, pin string) (time.Time, erro
 	}
 	now := m.now()
 	if blockUntil.After(now) {
-		m.record(ctx, actor, "pin_entry", "blocked", map[string]any{"block_until": blockUntil.UTC().Format(time.RFC3339)})
+		m.record(ctx, actor, "pin_entry", "blocked", map[string]any{"peer": src.Peer, "block_until": blockUntil.UTC().Format(time.RFC3339)})
 		return blockUntil, ErrBlocked
 	}
 	// Length check before the hash: a long input does not cost time.
@@ -201,30 +247,68 @@ func (m *Manager) Login(ctx context.Context, actor, pin string) (time.Time, erro
 		}
 	}
 	if ok {
-		if err := m.st.SetAuthState(ctx, map[string]string{keyFailures: "0", keyBlockUntil: ""}); err != nil {
+		if err := m.st.SetAuthState(ctx, map[string]string{keyFailures + src.Key(): "0", keyBlockUntil + src.Key(): ""}); err != nil {
 			return time.Time{}, err
 		}
-		m.record(ctx, actor, "pin_entry", "success", nil)
+		m.record(ctx, actor, "pin_entry", "success", map[string]any{"peer": src.Peer})
 		return time.Time{}, nil
 	}
 	failures++
-	kv := map[string]string{keyFailures: strconv.Itoa(failures)}
+	kv := map[string]string{keyFailures + src.Key(): strconv.Itoa(failures)}
 	var until time.Time
 	if d := blockFor(failures); d > 0 {
 		until = now.Add(d)
-		kv[keyBlockUntil] = until.UTC().Format(time.RFC3339Nano)
+		kv[keyBlockUntil+src.Key()] = until.UTC().Format(time.RFC3339Nano)
+	}
+	alert, total, err := m.countWindow(ctx, now, kv)
+	if err != nil {
+		return time.Time{}, err
 	}
 	if err := m.st.SetAuthState(ctx, kv); err != nil {
 		return time.Time{}, err
 	}
-	m.record(ctx, actor, "pin_entry", "failure", map[string]any{"failures": failures})
+	m.record(ctx, actor, "pin_entry", "failure", map[string]any{"peer": src.Peer, "failures": failures})
+	if alert {
+		m.log.Error("SECURITY_ALERT: many incorrect PIN entries", "failures_in_window", total)
+		m.record(ctx, "system", ActionAlert, "failure", map[string]any{"failures_in_window": total, "window_seconds": int(AlertWindow / time.Second)})
+	}
 	if !until.IsZero() {
 		m.log.Warn("PIN entry blocked", "failures", failures, "until", until.UTC())
 		m.record(ctx, actor, "pin_block", "success", map[string]any{
-			"failures": failures, "block_seconds": int(blockFor(failures) / time.Second), "block_until": until.UTC().Format(time.RFC3339),
+			"peer": src.Peer, "failures": failures, "block_seconds": int(blockFor(failures) / time.Second), "block_until": until.UTC().Format(time.RFC3339),
 		})
 	}
 	return until, ErrIncorrect
+}
+
+// countWindow counts one failure of any source in a fixed window of one
+// hour. It adds the new window values to kv. It returns true one time per
+// window, when the count becomes more than AlertFailures.
+func (m *Manager) countWindow(ctx context.Context, now time.Time, kv map[string]string) (bool, int, error) {
+	start, err := m.getTime(ctx, keyWindowStart)
+	if err != nil {
+		return false, 0, err
+	}
+	count, err := m.getInt(ctx, keyWindowCount)
+	if err != nil {
+		return false, 0, err
+	}
+	alerted, err := m.getInt(ctx, keyWindowAlerted)
+	if err != nil {
+		return false, 0, err
+	}
+	if start.IsZero() || now.Sub(start) >= AlertWindow || now.Before(start) {
+		start, count, alerted = now, 0, 0
+		kv[keyWindowStart] = now.UTC().Format(time.RFC3339Nano)
+	}
+	count++
+	alert := count > AlertFailures && alerted == 0
+	if alert {
+		alerted = 1
+	}
+	kv[keyWindowCount] = strconv.Itoa(count)
+	kv[keyWindowAlerted] = strconv.Itoa(alerted)
+	return alert, count, nil
 }
 
 // Session limits (step 7.2). The idle time is a Setting.

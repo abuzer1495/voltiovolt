@@ -7,7 +7,6 @@ package ipc
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
@@ -22,11 +21,12 @@ const (
 	OperatorsGroup = "VLT Operators"
 )
 
-// Endpoint is the Windows IPC endpoint: a named pipe with a protected DACL.
+// Endpoint is the Windows IPC endpoint: a named pipe with a protected DACL
+// (PipeSDDL).
 // go-winio always rejects remote clients (PIPE_REJECT_REMOTE_CLIENTS).
 type Endpoint struct {
 	Pipe string // default DefaultPipe
-	// ExtraSIDs get read and write access (tests: the current user).
+	// ExtraSIDs get read and write access (GRGW; tests: the current user).
 	ExtraSIDs []string
 	// NoLookup: do not look up the service account and the operators group
 	// (tests).
@@ -44,25 +44,41 @@ func lookupSID(name string) (string, bool) {
 	return sid.String(), true
 }
 
-// SDDL returns the pipe security descriptor. D:P is a protected DACL (no
-// inherited entries). SYSTEM, Administrators and NT SERVICE\vltd get full
-// access (the service must make new pipe instances). "VLT Operators" (if
-// the group exists) gets read and write access.
+// SDDL returns the pipe security descriptor (see PipeSDDL).
 func (e Endpoint) SDDL() string {
-	var b strings.Builder
-	b.WriteString("D:P(A;;GA;;;SY)(A;;GA;;;BA)")
+	var svc, ops string
 	if !e.NoLookup {
-		if s, ok := lookupSID(ServiceAccount); ok {
-			fmt.Fprintf(&b, "(A;;GA;;;%s)", s)
-		}
-		if s, ok := lookupSID(OperatorsGroup); ok {
-			fmt.Fprintf(&b, "(A;;GRGW;;;%s)", s)
-		}
+		svc, _ = lookupSID(ServiceAccount)
+		ops, _ = lookupSID(OperatorsGroup)
 	}
-	for _, s := range e.ExtraSIDs {
-		fmt.Fprintf(&b, "(A;;GA;;;%s)", s)
+	return PipeSDDL(svc, ops, e.ExtraSIDs)
+}
+
+// pipePeer returns "sid:<SID>" of the user of the client process.
+func pipePeer(c net.Conn) (string, error) {
+	f, ok := c.(interface{ Fd() uintptr })
+	if !ok {
+		return "", fmt.Errorf("pipe connection has no handle")
 	}
-	return b.String()
+	var pid uint32
+	if err := windows.GetNamedPipeClientProcessId(windows.Handle(f.Fd()), &pid); err != nil {
+		return "", fmt.Errorf("client process ID: %w", err)
+	}
+	ph, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	if err != nil {
+		return "", fmt.Errorf("open client process: %w", err)
+	}
+	defer windows.CloseHandle(ph)
+	var tok windows.Token
+	if err := windows.OpenProcessToken(ph, windows.TOKEN_QUERY, &tok); err != nil {
+		return "", fmt.Errorf("client process token: %w", err)
+	}
+	defer tok.Close()
+	tu, err := tok.GetTokenUser()
+	if err != nil {
+		return "", fmt.Errorf("client user: %w", err)
+	}
+	return "sid:" + tu.User.Sid.String(), nil
 }
 
 // Listen makes the pipe.
@@ -78,5 +94,5 @@ func (e Endpoint) Listen() (net.Listener, PeerCheck, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("ipc: pipe %s: %w", e.Pipe, err)
 	}
-	return ln, nil, nil
+	return ln, pipePeer, nil
 }

@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// polkit rule for vltd (VLT-IS-004 TASK 03-00-00-001 step 4, QI-3).
+// The user vltd (only) can power off or hibernate the computer through
+// systemd-logind, also when other sessions exist or inhibitors are active.
+// vltd writes the active inhibitors to the audit log before each shutdown.
+// Install: /etc/polkit-1/rules.d/50-vltd.rules, owner root, mode 0644
+// (vlt-dev-init.sh does this).
+
+polkit.addRule(function(action, subject) {
+    if (subject.user != "vltd") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    switch (action.id) {
+    case "org.freedesktop.login1.power-off":
+    case "org.freedesktop.login1.power-off-multiple-sessions":
+    case "org.freedesktop.login1.power-off-ignore-inhibit":
+    case "org.freedesktop.login1.hibernate":
+    case "org.freedesktop.login1.hibernate-multiple-sessions":
+    case "org.freedesktop.login1.hibernate-ignore-inhibit":
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

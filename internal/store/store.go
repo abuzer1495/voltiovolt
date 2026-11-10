@@ -70,6 +70,9 @@ func Open(ctx context.Context, path string, opts Options) (*Store, error) {
 	if opts.Settings == nil {
 		opts.Settings = DefaultSettings()
 	}
+	if err := CheckDefs(opts.Settings); err != nil {
+		return nil, err
+	}
 	// Make the file with mode 0600 before SQLite opens it.
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)

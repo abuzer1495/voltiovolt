@@ -82,11 +82,11 @@ func TestPeerCheck(t *testing.T) {
 	noGroups := func(uint32) ([]string, error) { return nil, nil }
 
 	// Own primary group: accepted.
-	if err := peerCheck(uint32(os.Getgid()), noGroups)(accept()); err != nil {
-		t.Fatalf("own gid: %v", err)
+	if peer, err := peerCheck(uint32(os.Getgid()), noGroups)(accept()); err != nil || peer != "uid:"+itoa(uid) {
+		t.Fatalf("own gid: %q %v", peer, err)
 	}
 	// Other group, not a member: refused (unless root).
-	err = peerCheck(other, noGroups)(accept())
+	_, err = peerCheck(other, noGroups)(accept())
 	if uid != 0 && err == nil {
 		t.Fatal("non-member accepted")
 	}
@@ -95,7 +95,7 @@ func TestPeerCheck(t *testing.T) {
 	}
 	// Supplementary group member: accepted.
 	member := func(uint32) ([]string, error) { return []string{"1", "12", itoa(other)}, nil }
-	if err := peerCheck(other, member)(accept()); err != nil {
+	if _, err := peerCheck(other, member)(accept()); err != nil {
 		t.Fatalf("member: %v", err)
 	}
 }

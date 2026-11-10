@@ -14,6 +14,13 @@
 Description=VoltioVolt UPS service (development)
 Documentation=https://github.com/abuzer1495/voltiovolt
 After=local-fs.target
+# VLT-IS-004 QI-1: when this unit enters the "failed" state (for example
+# 243/CREDENTIALS: the DEK credential cannot be decrypted, or 3 failed
+# starts in 60 seconds), systemd starts vltd-fallback.service. Then vltd runs
+# with the Vault state "locked" (SEC-090).
+OnFailure=vltd-fallback.service
+StartLimitBurst=3
+StartLimitIntervalSec=60
 
 [Service]
 Type=notify
@@ -28,6 +35,9 @@ RuntimeDirectory=vltd
 RuntimeDirectoryMode=0750
 UMask=0077
 TimeoutStopSec=10
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=243
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

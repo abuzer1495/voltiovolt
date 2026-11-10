@@ -59,7 +59,7 @@ This file is a summary of the security requirements of VLT-IS-001 Revision 00 (s
 | SEC-021 | IPC access: Windows: Administrators and the local group "VLT Operators". Linux: root and the group "vlt". |  |
 | SEC-022 | The VLT GUI asks for the PIN before these actions: Settings change, Secret entry, CONTROL command, CONFIG command, Shutdown Policy activation. |  |
 | SEC-023 | The VLT GUI locks after 10 minutes without input. The Owner can change this value. |  |
-| SEC-024 | After 5 incorrect PIN entries, block PIN entry for 5 minutes. Double the block time after each new failure. |  |
+| SEC-024 | Count incorrect PIN entries per source (actor and peer identity). Block that source only. | Changed: VLT-IS-004 01-30-00. Old text: "After 5 incorrect PIN entries, block PIN entry for 5 minutes. Double the block time after each new failure." The numbers of the old text stay (section 7). |
 | SEC-025 | Write an audit entry for each Settings change, each CONTROL or CONFIG command, each incorrect PIN and each rejected remote request. |  |
 
 ### 02-30-00 UPS command safety
@@ -100,6 +100,8 @@ WARNING: CONTROL commands and CONFIG commands can stop power to the protected eq
 | ID | Requirement | Change |
 |----|-------------|--------|
 | SEC-055 | A Shutdown Policy cannot be active before one successful Simulation. |  |
+| SEC-092 | vltd sends a shutdown request to the OS only from the Policy Engine. No IPC method starts a real shutdown directly. | New: VLT-IS-004 01-30-00 |
+| SEC-093 | Any change of a Shutdown Policy makes the policy inactive. A new Simulation is necessary before activation (SEC-055). | New: VLT-IS-004 01-30-00 |
 | SEC-056 | Show a countdown with a cancel button before each automatic shutdown. Default: 60 seconds. |  |
 | SEC-057 | User scripts run only from a protected directory. vltd records the SHA-256 hash of each script. If the hash changes, vltd does not run the script and sends an Alarm. |  |
 | SEC-058 | Do not build shell command strings. Start each process with an argument list. |  |
@@ -208,11 +210,41 @@ WARNING: An error in the Vault can expose all user Secrets.
 1. PIN: 6 to 64 characters, ASCII digits and letters only (A-Z, a-z, 0-9).
 2. Refused: the same character only, simple ascending or descending sequences of digits (with wrap, for example "1234567890") or letters, and a list of 20 common PINs (case is not important).
 3. Hash: Argon2id, time 3, memory 64 MiB, threads 4, salt 16 bytes, key 32 bytes (RFC 9106, section 4, second recommended option). Format: PHC string `$argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>`. Compare in constant time.
-4. Lockout (SEC-024): after 5 incorrect entries, block for 5 minutes. Each new failure doubles the block time, maximum 24 hours. During a block, the PIN is not checked. The counter and the block end time are in the Store (auth_state); a restart does not reset them. A correct entry sets the counter to 0.
+4. Lockout (SEC-024, per source since VLT-IS-004 QI-2): vltd counts incorrect entries per source. The source is the actor and the peer identity: Linux `uid:<uid>` of the socket peer (SO_PEERCRED), Windows `sid:<user SID>` of the pipe client process token, later the Telegram chat ID. After 5 incorrect entries of one source, block that source only for 5 minutes. Each new failure doubles the block time, maximum 24 hours. During a block, the PIN is not checked for that source. Other sources can log in. There is no global block. The counter and the block end time of each source are in the Store (auth_state keys `failed_count:<actor>|<peer>` and `block_until:<actor>|<peer>`); a restart does not reset them. A correct entry sets the counter of that source to 0.
+   - Alert: vltd also counts the failures of all sources in a fixed window of one hour. If the count is more than 100, vltd writes one audit entry with the actor "system" and the action "SECURITY_ALERT" (once per window) and an error log line. It does not block.
 5. Session: a correct PIN gives the elevated state to the IPC connection only. There is no token. The state ends after the Setting `auth.session_idle_minutes` (default 10) without a request, after 8 hours, or when the connection closes.
 6. First start: if no PIN is set, vltd permits only "set PIN" and read-only status requests.
 7. Audit entries: each PIN set, each correct entry, each incorrect entry, each block and each entry refused during a block.
 
+
+## 7a. Local IPC peer and pipe DACL (VLT-IS-004 TASK 03-00-00-001)
+
+1. Windows pipe \\.\pipe\vltd: protected DACL (QI-4):
+
+   | Trustee | SID string | Rights |
+   |---------|------------|--------|
+   | SYSTEM | SY | GA |
+   | NT SERVICE\vltd | S-1-5-80-... (service SID) | GA |
+   | Administrators | BA | GRGW |
+   | VLT Operators | local group SID (if the group exists) | GRGW |
+
+   SDDL: `D:P(A;;GA;;;SY)(A;;GA;;;<vltd SID>)(A;;GRGW;;;BA)(A;;GRGW;;;<VLT Operators SID>)`. "P" blocks inherited ACEs. There is no deny ACE and no ACE for Everyone, Users or Authenticated Users. GW includes FILE_APPEND_DATA (= FILE_CREATE_PIPE_INSTANCE); only the vltd process makes pipe instances, because it makes the first instance (go-winio uses FILE_FLAG_FIRST_PIPE_INSTANCE). The test `TestPipeSDDL` parses the SDDL and checks each ACE.
+2. Windows peer identity: GetNamedPipeClientProcessId, then the token user SID of that process (PROCESS_QUERY_LIMITED_INFORMATION). If vltd cannot read it, it closes the connection.
+3. Linux peer identity: SO_PEERCRED uid. Only root and the group vlt can connect (SEC-021).
+
+## 7b. Fallback mode (VLT-IS-004 TASK 03-00-00-001, VLT-IS-001 01-00-05 item 6)
+
+1. vltd.service: Restart=on-failure, RestartSec=5, RestartPreventExitStatus=243 (243 = EXIT_CREDENTIALS: the credential cannot be decrypted), StartLimitBurst=3, StartLimitIntervalSec=60, OnFailure=vltd-fallback.service.
+2. vltd-fallback.service: the same ExecStart, user, groups and hardening, no LoadCredentialEncrypted=, Conflicts=vltd.service, Environment=VLT_FALLBACK_MODE=1, no [Install] section.
+3. VLT_FALLBACK_MODE is a state flag, not a Setting and not a Secret. If it is "1", vltd does not read a DEK. The Vault state is "locked" with the reason "primary unit failed" (SEC-090). vault.reset is refused. Functions that do not need a Secret continue.
+
+## 7c. polkit rule (VLT-IS-004 TASK 03-00-00-001 step 4)
+
+packaging/linux/50-vltd.rules gives "yes" for the user vltd only, for these actions: org.freedesktop.login1.power-off, power-off-multiple-sessions, power-off-ignore-inhibit, hibernate, hibernate-multiple-sessions, hibernate-ignore-inhibit. For all other users and actions the rule gives no result. vlt-dev-init.sh installs it as /etc/polkit-1/rules.d/50-vltd.rules, owner root, mode 0644. Before each shutdown, vltd writes the active inhibitors to the audit entry (QI-3).
+
+## 7d. Settings never contain a Secret (QI-6)
+
+Each Setting definition has a Go type. store.CheckDefs refuses a type that is redact.Secret or contains it (pointer, slice, map, struct field, interface). store.Open refuses such definitions. The test `TestNoSecretSetting` checks all registered Settings.
 
 ## 8. Audit log (VLT-IS-003 TASK 03-00-00-006)
 

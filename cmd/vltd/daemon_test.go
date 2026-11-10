@@ -247,6 +247,53 @@ func TestStartWithWrongDEK(t *testing.T) {
 	}
 }
 
+// testOnlyNoCallProvider fails the test if vltd tries to read a DEK.
+type testOnlyNoCallProvider struct{ t *testing.T }
+
+func (p testOnlyNoCallProvider) Load(context.Context) ([]byte, string, error) {
+	p.t.Error("fallback mode: vltd tried to read a DEK")
+	return nil, "", vault.ErrNotConfigured
+}
+
+func (p testOnlyNoCallProvider) Create(context.Context) ([]byte, string, error) {
+	p.t.Error("fallback mode: vltd tried to make a DEK")
+	return nil, "", vault.ErrNotConfigured
+}
+
+func (p testOnlyNoCallProvider) CanCreate() bool { return false }
+
+// TestFallbackMode is VLT-IS-004 TASK 03-00-00-001 step 3.4.
+func TestFallbackMode(t *testing.T) {
+	ctx := context.Background()
+	dir := dataDir(t)
+	// First a normal start, so that the database has a canary.
+	d, _ := startTestDaemon(t, dir, &testOnlyDEKProvider{dek: testOnlyDEK()})
+	stopTestDaemon(t, d)
+
+	t.Setenv(EnvFallbackMode, "1")
+	d2, addr := startTestDaemon(t, dir, testOnlyNoCallProvider{t})
+	if s := d2.vt.Status(); s.State != vault.StateLocked || s.Reason != "primary unit failed" {
+		t.Fatalf("vault: %+v", s)
+	}
+	c := dialTest(t, addr)
+	st, err := c.Status(ctx)
+	if err != nil || st.Vault.State != string(vault.StateLocked) || st.Vault.Reason != "primary unit failed" {
+		t.Fatalf("status: %+v %v", st, err)
+	}
+	if err := c.SetPIN(ctx, pin1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Login(ctx, pin1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetSecret(ctx, "telegram.bot_token", "abc"); client.Code(err) != wire.CodeVaultUnavailable {
+		t.Fatalf("secret.set in fallback mode: %v", err)
+	}
+	if err := c.ResetVault(ctx, "RESET VAULT"); err == nil {
+		t.Fatal("vault.reset in fallback mode was accepted")
+	}
+}
+
 func TestPermissionCheckStopsStart(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Linux mode check")

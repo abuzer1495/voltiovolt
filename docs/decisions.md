@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00 and VLT-IS-003 01-00-00. The source texts are in `docs/instructions/`.
+This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00 and VLT-IS-004 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -57,3 +57,16 @@ This file has one row for each decision in VLT-IS-002 01-00-00 and VLT-IS-003 01
 | CH-20 | 2026-11-10 | SEC-090 (new): vltd starts and runs when the Vault is not available. Then all functions that need a Secret are off. The VLT GUI shows the Vault state. | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
 | CH-21 | 2026-11-10 | SEC-091 (new): Test-only code (fake DEK provider, fake host binding) is only in _test.go files. A shipped binary MUST NOT contain it. | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
 | CH-22 | 2026-11-10 | VLT-IS-001 03-20-00: Add NOTE: vltd polls in two groups (later instruction). Fast group: 2 commands or fewer, every 2 seconds. Slow group: all other READ commands, every 30 seconds. | VLT-IS-003 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 02) |
+| QI-1 | 2026-11-10 | Accepted with changes. The fallback unit starts only when vltd.service enters the "failed" state. The primary unit uses Restart=on-failure, RestartSec=5, StartLimitBurst=3, StartLimitIntervalSec=60 and RestartPreventExitStatus=243. The variable name is VLT_FALLBACK_MODE=1. The Vault reason text is "primary unit failed". | VLT-IS-004 Rev 00, 01-10-00 |
+| QI-2 | 2026-11-10 | Per source. The lockout key is the actor and the peer identity: the Linux uid of the peer, the Windows user SID of the peer, and later the Telegram chat ID. There is no global block. If the failures of all sources are more than 100 in one hour, write a SECURITY_ALERT audit entry. | VLT-IS-004 Rev 00, 01-10-00 |
+| QI-3 | 2026-11-10 | Accepted. The polkit rule includes power-off-ignore-inhibit and hibernate-ignore-inhibit. vltd records the active inhibitors in the audit entry before each shutdown. | VLT-IS-004 Rev 00, 01-10-00 |
+| QI-4 | 2026-11-10 | Changed. Pipe DACL: SYSTEM GA, NT SERVICE\vltd GA, Administrators GRGW, VLT Operators GRGW. | VLT-IS-004 Rev 00, 01-10-00 |
+| QI-5 | 2026-11-10 | Yes. In this instruction, the development setup tool makes the group and gives the privileges (TASK 03-00-00-002). The MVP installer uses the same code later. | VLT-IS-004 Rev 00, 01-10-00 |
+| QI-6 | 2026-11-10 | Accepted. A Setting never contains a Secret. A test MUST prove that no Setting key has the Secret type. | VLT-IS-004 Rev 00, 01-10-00 |
+| OD-20 | 2026-11-10 | GitHub token (QO-3): No change. OD-19 stays. | VLT-IS-004 Rev 00, 01-20-00 |
+| OD-21 | 2026-11-10 | Owner tests (QO-1, QO-2, QO-4): The Owner does them with docs/user/owner-tests.md (TASK 03-00-00-009). | VLT-IS-004 Rev 00, 01-20-00 |
+| CH-23 | 2026-11-10 | VLT-IS-001 01-00-05 item 6: vltd can read the variable VLT_FALLBACK_MODE. It is a state flag, not a Setting and not a Secret. | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |
+| CH-24 | 2026-11-10 | VLT-IS-001 SEC-024: New text: "Count incorrect PIN entries per source (actor and peer identity). Block that source only." | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |
+| CH-25 | 2026-11-10 | SEC-092 (new): vltd sends a shutdown request to the OS only from the Policy Engine. No IPC method starts a real shutdown directly. | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |
+| CH-26 | 2026-11-10 | SEC-093 (new): Any change of a Shutdown Policy makes the policy inactive. A new Simulation is necessary before activation (SEC-055). | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |
+| CH-27 | 2026-11-10 | VLT-IS-001 03-30-00: Add the Events AVR_ACTIVE (INFO), UPS_SHUTDOWN_ACTIVE (CRITICAL) and UPS_WARNING_BITS_CHANGED (INFO). | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |

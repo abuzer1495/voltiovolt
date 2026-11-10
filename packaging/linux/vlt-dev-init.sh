@@ -10,6 +10,8 @@
 #    /etc/credstore.encrypted/vlt-dek. The plain DEK goes through a pipe
 #    only. It is never written to disk. --with-key=null is never used.
 # 3. Writes the key mode (host or host+tpm2) to /etc/vltd/key-mode.
+# 4. Copies the polkit rule 50-vltd.rules to /etc/polkit-1/rules.d/ (owner
+#    root, mode 0644) (VLT-IS-004 TASK 03-00-00-001 step 4).
 #
 # An existing /etc/credstore.encrypted/vlt-dek is not changed: a new DEK
 # makes all stored Secrets unreadable.
@@ -64,4 +66,11 @@ mv /etc/vltd/key-mode.new /etc/vltd/key-mode
 echo "vlt-dev-init.sh: key mode $mode written to /etc/vltd/key-mode"
 if [ "$mode" = "host" ]; then
 	echo "vlt-dev-init.sh: no TPM2: the Vault state will be \"reduced protection\" (SEC-005)"
+fi
+
+# polkit rule (power off and hibernate for the user vltd only).
+here="$(cd "$(dirname "$0")" && pwd)"
+if [ -d /etc/polkit-1/rules.d ] || install -d -m 0755 -o root -g root /etc/polkit-1/rules.d; then
+	install -m 0644 -o root -g root "$here/50-vltd.rules" /etc/polkit-1/rules.d/50-vltd.rules
+	echo "vlt-dev-init.sh: polkit rule installed: /etc/polkit-1/rules.d/50-vltd.rules"
 fi

@@ -76,13 +76,14 @@ func run(addr string) error {
 		},
 	})
 	m.SetEmitter(emitter{app})
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   "main",
 		Title:  "VLT",
 		Width:  1100,
 		Height: 760,
 		URL:    "/",
 	})
+	setupTray(app, win, m, api)
 	go m.Run(ctx)
 	return app.Run()
 }

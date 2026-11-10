@@ -49,3 +49,11 @@ export function useLang(): Lang {
   }, []);
   return current;
 }
+
+/** onLangChange calls f after each language change. */
+export function onLangChange(f: () => void): () => void {
+  listeners.add(f);
+  return () => {
+    listeners.delete(f);
+  };
+}

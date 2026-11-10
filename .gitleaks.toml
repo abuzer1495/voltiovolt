@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# gitleaks configuration for VLT. The default rules stay on.
+# The default rule "telegram-bot-api-token" needs a key word such as
+# "telegram" near the token. It does not detect a bare token, for example
+# in a Bot API URL path ("bot<token>/sendMessage"). The rule below adds this.
+
+title = "VLT gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "vlt-telegram-bot-token-bare"
+description = "Telegram bot token without a key word (for example in a Bot API URL)"
+regex = '''(?:^|[^0-9])([0-9]{8,10}:[A-Za-z0-9_-]{35})(?:[^A-Za-z0-9_-]|$)'''
+secretGroup = 1
+
+# Allow list: only files in testdata/ directories, which contain only fake
+# values (SEC-064).
+[[allowlists]]
+description = "Fake values in testdata"
+paths = ['''(^|/)testdata/''']

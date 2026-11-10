@@ -142,6 +142,39 @@ export interface TrayTexts {
   quit: string;
 }
 
+export interface DeviceStatus {
+  state: string;
+  since: string;
+  config: { transport: string; serial_port: string; serial_dtr: boolean; serial_rts: boolean };
+  profile?: {
+    transport: string;
+    port: string;
+    dialect: string;
+    supported: string[];
+    nominal?: Record<string, unknown>;
+    info?: Record<string, unknown>;
+    model_data?: Record<string, unknown>;
+    firmware?: Record<string, unknown>;
+    serial_number?: string;
+  };
+}
+
+export interface Row {
+  ts: string;
+  min: number;
+  max: number;
+  mean: number;
+  count: number;
+  source?: string;
+}
+
+export interface Series {
+  name: string;
+  unit: string;
+  step: string;
+  rows: Row[];
+}
+
 /** errorCode returns the error code of a rejected call. */
 export function errorCode(e: unknown): string {
   const m = (e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)).trim();
@@ -162,6 +195,9 @@ export const api = {
   shutdownStatus: () => call<Countdown>('ShutdownStatus'),
   cancelShutdown: () => call<void>('CancelShutdown'),
   setTrayTexts: (tx: TrayTexts) => call<void>('SetTrayTexts', tx),
+  deviceStatus: () => call<DeviceStatus>('DeviceStatus'),
+  setDeviceSettings: (v: Record<string, unknown>) => call<void>('SetDeviceSettings', v),
+  measurements: (name: string, fromMs: number, toMs: number, step: string) => call<Series>('Measurements', name, fromMs, toMs, step),
 };
 
 export { on };

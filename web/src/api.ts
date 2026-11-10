@@ -41,6 +41,12 @@ export interface SystemStatus {
   uptime_seconds: number;
 }
 
+export interface AuthInfo {
+  pin_set: boolean;
+  elevated: boolean;
+  block_until?: string;
+}
+
 /** errorCode returns the error code of a rejected call. */
 export function errorCode(e: unknown): string {
   const m = (e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)).trim();
@@ -52,6 +58,10 @@ export const api = {
   about: () => call<AboutInfo>('About'),
   last: () => call<Record<string, unknown>>('Last'),
   systemStatus: () => call<SystemStatus>('SystemStatus'),
+  authStatus: () => call<AuthInfo>('AuthStatus'),
+  setPIN: (pin: string) => call<void>('SetPIN', pin),
+  login: (pin: string) => call<void>('Login', pin),
+  logout: () => call<void>('Logout'),
 };
 
 export { on };

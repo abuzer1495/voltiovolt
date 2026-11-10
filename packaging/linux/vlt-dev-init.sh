@@ -4,7 +4,10 @@
 # vlt-dev-init.sh: development set-up for vltd on Linux (VLT-IS-003 TASK
 # 03-00-00-008). Run as root. This is not a package.
 #
-# 1. Makes the system groups vlt and vltd and the system user vltd.
+# 1. Makes the system groups vlt and vltd and the system user vltd. If
+#    SUDO_USER is set (the script runs with sudo), adds that user to the
+#    group vlt: members of vlt can use the IPC socket, so the VLT GUI
+#    (VLT-IS-005 TASK 03-00-00-009 step 6).
 # 2. Makes a 32-byte DEK from /dev/urandom and encrypts it with
 #    "systemd-creds encrypt --name=vlt-dek --with-key=auto" to
 #    /etc/credstore.encrypted/vlt-dek. The plain DEK goes through a pipe
@@ -32,6 +35,21 @@ getent group vltd >/dev/null || groupadd --system vltd
 if ! getent passwd vltd >/dev/null; then
 	useradd --system --gid vltd --no-create-home --home-dir /var/lib/vltd \
 		--shell /usr/sbin/nologin --comment "VoltioVolt service" vltd
+fi
+
+# The user who started sudo goes into the group vlt (not root, and only an
+# existing user).
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+	if getent passwd "$SUDO_USER" >/dev/null; then
+		if id -nG "$SUDO_USER" | tr ' ' '\n' | grep -qx vlt; then
+			echo "vlt-dev-init.sh: $SUDO_USER is a member of the group vlt"
+		else
+			usermod -a -G vlt "$SUDO_USER"
+			echo "vlt-dev-init.sh: $SUDO_USER added to the group vlt; log out and log in again to use the VLT GUI"
+		fi
+	else
+		echo "vlt-dev-init.sh: SUDO_USER=$SUDO_USER is not a user; no group change" >&2
+	fi
 fi
 
 install -d -m 0700 -o root -g root /etc/credstore.encrypted

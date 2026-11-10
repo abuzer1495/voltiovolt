@@ -15,7 +15,7 @@ import (
 // tool changes the system (service, user right, group).
 
 func TestProcsExist(t *testing.T) {
-	for _, p := range []*windows.LazyProc{procNetLocalGroupAdd, procNetLocalGroupDel, procNetLocalGroupGetMembers,
+	for _, p := range []*windows.LazyProc{procNetLocalGroupAdd, procNetLocalGroupDel, procNetLocalGroupGetMembers, procNetLocalGroupAddMembers,
 		procLsaOpenPolicy, procLsaClose, procLsaAddAccountRights, procLsaRemoveAccountRights, procLsaNtStatusToWinError} {
 		if err := p.Find(); err != nil {
 			t.Errorf("%s: %v", p.Name, err)
@@ -71,5 +71,17 @@ func TestDataDirACL(t *testing.T) {
 	dir := t.TempDir()
 	if err := setDataDirACL(dir, tu.User.Sid); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestCallingUser reads the user of the process token (no change to the
+// system).
+func TestCallingUser(t *testing.T) {
+	sid, name, err := callingUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sid.IsValid() || name == "" {
+		t.Fatalf("sid %v name %q", sid, name)
 	}
 }

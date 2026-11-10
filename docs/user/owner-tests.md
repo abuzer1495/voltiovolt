@@ -1,4 +1,4 @@
-# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009)
+# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009)
 
 English first. Turkish: section T below.
 
@@ -11,6 +11,8 @@ General preconditions for all tests:
 - A test computer, not a production computer. Save all work before each test.
 - The Reference UPS and its USB or serial cable.
 - The CI artifacts of the latest successful `ci` run on `main`, with the SHA-256 check of docs/user/probe.md section 1.
+- For T-08 to T-10: the VLT GUI artifact `vlt-gui-linux-amd64` or `vlt-gui-windows-amd64` with its SHA-256 file. Linux: the GTK 4 and WebKitGTK 6.0 libraries (for example on Debian and Ubuntu: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: the Microsoft Edge WebView2 Runtime (Windows 10 and 11 have it).
+- Do the tests in this order: T-01 to T-09, then T-10 (OD-23).
 
 ### T-01 vlt-probe Capture on the Reference UPS
 
@@ -33,8 +35,9 @@ General preconditions for all tests:
     3. `journalctl -u vltd -b --no-pager`.
     4. `cat /etc/vltd/key-mode`.
     5. Restart the service: `systemctl restart vltd`. Do step 3 again.
-- Expected result: "active (running)". The log has `vault canary check passed state=available key_mode=host+tpm2` (with TPM2) or `state="reduced protection" key_mode=host` (without TPM2), `audit chain verification ok=true`, `ipc server started`. If no UPS is connected: device state "no device" and no error that stops vltd.
-- Send: the output of step 2 and step 4, the log lines of step 3 and step 5 (remove host names if necessary), the systemd version (`systemctl --version`), TPM2 yes or no.
+    6. Add your user to the group vlt. vlt-dev-init.sh does this when you start it with sudo (it adds SUDO_USER). Else: `sudo usermod -a -G vlt <your user>`. Log out and log in again. Then: `id -nG`.
+- Expected result: "active (running)". Step 6: the output of `id -nG` contains `vlt`. The log has `vault canary check passed state=available key_mode=host+tpm2` (with TPM2) or `state="reduced protection" key_mode=host` (without TPM2), `audit chain verification ok=true`, `ipc server started`. If no UPS is connected: device state "no device" and no error that stops vltd.
+- Send: the output of step 2 and step 4, the log lines of step 3 and step 5 (remove host names if necessary), the systemd version (`systemctl --version`), TPM2 yes or no, and the result of step 6 (yes or no; do not send the user name).
 
 ### T-03 vltd development install on Windows with vlt-setup
 
@@ -46,8 +49,9 @@ General preconditions for all tests:
     3. `icacls "$env:ProgramData\VoltioVolt"`.
     4. Open %ProgramData%\VoltioVolt\logs\vltd.log.
     5. Uninstall with `.\dev-uninstall.ps1` (keep the data directory). Copy the output.
-- Expected result: no vlt-setup step reports an error. Status "Running". Required privileges SeShutdownPrivilege and SeChangeNotifyPrivilege. Recovery: restart, restart, none. The ACL has SYSTEM, Administrators and NT SERVICE\vltd only. The log has `vault canary check passed state=available key_mode=dpapi`.
-- Send: the output of steps 1, 2, 3 and 5, the log lines of step 4, the Windows version (`winver`).
+    6. Install again (step 1). vlt-setup adds the user who started it to the group "VLT Operators" (line "1a."). Sign out and sign in again. Then: `net localgroup "VLT Operators"`.
+- Expected result: no vlt-setup step reports an error. Step 6: your user is a member of "VLT Operators". Step 5: dev-uninstall does not delete the group, because it has a member. Status "Running". Required privileges SeShutdownPrivilege and SeChangeNotifyPrivilege. Recovery: restart, restart, none. The ACL has SYSTEM, Administrators and NT SERVICE\vltd only. The log has `vault canary check passed state=available key_mode=dpapi`.
+- Send: the output of steps 1, 2, 3 and 5, the log lines of step 4, the Windows version (`winver`), and the result of step 6 (yes or no; do not send the user name).
 
 ### T-04 SEC-006 copy test
 
@@ -96,35 +100,62 @@ General preconditions for all tests:
 
 ### T-08 Policy Simulation
 
-- Purpose: check the Simulation of the default policy and of a changed policy (TASK 03-00-00-006) on the Owner computer.
-- Preconditions: a computer with Go 1.27.3 and a checkout of `main`. No UPS and no administrator rights are necessary. These tests use only the simulator and dry-run or fake executors; they cannot turn off the computer.
+- Purpose: check the Simulation of the default policy and of a changed policy (VLT-IS-004 TASK 03-00-00-006) with the VLT GUI.
+- Preconditions: T-02 or T-03 is complete, vltd runs, and your user is in the group vlt (Linux) or "VLT Operators" (Windows). The VLT GUI artifact with the SHA-256 check. No UPS is necessary. Do not connect a UPS for this test: the Simulation does not turn off the computer, but an active policy can turn it off when a UPS reports a power failure.
 - Steps:
-    1. `go test -count=1 -v -run 'TestScenarios|TestActivationRules' ./internal/policy`
-    2. `go test -count=1 -v -run TestPowerFailureIntegration ./cmd/vltd` (the integration test client: about 25 seconds).
-    3. Later, with the GUI: policy.get, policy.simulate, policy.activate, then change countdown_seconds with policy.set and check that the policy is inactive.
-- Expected result: all tests PASS. Default policy: power_fail_long gives a shutdown request at 370 s, power_fail_short gives a cancel, low_battery gives a refused cancel and a request at 90 s. After a change, the policy is inactive until a new Simulation passes.
-- Send: the full output of steps 1 and 2, `go version` and the OS.
+    1. Start the VLT GUI. If no PIN is set, set a PIN. Unlock with the PIN.
+    2. Open "Shutdown Policy". Write down the version and the state (active or inactive).
+    3. Click "Run the Simulation". Write down the result of each scenario (passed or failed, and the time of the shutdown request or the cancel).
+    4. Click "Activate". Read the confirmation text, then confirm. The state is "active".
+    5. Click "Edit". Change "countdown_seconds" to 90. Click "Save".
+    6. Check the text "The policy is now inactive. Run the Simulation to activate it." and the state "inactive". "Activate" is off.
+    7. Click "Run the Simulation" again. Then "Activate" is on. Do not activate. Click "Edit", set "countdown_seconds" to 60 again and click "Save".
+- Expected result: step 3: all scenarios "passed". Default policy: power_fail_long gives a shutdown request at 370 s, power_fail_short gives a cancel, low_battery gives a refused cancel and a request at 90 s, comm_lost_on_battery gives a request before its limit. Step 6: the policy is inactive after the change. Step 7: "Activate" is on only after the new Simulation passed.
+- Send: the results of steps 2, 3, 6 and 7 (screenshots are permitted; check that no Secret is in them), the version of the VLT GUI (General, About) and the OS.
 
 ### T-09 Real shutdown with the Reference UPS
 
 WARNING: This test turns off the computer. Save all work. Close all applications. Make sure that the UPS battery is fully charged. Set trigger.on_battery_seconds to 30. Disconnect the UPS input power. Connect the input power again after the computer is off.
 
 - Purpose: check the full chain on real hardware: UPS, Device Manager, Event Engine, Policy Engine, OS shutdown executor (TASK 03-00-00-006 and 007).
-- Preconditions: T-01 to T-03 and T-07 are complete. The computer is powered by the Reference UPS, and the UPS is connected to the computer with USB or serial. vltd runs (T-02 or T-03). An IPC client to set the policy (the later GUI, or a client that the Instruction Author gives). No other person uses the computer.
-- Steps:
-    1. With the IPC client: auth.login, then policy.set with `trigger.on_battery_seconds` = 30 (keep the other defaults: countdown 60 s, action shutdown).
-    2. policy.simulate. The result must be "passed". Then policy.activate.
-    3. device.status: the state must be "connected".
-    4. status.subscribe. Write down the time.
+- Preconditions: T-01 to T-03, T-07 and T-08 are complete. The computer is powered by the Reference UPS, and the UPS is connected to the computer with USB or serial. vltd runs (T-02 or T-03). The VLT GUI is the IPC client (OD-22). No other person uses the computer.
+- Steps (all in the VLT GUI):
+    1. Unlock with the PIN. Open "Shutdown Policy", click "Edit", set "trigger.on_battery_seconds" to 30 (keep the other defaults: countdown 60 s, action shutdown) and click "Save".
+    2. Click "Run the Simulation". The result must be "passed". Then click "Activate" and confirm.
+    3. Open "Device": the state must be "connected".
+    4. Open "Dashboard". The mode is "Mains power". Write down the time.
     5. Disconnect the UPS input power. Write down the time.
-    6. Watch the push messages: ON_BATTERY, after 30 seconds the countdown start (trigger on_battery_seconds), then 60 seconds countdown.
+    6. Watch the Dashboard: the mode changes to "On battery", the Event ON_BATTERY is at the top of the Events, after 30 seconds the countdown banner starts with 60 seconds.
     7. The computer turns off. Write down the time.
     8. Connect the UPS input power again. Start the computer.
     9. Linux: `journalctl -u vltd -b -1 --no-pager | tail -100`. Windows: vltd.log, and Event Viewer, System log, source User32, event ID 1074.
-    10. Read the audit log with audit.list (policy_countdown_start, policy_shutdown_request, os_shutdown_request).
+    10. Start the VLT GUI, unlock, open "Security" and read the audit log (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Then set "trigger.on_battery_seconds" back to 300 on "Shutdown Policy".
 - Expected result: the computer turns off about 90 seconds after step 5, without a dialog. The audit log has the three entries. Linux: os_shutdown_request has the inhibitor list. Windows: event 1074 shows the reason code 0x6000c ("Power Failure: Environment"; the exact event text is UNVERIFIED).
-- Abort: to stop the countdown, connect the input power again before the end (cancel_when_mains_returns is on), or use shutdown.cancel (not possible with LOW_BATTERY).
+- Abort: to stop the countdown, connect the input power again before the end (cancel_when_mains_returns is on), or click "Cancel" in the countdown banner (not possible with LOW_BATTERY).
 - Send: the times of steps 4, 5 and 7, the log lines, the audit entries (no Secret is in them), and the Windows event 1074 text.
+
+### T-10 VLT GUI test
+
+- Purpose: check the VLT GUI (VLT-IS-005) on the Owner computer, and review all Turkish text (VLT-IS-005 TASK 03-00-00-008 step 1.4).
+- Preconditions: T-01 to T-09 are complete (OD-23). vltd runs, and your user is in the group vlt (Linux) or "VLT Operators" (Windows). The VLT GUI artifact with the SHA-256 check. For a new first start: a new vltd data directory without a PIN (optional).
+- Steps:
+    1. Connect: start the VLT GUI. The top bar shows "Connected to vltd". Stop vltd for 20 seconds, then start it again: the GUI shows "No connection to vltd" with the reason, and connects again in 5 seconds or less after vltd runs.
+    2. Set PIN (only on a new data directory): the GUI shows only "Set PIN" with the PIN rules. Try a PIN with 5 characters (refused), then set a correct PIN.
+    3. Login: click "Unlock" and enter a wrong PIN until the GUI shows the block time. Wait, then unlock with the correct PIN.
+    4. Lock: click "Lock". The GUI shows "Locked" and still shows the Dashboard. Unlock again. Then wait for the idle time (auth.session_idle_minutes) without a click: the GUI locks itself.
+    5. Dashboard values: compare the values (input and output voltage, frequency, load, battery charge and voltage, runtime, temperature) with the UPS display or the UPS documentation.
+    6. Device screen: the state "connected", the Transport, the Dialect, the model data. The serial number is not shown in a report.
+    7. History charts: open each range (1 hour to 1 year) and each chart. Open the table view of one chart.
+    8. Events: load older Events, filter by severity and by type.
+    9. Policy edit: change one value outside its range (for example countdown_seconds 5): the GUI refuses it before it sends it. Change it to a correct value and save.
+    10. Simulation: run it and check that each scenario shows its steps, its virtual times and "passed" or "failed".
+    11. Activation: "Activate" is on only after a passed Simulation. Activate, then deactivate with the confirmation.
+    12. Language change: open "General", select "Türkçe", then "English". Close and start the VLT GUI again: the language stays.
+    13. Review of all Turkish text: select "Türkçe" and open each screen and each message that you can see. Check the Turkish characters (ç, ğ, ı, İ, ö, ş, ü), the words and the grammar.
+    14. Keyboard: use only the Tab, Shift+Tab, Enter and Space keys on one screen. The focus is always visible.
+    15. Theme: change the OS theme between light and dark. The GUI follows it.
+- Expected result: all steps work as written. No text in the GUI is in the wrong language or has wrong Turkish characters.
+- Send: the result of each step (OK or the problem), a list of the Turkish text that must change (the screen, the current text and the correct text), the OS, and the version of the VLT GUI (General, About). Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
 
 ## T. Türkçe
 
@@ -135,6 +166,8 @@ Tüm testler için genel ön koşullar:
 - Üretim bilgisayarı değil, bir test bilgisayarı. Her testten önce tüm çalışmalarınızı kaydedin.
 - Referans UPS ve USB veya seri kablosu.
 - `main` dalındaki son başarılı `ci` çalışmasının CI artifact dosyaları; SHA-256 kontrolü docs/user/probe.md bölüm 1'e göre yapılmış olmalıdır.
+- T-08 ile T-10 için: SHA-256 dosyasıyla birlikte `vlt-gui-linux-amd64` veya `vlt-gui-windows-amd64` VLT GUI artifact dosyası. Linux: GTK 4 ve WebKitGTK 6.0 kitaplıkları (örneğin Debian ve Ubuntu'da: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: Microsoft Edge WebView2 Runtime (Windows 10 ve 11'de vardır).
+- Testleri şu sırayla yapın: T-01 ile T-09, sonra T-10 (OD-23).
 
 ### T-01 Referans UPS ile vlt-probe Capture
 
@@ -157,8 +190,9 @@ Tüm testler için genel ön koşullar:
     3. `journalctl -u vltd -b --no-pager`.
     4. `cat /etc/vltd/key-mode`.
     5. Hizmeti yeniden başlatın: `systemctl restart vltd`. 3. adımı tekrarlayın.
-- Beklenen sonuç: "active (running)". Günlükte `vault canary check passed state=available key_mode=host+tpm2` (TPM2 ile) veya `state="reduced protection" key_mode=host` (TPM2 olmadan), `audit chain verification ok=true`, `ipc server started` satırları vardır. UPS bağlı değilse: aygıt durumu "no device" olur ve vltd'yi durduran bir hata olmaz.
-- Gönderin: 2. ve 4. adımların çıktısı, 3. ve 5. adımların günlük satırları (gerekirse bilgisayar adlarını silin), systemd sürümü (`systemctl --version`), TPM2 var mı yok mu.
+    6. Kullanıcınızı vlt grubuna ekleyin. vlt-dev-init.sh betiğini sudo ile başlattığınızda bunu kendisi yapar (SUDO_USER kullanıcısını ekler). Aksi halde: `sudo usermod -a -G vlt <kullanıcınız>`. Oturumu kapatıp yeniden açın. Sonra: `id -nG`.
+- Beklenen sonuç: "active (running)". 6. adım: `id -nG` çıktısında `vlt` vardır. Günlükte `vault canary check passed state=available key_mode=host+tpm2` (TPM2 ile) veya `state="reduced protection" key_mode=host` (TPM2 olmadan), `audit chain verification ok=true`, `ipc server started` satırları vardır. UPS bağlı değilse: aygıt durumu "no device" olur ve vltd'yi durduran bir hata olmaz.
+- Gönderin: 2. ve 4. adımların çıktısı, 3. ve 5. adımların günlük satırları (gerekirse bilgisayar adlarını silin), systemd sürümü (`systemctl --version`), TPM2 var mı yok mu ve 6. adımın sonucu (evet veya hayır; kullanıcı adını göndermeyin).
 
 ### T-03 Windows'ta vlt-setup ile vltd geliştirme kurulumu
 
@@ -170,8 +204,9 @@ Tüm testler için genel ön koşullar:
     3. `icacls "$env:ProgramData\VoltioVolt"`.
     4. %ProgramData%\VoltioVolt\logs\vltd.log dosyasını açın.
     5. `.\dev-uninstall.ps1` ile kaldırın (veri klasörünü koruyun). Çıktıyı kopyalayın.
-- Beklenen sonuç: vlt-setup adımlarının hiçbiri hata bildirmez. Durum "Running". Gerekli ayrıcalıklar SeShutdownPrivilege ve SeChangeNotifyPrivilege. Kurtarma: restart, restart, none. ACL'de yalnızca SYSTEM, Administrators ve NT SERVICE\vltd vardır. Günlükte `vault canary check passed state=available key_mode=dpapi` vardır.
-- Gönderin: 1, 2, 3 ve 5. adımların çıktısı, 4. adımın günlük satırları, Windows sürümü (`winver`).
+    6. Yeniden kurun (1. adım). vlt-setup, kendisini başlatan kullanıcıyı "VLT Operators" grubuna ekler ("1a." satırı). Oturumu kapatıp yeniden açın. Sonra: `net localgroup "VLT Operators"`.
+- Beklenen sonuç: vlt-setup adımlarının hiçbiri hata bildirmez. 6. adım: kullanıcınız "VLT Operators" grubunun üyesidir. 5. adım: dev-uninstall grubu silmez, çünkü grubun bir üyesi vardır. Durum "Running". Gerekli ayrıcalıklar SeShutdownPrivilege ve SeChangeNotifyPrivilege. Kurtarma: restart, restart, none. ACL'de yalnızca SYSTEM, Administrators ve NT SERVICE\vltd vardır. Günlükte `vault canary check passed state=available key_mode=dpapi` vardır.
+- Gönderin: 1, 2, 3 ve 5. adımların çıktısı, 4. adımın günlük satırları, Windows sürümü (`winver`) ve 6. adımın sonucu (evet veya hayır; kullanıcı adını göndermeyin).
 
 ### T-04 SEC-006 kopyalama testi
 
@@ -220,14 +255,18 @@ Tüm testler için genel ön koşullar:
 
 ### T-08 Politika Simülasyonu
 
-- Amaç: varsayılan politikanın ve değiştirilmiş bir politikanın Simülasyonunu (TASK 03-00-00-006) Owner bilgisayarında kontrol etmek.
-- Ön koşullar: Go 1.27.3 olan bir bilgisayar ve `main` dalının bir kopyası. UPS ve yönetici hakları gerekmez. Bu testler yalnızca simülatörü ve dry-run veya sahte (fake) yürütücüleri kullanır; bilgisayarı kapatamazlar.
+- Amaç: varsayılan politikanın ve değiştirilmiş bir politikanın Simülasyonunu (VLT-IS-004 TASK 03-00-00-006) VLT GUI ile kontrol etmek.
+- Ön koşullar: T-02 veya T-03 tamamlanmıştır, vltd çalışır ve kullanıcınız vlt (Linux) veya "VLT Operators" (Windows) grubundadır. SHA-256 kontrolü yapılmış VLT GUI artifact dosyası. UPS gerekmez. Bu test için UPS bağlamayın: Simülasyon bilgisayarı kapatmaz, ancak etkin bir politika, UPS bir elektrik kesintisi bildirdiğinde bilgisayarı kapatabilir.
 - Adımlar:
-    1. `go test -count=1 -v -run 'TestScenarios|TestActivationRules' ./internal/policy`
-    2. `go test -count=1 -v -run TestPowerFailureIntegration ./cmd/vltd` (entegrasyon testi istemcisi: yaklaşık 25 saniye).
-    3. Daha sonra, GUI ile: policy.get, policy.simulate, policy.activate; sonra policy.set ile countdown_seconds değerini değiştirin ve politikanın etkin olmadığını kontrol edin.
-- Beklenen sonuç: tüm testler PASS. Varsayılan politika: power_fail_long 370. saniyede bir kapatma isteği verir, power_fail_short bir iptal verir, low_battery reddedilen bir iptal ve 90. saniyede bir istek verir. Bir değişiklikten sonra, yeni bir Simülasyon başarılı olana kadar politika etkin değildir.
-- Gönderin: 1. ve 2. adımların tam çıktısı, `go version` ve işletim sistemi.
+    1. VLT GUI'yi başlatın. PIN belirlenmemişse bir PIN belirleyin. PIN ile kilidi açın.
+    2. "Kapatma Politikası" ekranını açın. Sürümü ve durumu (etkin veya etkin değil) not edin.
+    3. "Simülasyonu çalıştır" düğmesine tıklayın. Her senaryonun sonucunu not edin (başarılı veya başarısız ve kapatma isteğinin veya iptalin zamanı).
+    4. "Etkinleştir" düğmesine tıklayın. Onay metnini okuyun ve onaylayın. Durum "etkin" olur.
+    5. "Düzenle" düğmesine tıklayın. "countdown_seconds" değerini 90 yapın. "Kaydet" düğmesine tıklayın.
+    6. "Politika artık etkin değil. Etkinleştirmek için Simülasyonu çalıştırın." metnini ve "etkin değil" durumunu kontrol edin. "Etkinleştir" kapalıdır.
+    7. Yeniden "Simülasyonu çalıştır" düğmesine tıklayın. Sonra "Etkinleştir" açıktır. Etkinleştirmeyin. "Düzenle" düğmesine tıklayın, "countdown_seconds" değerini yeniden 60 yapın ve "Kaydet" düğmesine tıklayın.
+- Beklenen sonuç: 3. adım: tüm senaryolar "başarılı". Varsayılan politika: power_fail_long 370. saniyede bir kapatma isteği verir, power_fail_short bir iptal verir, low_battery reddedilen bir iptal ve 90. saniyede bir istek verir, comm_lost_on_battery sınırından önce bir istek verir. 6. adım: değişiklikten sonra politika etkin değildir. 7. adım: "Etkinleştir" yalnızca yeni Simülasyon başarılı olduktan sonra açıktır.
+- Gönderin: 2, 3, 6 ve 7. adımların sonuçları (ekran görüntüsü gönderilebilir; içlerinde Secret olmadığını kontrol edin), VLT GUI sürümü (Genel, Hakkında) ve işletim sistemi.
 
 ### T-09 Referans UPS ile gerçek kapatma
 
@@ -236,18 +275,41 @@ UYARI: Bu test bilgisayarı kapatır. Tüm çalışmalarınızı kaydedin. Tüm 
 (English, verbatim: "WARNING: This test turns off the computer. Save all work. Close all applications. Make sure that the UPS battery is fully charged. Set trigger.on_battery_seconds to 30. Disconnect the UPS input power. Connect the input power again after the computer is off.")
 
 - Amaç: tüm zinciri gerçek donanımda kontrol etmek: UPS, Device Manager, Event Engine, Policy Engine, işletim sistemi kapatma yürütücüsü (TASK 03-00-00-006 ve 007).
-- Ön koşullar: T-01 ile T-03 ve T-07 tamamlanmıştır. Bilgisayar Referans UPS'ten beslenir ve UPS bilgisayara USB veya seri kablo ile bağlıdır. vltd çalışır (T-02 veya T-03). Politikayı ayarlamak için bir IPC istemcisi (daha sonraki GUI veya Instruction Author'un verdiği bir istemci). Bilgisayarı başka kimse kullanmaz.
-- Adımlar:
-    1. IPC istemcisi ile: auth.login, sonra policy.set ile `trigger.on_battery_seconds` = 30 (diğer varsayılanları koruyun: geri sayım 60 s, eylem shutdown).
-    2. policy.simulate. Sonuç "passed" olmalıdır. Sonra policy.activate.
-    3. device.status: durum "connected" olmalıdır.
-    4. status.subscribe. Zamanı not edin.
+- Ön koşullar: T-01 ile T-03, T-07 ve T-08 tamamlanmıştır. Bilgisayar Referans UPS'ten beslenir ve UPS bilgisayara USB veya seri kablo ile bağlıdır. vltd çalışır (T-02 veya T-03). IPC istemcisi VLT GUI'dir (OD-22). Bilgisayarı başka kimse kullanmaz.
+- Adımlar (tümü VLT GUI'de):
+    1. PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, "trigger.on_battery_seconds" değerini 30 yapın (diğer varsayılanları koruyun: geri sayım 60 sn, eylem kapatma) ve "Kaydet" düğmesine tıklayın.
+    2. "Simülasyonu çalıştır" düğmesine tıklayın. Sonuç "başarılı" olmalıdır. Sonra "Etkinleştir" düğmesine tıklayın ve onaylayın.
+    3. "Cihaz" ekranını açın: durum "bağlı" olmalıdır.
+    4. "Gösterge paneli" ekranını açın. Mod "Şebeke elektriği" olur. Zamanı not edin.
     5. UPS giriş gücünü kesin. Zamanı not edin.
-    6. Push mesajlarını izleyin: ON_BATTERY, 30 saniye sonra geri sayımın başlaması (tetikleyici on_battery_seconds), sonra 60 saniyelik geri sayım.
+    6. Gösterge panelini izleyin: mod "Aküde" olur, ON_BATTERY Olayı Olayların en üstündedir, 30 saniye sonra 60 saniyelik geri sayım şeridi başlar.
     7. Bilgisayar kapanır. Zamanı not edin.
     8. UPS giriş gücünü yeniden bağlayın. Bilgisayarı başlatın.
     9. Linux: `journalctl -u vltd -b -1 --no-pager | tail -100`. Windows: vltd.log ve Olay Görüntüleyicisi, Sistem günlüğü, kaynak User32, olay kimliği 1074.
-    10. audit.list ile denetim günlüğünü okuyun (policy_countdown_start, policy_shutdown_request, os_shutdown_request).
+    10. VLT GUI'yi başlatın, kilidi açın, "Güvenlik" ekranını açın ve denetim kaydını okuyun (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Sonra "Kapatma Politikası" ekranında "trigger.on_battery_seconds" değerini yeniden 300 yapın.
 - Beklenen sonuç: bilgisayar 5. adımdan yaklaşık 90 saniye sonra, bir iletişim kutusu olmadan kapanır. Denetim günlüğünde üç kayıt vardır. Linux: os_shutdown_request kaydında engelleyici (inhibitor) listesi vardır. Windows: 1074 olayı 0x6000c neden kodunu gösterir ("Power Failure: Environment"; olay metninin tam hali UNVERIFIED).
-- Durdurma: geri sayımı durdurmak için, süre bitmeden giriş gücünü yeniden bağlayın (cancel_when_mains_returns açıktır) veya shutdown.cancel kullanın (LOW_BATTERY etkinken mümkün değildir).
+- Durdurma: geri sayımı durdurmak için, süre bitmeden giriş gücünü yeniden bağlayın (cancel_when_mains_returns açıktır) veya geri sayım şeridindeki "İptal" düğmesine tıklayın (LOW_BATTERY etkinken mümkün değildir).
 - Gönderin: 4, 5 ve 7. adımların zamanları, günlük satırları, denetim kayıtları (içlerinde Secret yoktur) ve Windows 1074 olay metni.
+
+### T-10 VLT GUI testi
+
+- Amaç: VLT GUI'yi (VLT-IS-005) Owner bilgisayarında kontrol etmek ve tüm Türkçe metinleri gözden geçirmek (VLT-IS-005 TASK 03-00-00-008 adım 1.4).
+- Ön koşullar: T-01 ile T-09 tamamlanmıştır (OD-23). vltd çalışır ve kullanıcınız vlt (Linux) veya "VLT Operators" (Windows) grubundadır. SHA-256 kontrolü yapılmış VLT GUI artifact dosyası. Yeni bir ilk başlatma için: PIN'i olmayan yeni bir vltd veri klasörü (isteğe bağlı).
+- Adımlar:
+    1. Bağlanma: VLT GUI'yi başlatın. Üst çubukta "vltd'ye bağlı" yazar. vltd'yi 20 saniye durdurun, sonra yeniden başlatın: GUI nedeniyle birlikte "vltd ile bağlantı yok" gösterir ve vltd çalıştıktan sonra en geç 5 saniye içinde yeniden bağlanır.
+    2. PIN belirleme (yalnızca yeni bir veri klasöründe): GUI yalnızca PIN kurallarıyla birlikte "PIN belirle" ekranını gösterir. 5 karakterli bir PIN deneyin (reddedilir), sonra doğru bir PIN belirleyin.
+    3. Giriş: "Kilidi aç" düğmesine tıklayın ve GUI bekleme süresini gösterene kadar yanlış PIN girin. Bekleyin, sonra doğru PIN ile kilidi açın.
+    4. Kilitleme: "Kilitle" düğmesine tıklayın. GUI "Kilitli" gösterir ve Gösterge panelini göstermeye devam eder. Kilidi yeniden açın. Sonra hiçbir yere tıklamadan boşta kalma süresini (auth.session_idle_minutes) bekleyin: GUI kendini kilitler.
+    5. Gösterge paneli değerleri: değerleri (giriş ve çıkış gerilimi, frekans, yük, akü doluluğu ve gerilimi, çalışma süresi, sıcaklık) UPS ekranıyla veya UPS belgeleriyle karşılaştırın.
+    6. Cihaz ekranı: "bağlı" durumu, bağlantı türü, Diyalekt, model bilgileri. Seri numarasını raporda göndermeyin.
+    7. Geçmiş grafikleri: her aralığı (1 saatten 1 yıla) ve her grafiği açın. Bir grafiğin tablo görünümünü açın.
+    8. Olaylar: daha eski Olayları yükleyin, önem derecesine ve türe göre filtreleyin.
+    9. Politika düzenleme: bir değeri izin verilen aralığın dışına çıkarın (örneğin countdown_seconds 5): GUI bunu göndermeden önce reddeder. Doğru bir değer girin ve kaydedin.
+    10. Simülasyon: çalıştırın ve her senaryonun adımlarını, sanal zamanlarını ve "başarılı" veya "başarısız" sonucunu gösterdiğini kontrol edin.
+    11. Etkinleştirme: "Etkinleştir" yalnızca başarılı bir Simülasyondan sonra açıktır. Etkinleştirin, sonra onay ile devre dışı bırakın.
+    12. Dil değişikliği: "Genel" ekranını açın, "English" seçin, sonra "Türkçe" seçin. VLT GUI'yi kapatıp yeniden başlatın: dil korunur.
+    13. Tüm Türkçe metinlerin gözden geçirilmesi: "Türkçe" seçin ve her ekranı ve görebildiğiniz her mesajı açın. Türkçe karakterleri (ç, ğ, ı, İ, ö, ş, ü), sözcükleri ve dil bilgisini kontrol edin.
+    14. Klavye: bir ekranda yalnızca Tab, Shift+Tab, Enter ve Boşluk tuşlarını kullanın. Odak her zaman görünür.
+    15. Tema: işletim sisteminin temasını açık ve koyu arasında değiştirin. GUI temayı izler.
+- Beklenen sonuç: tüm adımlar yazıldığı gibi çalışır. GUI'deki hiçbir metin yanlış dilde değildir veya yanlış Türkçe karakter içermez.
+- Gönderin: her adımın sonucu (Tamam veya sorun), değişmesi gereken Türkçe metinlerin listesi (ekran, geçerli metin ve doğru metin), işletim sistemi ve VLT GUI sürümü (Genel, Hakkında). Ekran görüntüsü gönderilebilir; içlerinde Secret, PIN ve seri numarası olmadığını kontrol edin.

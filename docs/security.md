@@ -1,6 +1,6 @@
 # Security
 
-This file is a summary of the security requirements of VLT-IS-001 Revision 00 (section 02-00-00), with the changes of VLT-IS-002 01-30-00 (VLT-IS-001 Revision 01) and VLT-IS-003 01-30-00 (VLT-IS-001 Revision 02). It also has the GitHub rules of VLT-IS-002 02-00-00. The full source text is in `docs/instructions/`. If this file and the instructions do not agree, the instructions apply.
+This file is a summary of the security requirements of VLT-IS-001 Revision 00 (section 02-00-00), with the changes of VLT-IS-002 01-30-00 (VLT-IS-001 Revision 01) VLT-IS-003 01-30-00 (VLT-IS-001 Revision 02), VLT-IS-004 01-30-00 (VLT-IS-001 Revision 03) and VLT-IS-005 01-30-00 (VLT-IS-001 Revision 04). It also has the GitHub rules of VLT-IS-002 02-00-00. The full source text is in `docs/instructions/`. If this file and the instructions do not agree, the instructions apply.
 
 ## 1. Priority
 
@@ -99,7 +99,7 @@ WARNING: CONTROL commands and CONFIG commands can stop power to the protected eq
 
 | ID | Requirement | Change |
 |----|-------------|--------|
-| SEC-055 | A Shutdown Policy cannot be active before one successful Simulation. |  |
+| SEC-055 | A Shutdown Policy cannot be active before one successful Simulation. The Fallback Policy is an exception. Its Simulation runs in CI. | VLT-IS-005 01-30-00: second and third sentence added |
 | SEC-092 | vltd sends a shutdown request to the OS only from the Policy Engine. No IPC method starts a real shutdown directly. | New: VLT-IS-004 01-30-00 |
 | SEC-093 | Any change of a Shutdown Policy makes the policy inactive. A new Simulation is necessary before activation (SEC-055). | New: VLT-IS-004 01-30-00 |
 | SEC-056 | Show a countdown with a cancel button before each automatic shutdown. Default: 60 seconds. |  |
@@ -151,6 +151,17 @@ WARNING: CONTROL commands and CONFIG commands can stop power to the protected eq
 |----|-------------|--------|
 | SEC-090 | vltd starts and runs when the Vault is not available. Then all functions that need a Secret are off. The VLT GUI shows the Vault state. | New: VLT-IS-003 01-30-00 |
 | SEC-091 | Test-only code (fake DEK provider, fake host binding) is only in _test.go files. A shipped binary MUST NOT contain it. | New: VLT-IS-003 01-30-00 |
+
+### Supply chain and VLT GUI rules (VLT-IS-005 01-30-00)
+
+| ID | Requirement | Change |
+|----|-------------|--------|
+| SEC-094 | Do not add a dependency version (Go module or npm package) that was published less than 14 days before the day you add it. | New: VLT-IS-005 01-30-00 |
+| SEC-095 | The VLT GUI loads no remote content. All front-end files are in the binary. The Content Security Policy is "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'". No eval. No inline scripts. | New: VLT-IS-005 01-30-00 |
+| SEC-096 | The front end never receives a Secret value. A Secret goes from the input field to the Go side of the VLT GUI, then to vltd with secret.set. The Go side clears the buffer after the call. | New: VLT-IS-005 01-30-00 |
+| SEC-097 | Required status checks on main use the "strict" mode: a branch must be up to date with main before the merge. | New: VLT-IS-005 01-30-00 |
+
+Term (VLT-IS-001 00-10-00, VLT-IS-005 01-30-00): **Fallback Policy**: a fixed Shutdown Policy in the code. vltd uses it only when the Vault state is "locked" (docs/architecture.md section 10.5).
 
 NOTE: VLT-IS-001 has no SEC-008, SEC-009, SEC-017 to SEC-019, SEC-026 to SEC-029, SEC-039, SEC-052 to SEC-054, SEC-059 and SEC-069.
 
@@ -297,3 +308,27 @@ CI tests of vlt-setup only read the system (API presence, structure encoding, a 
 2. No IPC method calls the shutdown executor (SEC-092). TestAllMethodsNoSecretInResponses calls all new methods and checks that the dry-run executor has no call.
 3. A slow push client cannot block vltd: the push queue of each connection has a limit (64 frames).
 4. The new methods are in the no-Secret response test (TestAllMethodsNoSecretInResponses).
+
+## 13. VLT GUI (VLT-IS-005)
+
+### 13.1 SEC-095: no remote content
+
+1. The built front end (web/ to cmd/vlt-gui/frontend/dist) is embedded in the vlt-gui binary with go:embed. The Wails asset server serves only these files and the Wails runtime (/wails/runtime.js, part of the Wails module).
+2. The VLT GUI sets the CSP of SEC-095 as an HTTP header on each response (cmd/vlt-gui, cspHandler). index.html has the same CSP as a meta element. A meta element cannot set frame-ancestors (the browser ignores it there); the header sets it.
+3. No inline script, no inline style, no eval, no remote URL in the built files. Tests: web/test/csp.test.ts (built index.html and all built files), cmd/vlt-gui/main_test.go TestCSPHeader (header on each asset), TestEmbeddedFrontEnd.
+4. The build tag `production` turns off the Wails dev server (no FRONTEND_DEVSERVER_URL) and the devtools.
+5. The link to the source code (About) opens in the OS web browser (Wails Browser.OpenURL). The GUI window never navigates to a remote page.
+6. npm: exact versions, committed package-lock.json, "npm ci --ignore-scripts" only. CI runs npm audit (--audit-level=high) and the npm license check (web/scripts/check-licenses.mjs, SEC-061 list).
+
+### 13.2 SEC-096: no Secret in the front end
+
+1. The front end gives the text of a Secret input field to `API.SetSecret(id, value []byte)`. The Go side sends it to vltd with secret.set and clears the value buffer and its JSON buffer after the call, also after an error.
+2. No GUI method returns a Secret value. SecretStatus gives only id, set, hint and the time. Results of vltd go to the front end as they are; vltd responses have no Secret (TestAllMethodsNoSecretInResponses in internal/ipc).
+3. Tests (internal/gui/methods_test.go): TestSEC096 (the value reaches vltd, the buffer is zero after the call and after an error, no method and no push event gives the value back), TestSEC096Types (no result type contains the secret.set parameters; secret.status has no Value field).
+4. Limit: Go strings and the internal buffers of encoding/json and of the IPC client are not cleared; the garbage collector frees them. The JavaScript string of the input field is also not cleared. UNVERIFIED: the time these copies stay in memory.
+
+### 13.3 Elevated state in the VLT GUI
+
+1. The GUI never keeps the PIN. Login sends it to vltd with auth.login. vltd keeps the elevated state.
+2. The GUI makes no background requests to vltd, because each request in the elevated state starts the idle time again (docs/architecture.md section 13.3).
+3. The Lock button calls auth.logout.

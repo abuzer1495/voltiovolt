@@ -3,7 +3,8 @@
 // Command vlt-setup is the Windows development setup tool (VLT-IS-004 TASK
 // 03-00-00-002). It has two subcommands and no flags:
 //
-//	vlt-setup dev-install    make the group, the service, the user right,
+//	vlt-setup dev-install    make the group (and add the calling user), the
+//	                         service, the user right,
 //	                         the data directory, the recovery, then start
 //	vlt-setup dev-uninstall  stop and remove the service and the user right;
 //	                         ask before it deletes the data directory

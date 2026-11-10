@@ -301,3 +301,50 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 2. A method error is a code (for example `not_elevated`, `vault_locked`, `not_connected`). The front end shows the text of the code from the i18n files.
 3. vltd push messages go to the front end as Wails events: `vlt:status`, `vlt:event`, `vlt:countdown`. GUI state events: `vlt:conn`, `vlt:auth`, `vlt:tray`.
 4. A close of the VLT GUI (window close or tray Quit) closes the IPC connection only. vltd continues.
+5. Each bound method has a test on a fake IPC server (internal/gui/methods_test.go, TestEachMethodWithFakeServer). The test fails if a new method has no test case.
+
+| Method (internal/gui.API) | vltd method | Elevated |
+|---------------------------|-------------|----------|
+| Connection, About, Last, Rules, SetTrayTexts, OpenSource | none | no |
+| SystemStatus | system.status | no |
+| AuthStatus, SetPIN, Login, Logout | auth.status, auth.set_pin, auth.login, auth.logout | SetPIN for a change only |
+| DeviceStatus, SetDeviceSettings | device.status, device.settings.set | set only |
+| Measurements | measurements.query (in parts of 9000 rows) | no |
+| Events | events.list | no |
+| Policy, SetPolicy, Simulate, ActivatePolicy, DeactivatePolicy | policy.get, policy.set, policy.simulate, policy.activate, policy.deactivate | all except Policy |
+| ShutdownStatus, CancelShutdown | shutdown.status, shutdown.cancel | cancel only |
+| SecretStatus, SetSecret | secret.status, secret.set | set only |
+| ResetVault, Audit | vault.reset, audit.list | yes |
+| Settings, SetLanguage | settings.list, settings.set (ui.language) | set only |
+
+### 13.3 Push events and the lock timer
+
+1. The Manager subscribes (status.subscribe) after each connect and sends each push message to the front end as a Wails event. A new Event goes to the top of the Event list of the Dashboard. The front end does not ask vltd again.
+2. Each vltd request in the elevated state starts the idle time of vltd again. For this reason the VLT GUI sends no background requests. The Manager records the time of the last request. It sets a timer to that time plus auth.session_idle_minutes plus 2 s (or to the 8-hour limit), and then calls auth.status. When the elevated state ends, the GUI shows the locked state. A locked GUI still shows the Dashboard.
+3. Connection: system.hello on each connect. If the connection fails, the GUI shows the reason and tries again every 5 s. Access denied: the GUI shows help (Linux: group vlt; Windows: group "VLT Operators"; then log out and log in).
+4. Tray: the icon has a different shape for each state (mains, battery, countdown, fault, no connection), so the state is not shown by color only. The menu texts come from the front end (i18n).
+
+### 13.4 Screens
+
+| Screen | Contents |
+|--------|----------|
+| Set PIN / Login | First start: only "Set PIN" with the rules. Login shows the block time. |
+| Dashboard | Mode with icon and text, values, countdown banner with Cancel, Fallback banner, last Events. |
+| Device | device.status, device settings (elevated). |
+| History | uPlot charts for 1 h, 24 h, 7 d, 30 d, 1 y; a text table for each chart. |
+| Events | events.list with paging, filter by severity and type. |
+| Shutdown Policy | policy.get, edit with default and range per field, Simulation with steps, Activate only after a passed Simulation of the current version, Deactivate, shutdown.status. |
+| Security | Vault state and reason, SEC-005 notice for "reduced protection", Vault reset (type "RESET VAULT"), Change PIN, audit log with paging. |
+| General | Language (tr/en, Setting ui.language), theme follows the OS, About. |
+
+### 13.5 Fallback Policy in the VLT GUI
+
+1. When policy.get gives `"fallback": true`, the GUI shows a WARNING banner on all screens and the Fallback Policy values on the Shutdown Policy screen. Edit and Activate are off. The vltd error `vault_locked` has its own text.
+2. The Fallback Policy is defined in section 10.5. Its Simulation runs in CI (`TestFallbackSimulation`).
+
+### 13.6 Security of the VLT GUI
+
+1. SEC-095: the front end is embedded in the binary. The VLT GUI sends the CSP as an HTTP header for each asset; index.html also has the CSP meta element. Tests: web/test/csp.test.ts (built index.html), cmd/vlt-gui/main_test.go (header). The link to the source code opens in the OS web browser, never in the GUI window.
+2. SEC-096: see docs/security.md section 13.
+3. Language: all user text is in web/i18n/en.json and web/i18n/tr.json. Tests: web/test/i18n.test.ts.
+4. Accessibility: web/test/a11y.test.tsx (contrast, focus, names, keyboard).

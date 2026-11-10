@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00 and VLT-IS-004 01-00-00. The source texts are in `docs/instructions/`.
+This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00 and VLT-IS-005 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -70,3 +70,16 @@ This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00
 | CH-25 | 2026-11-10 | SEC-092 (new): vltd sends a shutdown request to the OS only from the Policy Engine. No IPC method starts a real shutdown directly. | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |
 | CH-26 | 2026-11-10 | SEC-093 (new): Any change of a Shutdown Policy makes the policy inactive. A new Simulation is necessary before activation (SEC-055). | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |
 | CH-27 | 2026-11-10 | VLT-IS-001 03-30-00: Add the Events AVR_ACTIVE (INFO), UPS_SHUTDOWN_ACTIVE (CRITICAL) and UPS_WARNING_BITS_CHANGED (INFO). | VLT-IS-004 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 03) |
+| Q-IA-1 | 2026-11-10 | Changed. A safety function MUST NOT depend on the Vault. When the Vault state is "locked", vltd ignores the stored policy Settings and uses the Fallback Policy (TASK 03-00-00-001 step 1). When the Vault state is "not configured", there is no active policy. The first-run wizard sets the policy. | VLT-IS-005 Rev 00, 01-10-00 |
+| Q-IA-2 | 2026-11-10 | Accepted. Clear Events have the same type, severity INFO and "active": false. | VLT-IS-005 Rev 00, 01-10-00 |
+| Q-IA-3 | 2026-11-10 | Accepted. Voltronic fast group: QS, QGS. Slow group: QMOD, QBV, QWS, QFLAG. | VLT-IS-005 Rev 00, 01-10-00 |
+| Q-IA-4 | 2026-11-10 | Accepted. Pass rule for comm_lost_on_battery: a shutdown request at a time equal to or less than (comm lost time + trigger.comm_lost_on_battery_seconds + countdown_seconds + 10 s). | VLT-IS-005 Rev 00, 01-10-00 |
+| Q-IA-5 | 2026-11-10 | Accepted. Methods without elevation need a set PIN. The error codes unavailable, no_simulation, low_battery and not_found are accepted. | VLT-IS-005 Rev 00, 01-10-00 |
+| OD-22 | 2026-11-10 | IPC client for T-09 (Q-O-2): No command-line client. The VLT GUI of this instruction is the client. | VLT-IS-005 Rev 00, 01-20-00 |
+| OD-23 | 2026-11-10 | Owner tests (Q-O-1): No change. The Owner does T-01 to T-09, then T-10 (TASK 03-00-00-009). | VLT-IS-005 Rev 00, 01-20-00 |
+| CH-28 | 2026-11-10 | VLT-IS-001 00-10-00: Add the term "Fallback Policy": a fixed Shutdown Policy in the code. vltd uses it only when the Vault state is "locked". | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
+| CH-29 | 2026-11-10 | VLT-IS-001 SEC-055: Add: "The Fallback Policy is an exception. Its Simulation runs in CI." | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
+| CH-30 | 2026-11-10 | SEC-094 (new): Do not add a dependency version (Go module or npm package) that was published less than 14 days before the day you add it. | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
+| CH-31 | 2026-11-10 | SEC-095 (new): The VLT GUI loads no remote content. All front-end files are in the binary. The Content Security Policy is "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'". No eval. No inline scripts. | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
+| CH-32 | 2026-11-10 | SEC-096 (new): The front end never receives a Secret value. A Secret goes from the input field to the Go side of the VLT GUI, then to vltd with secret.set. The Go side clears the buffer after the call. | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |
+| CH-33 | 2026-11-10 | SEC-097 (new): Required status checks on main use the "strict" mode: a branch must be up to date with main before the merge. | VLT-IS-005 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 04) |

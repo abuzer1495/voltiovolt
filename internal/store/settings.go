@@ -75,6 +75,10 @@ const (
 	SettingPolicyCountdown        = "policy.countdown_seconds"
 	SettingPolicyCancelOnMains    = "policy.cancel_when_mains_returns"
 	SettingPolicyForceClose       = "policy.force_close_applications"
+	// VLT-IS-006 TASK 03-00-00-006: the UPS output off step.
+	SettingPolicyUPSOffEnabled = "policy.ups_off.enabled"
+	SettingPolicyUPSOffDelay   = "policy.ups_off.delay_minutes"
+	SettingPolicyUPSOffRestore = "policy.ups_off.restore_minutes"
 
 	// Battery charge estimate of the megatec Dialect (VLT-IS-006 TASK
 	// 03-00-00-003 step 8). Voltages in V.
@@ -290,6 +294,11 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingPolicyCountdown, Type: TypeInt, Default: json.RawMessage(`60`), Check: intRange(10, 600)},
 		{Key: SettingPolicyCancelOnMains, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
 		{Key: SettingPolicyForceClose, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},
+		// VLT-IS-006 TASK 03-00-00-006 step 1 (SEC-100: delay 1 to 10 whole
+		// minutes, restore 1 to 9999 minutes).
+		{Key: SettingPolicyUPSOffEnabled, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
+		{Key: SettingPolicyUPSOffDelay, Type: TypeInt, Default: json.RawMessage(`2`), Check: intRange(1, 10)},
+		{Key: SettingPolicyUPSOffRestore, Type: TypeInt, Default: json.RawMessage(`1`), Check: intRange(1, 9999)},
 		// VLT-IS-006 TASK 03-00-00-003 step 8. Defaults from VLT-REF-001
 		// section 7 (STATIC only: UNVERIFIED): 1.667 V and 2.267 V per cell, 10.0 V and
 		// 13.6 V per 12 V block.

@@ -269,6 +269,9 @@ func (d *daemon) startLive(ctx context.Context) error {
 	}
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
 		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}}
+	// The UPS output off step of the Shutdown Policy (VLT-IS-006 TASK
+	// 03-00-00-006) uses the Controller with the Policy Grant.
+	pol.SetUPSOff(l.ctl)
 	if d.cfg.Lister != nil {
 		l.mgr = &device.Manager{
 			Config: func(ctx context.Context) (device.Config, error) { return device.ConfigFromStore(ctx, d.st) },

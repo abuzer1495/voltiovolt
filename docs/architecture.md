@@ -220,6 +220,9 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 | policy.countdown_seconds | 60 | 10 to 600 |
 | policy.cancel_when_mains_returns | on | on, off |
 | policy.force_close_applications | on (Windows) | on, off |
+| policy.ups_off.enabled | off | on, off (VLT-IS-006) |
+| policy.ups_off.delay_minutes | 2 | 1 to 10 whole minutes (SEC-100) |
+| policy.ups_off.restore_minutes | 1 | 1 to 9999 |
 
 ### 10.2 Engine
 
@@ -229,10 +232,11 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 4. During the countdown: if the mains power returns (ON_BATTERY clear and no comm lost) and `cancel_when_mains_returns` is on, the countdown is cancelled. An operator with the elevated state can cancel (shutdown.cancel), but not while LOW_BATTERY is active. After an operator cancel, the triggers that were true do not start a new countdown until they are false again or the mains power returns; a new trigger starts a new countdown. Audit: `policy_countdown_cancel` with the reason (mains returned, operator, policy inactive), or `rejected`.
 5. At the end of the countdown, the Engine calls the executor (Shutdown or Hibernate) one time. Audit: `policy_shutdown_request`. If the call fails, the Engine tries again every 30 seconds while a trigger is true.
 6. The Policy Engine is the only caller of the executor (SEC-092). cmd/vltd gives the OS executor (internal/shutdown) to the Engine.
+7. UPS output off step (VLT-IS-006 TASK 03-00-00-006). WARNING: An incorrect delay can turn off the power before the computer has shut down. Data can be lost. At the end of the countdown, when `ups_off.enabled` is on: (1) the Engine sends the shutdown and restore command through internal/control with the Policy Grant (delay `ups_off.delay_minutes`, restore `ups_off.restore_minutes`; example delay 2, restore 1: "S02R0001" CR); (2) the Controller verifies b1 = 1 (section 14.2); (3) the Engine calls the executor, also when the send or the verification fails. Audit: `policy_ups_off` (success or failure, with the bytes, the sends and the verification result), then `policy_shutdown_request`. In vltd the step and the executor call run in a new goroutine, because Tick runs also in the Poller goroutine and the verification waits for the next polls. The UPS turns off its output `delay` minutes after the command; the computer must shut down in less time. A retry after a failed executor call does not send the command again.
 
 ### 10.3 Version and activation (SEC-055, SEC-093)
 
-1. Version: lowercase hex SHA-256 of the canonical JSON of the 9 policy Settings (keys sorted, no spaces).
+1. Version: lowercase hex SHA-256 of the canonical JSON of the policy Settings (keys sorted, no spaces). The 3 ups_off Settings are in the JSON only when one of them is not the default (VLT-IS-006): the version of a VLT-IS-005 policy does not change at the upgrade, and a change of an ups_off Setting gives a new version (SEC-093).
 2. The policy is active only if `policy_state.active_version` is the current version and a passed Simulation of that version is in `policy_simulations`. The Service reads the Settings at each tick, so a change through policy.set or settings.set makes the policy inactive at once. policy.set also deletes the active version.
 3. An inactive policy starts no countdown and cancels a running countdown ("policy inactive").
 
@@ -240,7 +244,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 
 1. Scenarios: power_fail_long (mains fails at 10 s), power_fail_short (mains returns at half of the countdown), low_battery (charge 15 % at 30 s, bit 6; an operator cancel is tried and refused), comm_lost_on_battery (comm lost at 20 s).
 2. Each scenario uses the simulator model (no Transport), the real Event Engine without a database, a new Engine and the dry-run executor. A virtual clock moves in steps of 2 seconds. No command goes to a UPS and no OS function is called.
-3. Result: for each scenario the steps with virtual times (event, trigger, countdown_start, cancel, cancel_refused, shutdown_request), the outcome, the dry-run calls and the real time.
+3. Result: for each scenario the steps with virtual times (event, trigger, countdown_start, cancel, cancel_refused, ups_off, ups_off_failed, shutdown_request), the outcome, the dry-run calls and the real time. With `ups_off.enabled` on, the step `ups_off` has the virtual time of the send, the command bytes (detail) and `output_off_after_seconds`. The dry run sends no command: the Simulation uses `control.DryShutdownRestore`, which only makes the bytes. A failed ups_off step fails the scenario.
 4. Pass: power_fail_long and low_battery give a shutdown request, and power_fail_short gives a cancel. comm_lost_on_battery (VLT-IS-005 Q-IA-4): a shutdown request at a virtual time equal to or less than comm lost time (20 s) + trigger.comm_lost_on_battery_seconds + countdown_seconds + 10 s. If trigger.comm_lost_on_battery_seconds is 0 (off), comm_lost_on_battery is reported only.
 4a. On battery, the charge of the model decreases by 0.1 % for each virtual second (VLT-IS-005). Without it, a policy without an on-battery time trigger (the Fallback Policy) never starts a countdown in power_fail_short. The default policy results do not change.
 5. The result and the version are stored in `policy_simulations` (migration 0003).
@@ -249,7 +253,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 
 ### 10.5 Fallback Policy (VLT-IS-005 TASK 03-00-00-001, Q-IA-1)
 
-1. The Fallback Policy has fixed values in the code (`policy.FallbackConfig`): action shutdown; trigger.low_battery_flag on; trigger.runtime_below_minutes 2; trigger.comm_lost_on_battery_seconds 300; all other triggers off (0); countdown_seconds 30; cancel_when_mains_returns on; force_close_applications on.
+1. The Fallback Policy has fixed values in the code (`policy.FallbackConfig`): action shutdown; trigger.low_battery_flag on; trigger.runtime_below_minutes 2; trigger.comm_lost_on_battery_seconds 300; all other triggers off (0); countdown_seconds 30; cancel_when_mains_returns on; force_close_applications on; ups_off.enabled off (VLT-IS-006, test TestFallbackUPSOffOff).
 2. vltd uses the Fallback Policy only when the Vault state is "locked". It is active without a stored Simulation; its Simulation runs in CI.
 3. When vltd starts to use it, vltd writes the audit entry `policy_fallback_start` (actor system) and a WARN log entry. When the Vault state is not "locked" again, vltd writes `policy_fallback_end` and uses the stored policy with its active state.
 4. policy.get returns the Fallback Policy with `"fallback": true`. policy.set, policy.activate and policy.deactivate return the error code `vault_locked`. policy.simulate runs the Simulation of the Fallback Policy.

@@ -14,9 +14,26 @@ import (
 // TestFallbackConfig is VLT-IS-005 TASK 03-00-00-001 step 1.1: the fixed
 // values of the Fallback Policy.
 func TestFallbackConfig(t *testing.T) {
-	want := Config{Action: ActionShutdown, RuntimeBelowMinutes: 2, LowBatteryFlag: true, CommLostOnBatterySecs: 300, CountdownSeconds: 30, CancelWhenMainsReturns: true, ForceCloseApplications: true}
+	want := Config{Action: ActionShutdown, RuntimeBelowMinutes: 2, LowBatteryFlag: true, CommLostOnBatterySecs: 300, CountdownSeconds: 30, CancelWhenMainsReturns: true, ForceCloseApplications: true,
+		UPSOffEnabled: false, UPSOffDelayMinutes: 2, UPSOffRestoreMinutes: 1}
 	if FallbackConfig() != want {
 		t.Fatalf("%+v", FallbackConfig())
+	}
+}
+
+// TestFallbackUPSOffOff is VLT-IS-006 TASK 03-00-00-006 step 3: the
+// Fallback Policy keeps ups_off.enabled off, and its Simulation has no UPS
+// output off step.
+func TestFallbackUPSOffOff(t *testing.T) {
+	if FallbackConfig().UPSOffEnabled {
+		t.Fatal("ups_off.enabled is on in the Fallback Policy")
+	}
+	for _, sc := range SimulateFallback(time.Now()).Scenarios {
+		for _, s := range sc.Steps {
+			if s.Kind == StepUPSOff || s.Kind == StepUPSOffFailed {
+				t.Fatalf("%s: %+v", sc.Name, s)
+			}
+		}
 	}
 }
 

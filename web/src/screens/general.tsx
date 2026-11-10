@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // General screen (TASK 03-00-00-007 step 2): language, theme, About.
+// VLT-IS-006 Q-IA-1: vltd saves ui.language without the elevated state
+// (a set PIN is necessary).
 import { useEffect, useState } from 'preact/hooks';
 import { api, errorCode, type AboutInfo } from '../api';
 import { errText } from '../components';
 import { DASH } from '../format';
 import { lang, setLang, t, type Lang } from '../i18n';
-import { app } from '../state';
-import { useStore } from '../store';
 
 export function General() {
-  const s = useStore(app);
-  const elevated = !!s.auth?.elevated;
   const [about, setAbout] = useState<AboutInfo | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   useEffect(() => {
@@ -24,7 +22,7 @@ export function General() {
       setMsg({ kind: 'ok', text: t('general.lang.saved') });
     } catch (e) {
       const c = errorCode(e);
-      setMsg({ kind: 'error', text: c === 'not_elevated' ? t('general.lang.notsaved') : errText(c) });
+      setMsg({ kind: 'error', text: c === 'not_elevated' || c === 'pin_not_set' ? t('general.lang.notsaved') : errText(c) });
     }
   }
   return (
@@ -37,7 +35,6 @@ export function General() {
           <label class="check"><input type="radio" name="lang" checked={lang() === 'tr'} onChange={() => void choose('tr')} /> {t('lang.tr')}</label>
           <label class="check"><input type="radio" name="lang" checked={lang() === 'en'} onChange={() => void choose('en')} /> {t('lang.en')}</label>
         </fieldset>
-        {!elevated ? <p class="small">{t('general.lang.unlock')}</p> : null}
         {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
       </section>
       <section class="card">

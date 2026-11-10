@@ -34,7 +34,8 @@ func (a *API) Audit(after int64, limit int) (json.RawMessage, error) {
 // Settings calls settings.list.
 func (a *API) Settings() (json.RawMessage, error) { return a.raw(wire.MethodSettingsList, nil) }
 
-// SetLanguage stores "tr" or "en" in the Setting ui.language (elevated).
+// SetLanguage stores "tr" or "en" in the Setting ui.language. vltd accepts
+// it without the elevated state when a PIN is set (VLT-IS-006 Q-IA-1).
 func (a *API) SetLanguage(lang string) error {
 	if lang != "tr" && lang != "en" {
 		return &Error{Code: wire.CodeInvalid}

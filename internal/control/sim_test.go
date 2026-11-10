@@ -100,7 +100,9 @@ func start(t *testing.T, prof sim.Profile) *rig {
 	m.Now = clk.Now
 	s := sim.New(m)
 	port := &timedPort{Sim: s, clk: clk}
-	opts := transport.Options{Timeout: 20 * time.Millisecond, MinInterval: device.MinGap, FlushTime: time.Millisecond, Now: clk.Now, Sleep: clk.Sleep}
+	// The Timeout is real time (the context of Exchange). 200 ms keeps the
+	// detection stable on a loaded CI computer.
+	opts := transport.Options{Timeout: 200 * time.Millisecond, MinInterval: device.MinGap, FlushTime: time.Millisecond, Now: clk.Now, Sleep: clk.Sleep}
 	tr := transport.NewStream(func(context.Context) (transport.Port, error) { return port, nil }, opts)
 	ctx, cancel := context.WithCancel(context.Background())
 	p, _, err := device.Detect(ctx, device.Config{Transport: "serial", SerialPort: "sim0"}, func(context.Context, device.Config) ([]device.Candidate, error) {

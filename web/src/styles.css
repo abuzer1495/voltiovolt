@@ -108,3 +108,5 @@ button[aria-pressed="true"] { text-decoration: underline; }
 .scenario h4 { margin: 10px 0 4px; }
 .steps { margin: 0; padding-left: 22px; }
 .vt { font-variant-numeric: tabular-nums; color: var(--muted); }
+fieldset.radio { border: 1px solid var(--border); border-radius: 6px; }
+fieldset.radio legend { font-weight: 600; }

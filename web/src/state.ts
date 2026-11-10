@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // The GUI state: connection, auth, the last push messages of vltd.
 import { api, events, on, type AuthInfo, type ConnInfo, type Countdown, type PolicyInfo, type StatusPush, type VltEvent } from './api';
-import { lang, onLangChange, t } from './i18n';
+import { lang, onLangChange, osLang, setLang, t, type Lang } from './i18n';
 import { createStore } from './store';
 
 export interface AppState {
@@ -85,7 +85,17 @@ function onConnected(): void {
     if (a.pin_set) {
       refreshEvents();
       refreshPolicy();
+      loadLanguage();
     }
+  }, () => undefined);
+}
+
+/** loadLanguage reads ui.language. Default: the OS language if it is Turkish, else English. */
+export function loadLanguage(): void {
+  void api.settings().then((r) => {
+    const s = (r.settings ?? []).find((x) => x.key === 'ui.language');
+    const v = s && !s.default && (s.value === 'tr' || s.value === 'en') ? (s.value as Lang) : osLang();
+    setLang(v);
   }, () => undefined);
 }
 

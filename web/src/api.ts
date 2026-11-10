@@ -175,6 +175,23 @@ export interface Series {
   rows: Row[];
 }
 
+export interface AuditRow {
+  seq: number;
+  ts: string;
+  actor: string;
+  action: string;
+  target: string;
+  result: string;
+  details: unknown;
+}
+
+export interface Setting {
+  key: string;
+  value: unknown;
+  version: number;
+  default: boolean;
+}
+
 /** errorCode returns the error code of a rejected call. */
 export function errorCode(e: unknown): string {
   const m = (e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)).trim();
@@ -201,6 +218,11 @@ export const api = {
   simulate: () => call<SimResult>('Simulate'),
   activatePolicy: () => call<void>('ActivatePolicy'),
   deactivatePolicy: () => call<void>('DeactivatePolicy'),
+  resetVault: (confirmation: string) => call<void>('ResetVault', confirmation),
+  audit: (after: number, limit: number) => call<{ rows: AuditRow[]; next: number }>('Audit', after, limit),
+  settings: () => call<{ settings: Setting[] }>('Settings'),
+  setLanguage: (l: string) => call<void>('SetLanguage', l),
+  openSource: () => call<void>('OpenSource'),
   measurements: (name: string, fromMs: number, toMs: number, step: string) => call<Series>('Measurements', name, fromMs, toMs, step),
 };
 

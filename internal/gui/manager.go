@@ -110,6 +110,7 @@ type Manager struct {
 	lockT    *time.Timer
 	onTray   func(TrayState)
 	texts    TrayTexts
+	openURL  func(string) error
 }
 
 // NewManager returns a Manager. An empty addr is the default endpoint.

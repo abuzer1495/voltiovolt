@@ -15,6 +15,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/ipc"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/measure"
+	"github.com/abuzer1495/voltiovolt/internal/notify"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/poller"
 	"github.com/abuzer1495/voltiovolt/internal/transport"
@@ -38,6 +39,8 @@ type live struct {
 	// ctl sends the CONTROL commands and verifies them with the fast-group
 	// statuses (VLT-IS-006 TASK 03-00-00-005).
 	ctl *control.Controller
+	// router is the Notification Router (VLT-IS-007 TASK 03-00-00-003).
+	router *notify.Router
 
 	mu       sync.Mutex
 	commLost bool
@@ -175,7 +178,16 @@ func (l *live) status() StatusPush {
 // Policy tick every second with the countdown push, and the status push.
 func (l *live) run(ctx context.Context) {
 	ctx, l.cancel = context.WithCancel(ctx)
-	unsub := l.events.Subscribe(func(e event.Event) { _ = l.hub.Publish(wire.PushEvent, e) })
+	unsub := l.events.Subscribe(func(e event.Event) {
+		_ = l.hub.Publish(wire.PushEvent, e)
+		active, ok := e.Data["active"].(bool)
+		if !ok {
+			active = true
+		}
+		l.router.Event(e.Time, e.Type, e.Severity, active)
+	})
+	l.wg.Add(1)
+	go func() { defer l.wg.Done(); l.router.Run(ctx) }()
 	if l.mgr != nil {
 		l.wg.Add(1)
 		go func() { defer l.wg.Done(); _ = l.mgr.Run(ctx) }()
@@ -197,9 +209,11 @@ func (l *live) run(ctx context.Context) {
 			}
 			n++
 			l.tick(ctx)
-			if cd := l.pol.Countdown(); cd.Active {
+			cd := l.pol.Countdown()
+			if cd.Active {
 				_ = l.hub.Publish(wire.PushCountdown, cd)
 			}
+			l.router.Countdown(time.Now(), cd.Active, cd.Requested, cd.Remaining, cd.Action)
 			if n%int(statusPushPeriod/tickPeriod) == 0 && l.hub.Subscribers() > 0 {
 				_ = l.hub.Publish(wire.PushStatus, l.status())
 			}
@@ -212,6 +226,34 @@ func (l *live) stop() {
 		l.cancel()
 	}
 	l.wg.Wait()
+}
+
+// snapshot is the UPS state for the Notifications: mode, input voltage,
+// load, battery charge and runtime (VLT-IS-007 TASK 03-00-00-003 step 6).
+func (l *live) snapshot() notify.Snapshot {
+	st := l.events.State()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	val := func(name string) *float64 {
+		if p, ok := l.last[name]; ok {
+			v := p.Value
+			return &v
+		}
+		return nil
+	}
+	s := notify.Snapshot{InputVoltage: val(measure.InputVoltage), Load: val(measure.LoadPercent), Charge: val(measure.BatteryCharge), Runtime: val(measure.BatteryRuntime)}
+	if s.Charge == nil {
+		s.Charge = val(measure.BatteryChargeEstimate)
+	}
+	switch {
+	case st.CommLost:
+		s.Mode = notify.ModeCommLost
+	case st.OnBattery:
+		s.Mode = notify.ModeBattery
+	case len(l.last) > 0:
+		s.Mode = notify.ModeMains
+	}
+	return s
 }
 
 // stateSink passes the Poller state to the Device Manager and to live.
@@ -269,6 +311,7 @@ func (d *daemon) startLive(ctx context.Context) error {
 	}
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
 		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}}
+	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log})
 	// The UPS output off step of the Shutdown Policy (VLT-IS-006 TASK
 	// 03-00-00-006) uses the Controller with the Policy Grant.
 	pol.SetUPSOff(l.ctl)

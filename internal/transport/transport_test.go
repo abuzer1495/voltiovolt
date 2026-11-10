@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/abuzer1495/voltiovolt/internal/control"
 )
 
 const q1Resp = "(209.7 209.7 219.7 019 50.0 2.32 23.3 00000001\r"
@@ -316,4 +318,18 @@ func TestParseReportDescriptor(t *testing.T) {
 func FuzzParseReportDescriptor(f *testing.F) {
 	f.Add([]byte{0x75, 0x08, 0x95, 0x08, 0x81, 0x02})
 	f.Fuzz(func(t *testing.T, b []byte) { _, _ = ParseReportDescriptor(b) })
+}
+
+// TestControlRejectsNotControl: Control accepts only a Command of
+// internal/control. A zero Command writes nothing (SEC-098).
+func TestControlRejectsNotControl(t *testing.T) {
+	p := &FakePort{Respond: echoQ1}
+	s := openFake(t, p)
+	var c control.Command
+	if err := s.Control(context.Background(), c); !errors.Is(err, ErrNotControl) {
+		t.Fatalf("zero command: %v", err)
+	}
+	if p.WriteHits != 0 {
+		t.Errorf("%d writes; want 0", p.WriteHits)
+	}
 }

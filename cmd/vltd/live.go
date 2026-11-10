@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/control"
 	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/event"
@@ -34,6 +35,9 @@ type live struct {
 	pol    *policy.Service
 	hub    *ipc.Hub
 	d      *daemon
+	// ctl sends the CONTROL commands and verifies them with the fast-group
+	// statuses (VLT-IS-006 TASK 03-00-00-005).
+	ctl *control.Controller
 
 	mu       sync.Mutex
 	commLost bool
@@ -216,7 +220,16 @@ type stateSink struct {
 	setState func(string)
 }
 
-func (s stateSink) OnCycle(c poller.Cycle) { s.l.OnCycle(c) }
+func (s stateSink) OnCycle(c poller.Cycle) {
+	if c.Group == poller.GroupFast && s.l.ctl != nil {
+		for _, r := range c.Results {
+			if st, ok := control.StatusOf(r.Value, r.Time); ok && r.Err == nil {
+				s.l.ctl.Observe(st)
+			}
+		}
+	}
+	s.l.OnCycle(c)
+}
 
 func (s stateSink) OnState(state string) {
 	s.setState(state)
@@ -255,14 +268,17 @@ func (d *daemon) startLive(ctx context.Context) error {
 		return fmt.Errorf("policy: %w", err)
 	}
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
-		hub: ipc.NewHub(), last: map[string]measure.Point{}}
+		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}}
 	if d.cfg.Lister != nil {
 		l.mgr = &device.Manager{
 			Config: func(ctx context.Context) (device.Config, error) { return device.ConfigFromStore(ctx, d.st) },
 			List:   d.cfg.Lister,
 			Log:    d.log,
 			Poll: func(ctx context.Context, tr transport.Transport, p device.Profile, setState func(string)) error {
-				return poller.New(tr, p, stateSink{l: l, setState: setState}, poller.Options{Log: d.log}).Run(ctx)
+				pl := poller.New(tr, p, stateSink{l: l, setState: setState}, poller.Options{Log: d.log})
+				l.ctl.SetLink(pl, p.Dialect)
+				defer l.ctl.SetLink(nil, "")
+				return pl.Run(ctx)
 			},
 		}
 	}

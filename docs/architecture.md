@@ -353,3 +353,43 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 2. SEC-096: see docs/security.md section 13.
 3. Language: all user text is in web/i18n/en.json and web/i18n/tr.json. Tests: web/test/i18n.test.ts.
 4. Accessibility: web/test/a11y.test.tsx (contrast, focus, names, keyboard).
+
+## 14. CONTROL commands (internal/control, VLT-IS-006 TASK 03-00-00-005)
+
+WARNING: CONTROL commands can cut power to the protected equipment.
+
+### 14.1 Encoders
+
+| Function | Bytes | Grant | Status |
+|----------|-------|-------|--------|
+| test.10s | T CR | IPC, confirmation "START TEST" | STATIC, PUBLIC |
+| test.minutes | "T" + nn (01 to 99) + CR | IPC, confirmation "START TEST" | STATIC, PUBLIC |
+| test.until_low | TL CR | IPC, confirmation "TEST UNTIL LOW" | STATIC, PUBLIC |
+| test.cancel | CT CR | IPC, no confirmation | STATIC, PUBLIC |
+| beeper | Q CR (toggle) | IPC, no confirmation | STATIC, PUBLIC |
+| shutdown.restore | delay less than 60 s: "S." + digit (delay / 6 s) + "R" + restore with 4 digits + CR; delay 1 to 10 min: "S" + minutes with 2 digits + "R" + restore with 4 digits + CR | Policy Engine | STATIC, PUBLIC (VLT-REF-001 5.1) |
+| shutdown.cancel | C CR | Policy Engine; never sent | PUBLIC only, UNVERIFIED |
+
+1. The bytes are the same in the Dialects megatec, voltronic-qs and voltronic.
+2. SEC-100: the delay is 12 to 54 s in steps of 6 s (".2" to ".9") or 1 to 10 whole minutes. The restore time is 1 to 9999 minutes. There is no encoder for a shutdown without restore, and no input gives "S.0". `control.Check` refuses all other bytes; `transport.Stream.Control` calls it again before the write. Tests: TestNeverSendsS0, TestNoShutdownWithoutRestore, TestShutdownNegative, TestEncoderVectors, TestShutdownDelaySteps, TestCheck.
+3. SEC-098: only internal/control makes CONTROL bytes. Each encoder needs a `control.Grant`. `control.IPCGrant` (elevated state and the confirmation text; test, cancel test and beeper only) is used only in internal/ipc. `control.PolicyGrant` (shutdown and restore) is used only in internal/policy. The go/ast test TestOnlyControlMakesControlBytes fails for a Grant outside these packages, an encoder call or a Grant or Command literal outside internal/control, or CONTROL bytes in a non-test file outside internal/control. TestNoIPCShutdown fails if internal/ipc or internal/gui uses the shutdown functions, or if a package outside internal/control uses the cancel shutdown function.
+4. `ups.control.capabilities` gives `control.Capabilities(dialect)`: the test, cancel test and beeper functions. The shutdown functions are never in the list.
+
+### 14.2 Send and verification
+
+1. The Poller implements `control.Link`. It sends a CONTROL command in place of the next fast-group poll; the next fast-group poll follows one period (2 s) later. The minimum time between two requests stays 500 ms. With more than one request, the order is: shutdown, cancel test, test, beeper (VLT-REF-001 4.4). `transport.Stream.Control` reads a response until CR or for a maximum of 300 ms; the response is not used. `transport.Stream.Exchange` still accepts only READ commands (SEC-037).
+2. The vltd Poller sink gives each fast-group status (Q1 or QS) to `control.Controller.Observe`.
+3. Verification with the statuses of the polls after the send:
+
+| Function | Expected status | Sends |
+|----------|-----------------|-------|
+| Test (all types) | b2 = 1 | Up to 3. One poll between two sends (2 s apart); 2 polls after the last send |
+| Cancel test | b2 = 0 within 2 polls | 1 |
+| Shutdown and restore | b1 = 1 | Up to 3, as the test |
+| Beeper | b0 changes within 2 polls | 1, then 1 retry |
+
+4. Beeper: `SetBeeper(on)` reads b0 of the last status. It sends Q only if b0 is not the wanted state.
+5. A test or beeper request is refused while another one runs. The shutdown and restore command does not wait. A test is refused when b7 = 1 (on battery).
+6. Test end: b2 changes from 1 to 0. The result is TEST_PASSED if b4 and b6 stayed 0 while b2 was 1, else TEST_FAILED.
+7. Audit entries: `ups_control` (result "sent" for each send, "failure" with the error, "no send" for the beeper), `ups_control_verify` ("verified" or "not verified"), `ups_test_end` (TEST_PASSED or TEST_FAILED).
+8. Simulator: the model reacts to T, Tnn, TL, CT, Q, the shutdown and restore command and C. It gives no response to a CONTROL command. Test: b2 = 1 for the test time (TL: until the charge is less than 20 %). Shutdown: b1 = 1, output off after the delay, output on after the restore time if mains power is present (without mains the model waits for mains; the real behavior is UNVERIFIED, VLT-REF-001 5.1 item 4). Beeper: b0 changes. Tests: internal/control/sim_test.go (TestSimTestAndBeeper, TestSimTestFailed, TestSimCancelTest, TestSimShutdownRestore, TestSimNoRestoreWithoutMains); each checks that the simulator received only READ commands and the expected CONTROL commands, with 500 ms or more between two requests.

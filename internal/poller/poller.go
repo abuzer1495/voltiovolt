@@ -5,7 +5,9 @@
 // group every 30 seconds, and the once group at start and every 6 hours.
 // The minimum time between two requests is 500 ms. The fast group has
 // priority. After 3 failed fast-group polls in sequence, the state is "comm
-// lost" and the Poller reconnects. It sends only READ commands.
+// lost" and the Poller reconnects. It sends only READ commands, and the
+// CONTROL commands of internal/control in place of a fast-group poll
+// (VLT-IS-006 TASK 03-00-00-005 step 6).
 package poller
 
 import (
@@ -13,8 +15,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/control"
 	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/transport"
@@ -133,6 +137,109 @@ type Poller struct {
 	sender *device.Sender
 	groups []*groupState // in priority order: fast, slow, once
 	failed int
+
+	ctlMu   sync.Mutex
+	ctlQ    []ctlReq
+	stopped bool
+}
+
+type ctlReq struct {
+	c    control.Command
+	done chan ctlDone
+}
+
+type ctlDone struct {
+	at  time.Time
+	err error
+}
+
+// ErrStopped is returned for a CONTROL request when the Poller stops.
+var ErrStopped = errors.New("poller: stopped")
+
+// priority of the CONTROL requests (VLT-REF-001 4.4): shutdown, test
+// cancel, test, beeper.
+func priority(f control.Func) int {
+	switch f {
+	case control.FuncShutdownRestore:
+		return 0
+	case control.FuncCancelTest:
+		return 1
+	case control.FuncBeeper:
+		return 3
+	}
+	return 2
+}
+
+// SendControl implements control.Link. The Poller sends c in place of the
+// next fast-group poll. SendControl returns after the send.
+func (p *Poller) SendControl(ctx context.Context, c control.Command) (time.Time, error) {
+	if !c.Valid() {
+		return time.Time{}, transport.ErrNotControl
+	}
+	r := ctlReq{c: c, done: make(chan ctlDone, 1)}
+	p.ctlMu.Lock()
+	if p.stopped {
+		p.ctlMu.Unlock()
+		return time.Time{}, ErrStopped
+	}
+	p.ctlQ = append(p.ctlQ, r)
+	p.ctlMu.Unlock()
+	select {
+	case d := <-r.done:
+		return d.at, d.err
+	case <-ctx.Done():
+		return time.Time{}, ctx.Err()
+	}
+}
+
+// takeControl removes the CONTROL request with the highest priority.
+func (p *Poller) takeControl() (ctlReq, bool) {
+	p.ctlMu.Lock()
+	defer p.ctlMu.Unlock()
+	if len(p.ctlQ) == 0 {
+		return ctlReq{}, false
+	}
+	best := 0
+	for i, r := range p.ctlQ {
+		if priority(r.c.Func()) < priority(p.ctlQ[best].c.Func()) {
+			best = i
+		}
+	}
+	r := p.ctlQ[best]
+	p.ctlQ = append(p.ctlQ[:best], p.ctlQ[best+1:]...)
+	return r, true
+}
+
+func (p *Poller) stop() {
+	p.ctlMu.Lock()
+	defer p.ctlMu.Unlock()
+	p.stopped = true
+	for _, r := range p.ctlQ {
+		r.done <- ctlDone{err: ErrStopped}
+	}
+	p.ctlQ = nil
+}
+
+// control sends a CONTROL request in place of the fast-group poll that is
+// due now. The next fast-group poll follows one period later.
+func (p *Poller) control(ctx context.Context, f *groupState) bool {
+	if f.g != GroupFast || len(f.pending) > 0 || p.clock.Now().Before(f.next) {
+		return false
+	}
+	r, ok := p.takeControl()
+	if !ok {
+		return false
+	}
+	at, err := p.sender.SendControl(ctx, r.c)
+	if err != nil {
+		p.log.Warn("poller: CONTROL send failed", "func", string(r.c.Func()), "err", err)
+	}
+	f.next = at.Add(FastPeriod)
+	if at.IsZero() {
+		f.next = p.clock.Now().Add(FastPeriod)
+	}
+	r.done <- ctlDone{at: at, err: err}
+	return true
 }
 
 // New returns a Poller for an open Transport.
@@ -172,11 +279,18 @@ func (p *Poller) Run(ctx context.Context) error {
 	if len(p.plan.Fast) == 0 {
 		return fmt.Errorf("poller: no fast-group command for the Dialect %q", p.prof.Dialect)
 	}
+	defer p.stop()
 	p.reset()
 	p.sink.OnState(device.StateConnected)
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if p.control(ctx, p.groups[0]) {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			continue
 		}
 		g := p.pick()
 		if g == nil {

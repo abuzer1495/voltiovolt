@@ -7,8 +7,10 @@ package sim
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Profile is a Dialect profile of the simulator.
@@ -45,6 +47,130 @@ type Model struct {
 	Load        int     // percent
 	Temperature float64 // °C
 	faults      map[Fault]bool
+
+	// CONTROL state (VLT-IS-006 TASK 03-00-00-005 step 9). Now gives the
+	// time of the model; nil: time.Now.
+	Now       func() time.Time
+	beeperOff bool
+	testEnd   time.Time // end of a timed test
+	testLow   bool      // test until battery low
+	lowSeen   bool
+	shutAt    time.Time // output off time; zero: no shutdown active
+	restoreIn time.Duration
+	outputOff bool
+	restoreAt time.Time
+	controls  []string
+}
+
+// SimTestLowCharge is the charge at which a test until low ends.
+const SimTestLowCharge = 20
+
+func (m *Model) now() time.Time {
+	if m.Now != nil {
+		return m.Now()
+	}
+	return time.Now()
+}
+
+// tick updates the CONTROL state at the model time. m.mu is held.
+func (m *Model) tick() {
+	now := m.now()
+	if !m.testEnd.IsZero() && !now.Before(m.testEnd) {
+		m.testEnd = time.Time{}
+	}
+	// A test until low ends one response after the battery is low, so one
+	// status shows b2 = 1 with b6 = 1.
+	if m.testLow && m.Charge < SimTestLowCharge {
+		if m.lowSeen {
+			m.testLow, m.lowSeen = false, false
+		} else {
+			m.lowSeen = true
+		}
+	}
+	if !m.shutAt.IsZero() && !now.Before(m.shutAt) {
+		m.shutAt = time.Time{}
+		m.outputOff = true
+		m.restoreAt = now.Add(m.restoreIn)
+	}
+	// Output on after the restore time if mains power is present. Without
+	// mains power the model waits for mains (VLT-REF-001 5.1 item 4: the
+	// real behavior is UNVERIFIED).
+	if m.outputOff && !now.Before(m.restoreAt) && m.Mains {
+		m.outputOff = false
+	}
+}
+
+// testing reports whether a test runs. m.mu is held.
+func (m *Model) testing() bool { return !m.testEnd.IsZero() || m.testLow }
+
+// OutputOn reports whether the UPS output is on.
+func (m *Model) OutputOn() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.tick()
+	return !m.outputOff
+}
+
+// Controls returns the CONTROL commands that the model received.
+func (m *Model) Controls() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]string(nil), m.controls...)
+}
+
+// BeeperOn reports the beeper state (b0).
+func (m *Model) BeeperOn() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return !m.beeperOff
+}
+
+// control reacts to a CONTROL command. It returns false if cmd is not a
+// CONTROL command. m.mu is held.
+func (m *Model) control(cmd string) bool {
+	now := m.now()
+	switch {
+	case cmd == "T":
+		m.testEnd = now.Add(10 * time.Second)
+	case cmd == "TL":
+		m.testLow, m.lowSeen = true, false
+	case len(cmd) == 3 && cmd[0] == 'T' && isNum(cmd[1:]):
+		n, _ := strconv.Atoi(cmd[1:])
+		m.testEnd = now.Add(time.Duration(n) * time.Minute)
+	case cmd == "CT":
+		m.testEnd, m.testLow = time.Time{}, false
+	case cmd == "Q":
+		m.beeperOff = !m.beeperOff
+	case cmd == "C":
+		m.shutAt = time.Time{}
+	case len(cmd) == 8 && cmd[0] == 'S' && cmd[3] == 'R' && isNum(cmd[4:]):
+		var d time.Duration
+		if cmd[1] == '.' && isNum(cmd[2:3]) {
+			n, _ := strconv.Atoi(cmd[2:3])
+			d = time.Duration(n) * 6 * time.Second
+		} else if isNum(cmd[1:3]) {
+			n, _ := strconv.Atoi(cmd[1:3])
+			d = time.Duration(n) * time.Minute
+		} else {
+			return false
+		}
+		r, _ := strconv.Atoi(cmd[4:])
+		m.shutAt = now.Add(d)
+		m.restoreIn = time.Duration(r) * time.Minute
+	default:
+		return false
+	}
+	m.controls = append(m.controls, cmd)
+	return true
+}
+
+func isNum(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return s != ""
 }
 
 // NewModel returns a model with the base values of the test vectors.
@@ -98,6 +224,15 @@ func (m *Model) supports(cmd string) bool {
 
 func (m *Model) bits() string {
 	b := []byte("00000001") // bit 0: beeper on (vector value)
+	if m.beeperOff {
+		b[7] = '0'
+	}
+	if m.testing() {
+		b[5] = '1' // bit 2: test in progress
+	}
+	if !m.shutAt.IsZero() || m.outputOff {
+		b[6] = '1' // bit 1: shutdown active
+	}
 	if !m.Mains {
 		b[0] = '1' // bit 7: utility fail
 	}
@@ -124,6 +259,12 @@ func (m *Model) Respond(cmd string) []byte {
 	case m.faults[FaultEcho]:
 		return []byte(cmd + "\r")
 	}
+	m.tick()
+	// CONTROL commands: the response is not read (VLT-REF-001 section 5).
+	// The model gives no response.
+	if m.control(cmd) {
+		return nil
+	}
 	if !m.supports(cmd) {
 		if m.Profile == ProfileVoltronic {
 			return []byte("(NAK\r")
@@ -134,15 +275,19 @@ func (m *Model) Respond(cmd string) []byte {
 	if !m.Mains {
 		in = 0
 	}
+	out := 219.7
+	if m.outputOff {
+		out = 0
+	}
 	battCell := 2.0 + 0.32*m.Charge/100
 	battTotal := 36.0 + 5.8*m.Charge/100
 	runtime := int(58 * m.Charge / 100)
 	var s string
 	switch cmd {
 	case "Q1":
-		s = fmt.Sprintf("(%05.1f %05.1f 219.7 %03d 50.0 %4.2f %04.1f %s", in, in, m.Load, battCell, m.Temperature, m.bits())
+		s = fmt.Sprintf("(%05.1f %05.1f %05.1f %03d 50.0 %4.2f %04.1f %s", in, in, out, m.Load, battCell, m.Temperature, m.bits())
 	case "QS":
-		s = fmt.Sprintf("(%05.1f %05.1f 219.7 %03d 50.0 %04.1f %04.1f %s", in, in, m.Load+1, battTotal, m.Temperature, m.bits())
+		s = fmt.Sprintf("(%05.1f %05.1f %05.1f %03d 50.0 %04.1f %04.1f %s", in, in, out, m.Load+1, battTotal, m.Temperature, m.bits())
 	case "QGS":
 		qgsBits := "100000000001"
 		if !m.Mains {

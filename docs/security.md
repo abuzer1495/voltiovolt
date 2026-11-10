@@ -226,6 +226,7 @@ WARNING: An error in the Vault can expose all user Secrets.
 5. Session: a correct PIN gives the elevated state to the IPC connection only. There is no token. The state ends after the Setting `auth.session_idle_minutes` (default 10) without a request, after 8 hours, or when the connection closes.
 6. First start: if no PIN is set, vltd permits only "set PIN" and read-only status requests.
 7. Audit entries: each PIN set, each correct entry, each incorrect entry, each block and each entry refused during a block.
+8. Settings with the key prefix "ui." (VLT-IS-006 Q-IA-1): these are not security Settings. settings.set accepts them without the elevated state when a PIN is set. All other keys need the elevated state. Each accepted or refused settings.set writes an audit entry (action settings_set; the details show the elevated state). This changes SEC-022 for "ui." keys only. Test: `TestSettingsSetUIPrefix` (internal/ipc).
 
 
 ## 7a. Local IPC peer and pipe DACL (VLT-IS-004 TASK 03-00-00-001)

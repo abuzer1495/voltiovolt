@@ -163,3 +163,16 @@ describe('state not by color alone', () => {
     expect(seen.size).toBe(6);
   });
 });
+
+describe('headings', () => {
+  it('Change PIN on the Security screen is a level-3 heading under the level-2 screen title', async () => {
+    setup();
+    setLang('en');
+    const root = document.createElement('div');
+    await act(async () => render(<Security />, root));
+    const levels = [...root.querySelectorAll('h1,h2,h3,h4')].map((h) => Number(h.tagName[1]));
+    expect(levels[0]).toBe(2);
+    for (let i = 1; i < levels.length; i++) expect(levels[i] - levels[i - 1]).toBeLessThanOrEqual(1);
+    expect(levels.slice(1).every((l) => l >= 3)).toBe(true);
+  });
+});

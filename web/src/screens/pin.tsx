@@ -59,7 +59,11 @@ export function SetPin({ change = false, onDone }: { change?: boolean; onDone?: 
   }
   return (
     <section class="card pin" aria-labelledby={id + '-title'}>
-      <h2 id={id + '-title'}>{t(change ? 'pin.change.title' : 'pin.set.title')}</h2>
+      {change ? (
+        <h3 id={id + '-title'}>{t('pin.change.title')}</h3>
+      ) : (
+        <h2 id={id + '-title'}>{t('pin.set.title')}</h2>
+      )}
       {change ? null : <p>{t('pin.set.intro')}</p>}
       <PinRules />
       <form onSubmit={submit}>

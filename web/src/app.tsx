@@ -9,6 +9,7 @@ import { Device } from './screens/device';
 import { Events } from './screens/events';
 import { History } from './screens/history';
 import { Login, SetPin } from './screens/pin';
+import { Policy } from './screens/policy';
 import { Security } from './screens/security';
 import { app, lock, refreshAuth, start } from './state';
 import { useStore } from './store';
@@ -24,6 +25,7 @@ export const routes: Route[] = [
   { id: 'device', label: 'nav.device', comp: Device },
   { id: 'history', label: 'nav.history', comp: History },
   { id: 'events', label: 'nav.events', comp: Events },
+  { id: 'policy', label: 'nav.policy', comp: Policy },
   { id: 'security', label: 'nav.security', comp: Security },
 ];
 

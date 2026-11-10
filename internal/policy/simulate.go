@@ -43,13 +43,15 @@ const (
 
 // ScenarioResult is the result of one scenario.
 type ScenarioResult struct {
-	Name     string `json:"name"`
-	Steps    []Step `json:"steps"`
-	Outcome  string `json:"outcome"`
-	Expected string `json:"expected,omitempty"` // empty: no pass rule
-	Pass     bool   `json:"pass"`
-	Calls    []Call `json:"executor_calls"` // dry-run calls
-	RealMs   int64  `json:"real_ms"`
+	Name     string  `json:"name"`
+	Steps    []Step  `json:"steps"`
+	Outcome  string  `json:"outcome"`
+	Expected string  `json:"expected,omitempty"` // empty: no pass rule
+	Deadline float64 `json:"deadline,omitempty"` // seconds; comm_lost_on_battery only
+	At       float64 `json:"at,omitempty"`       // virtual time of the outcome, seconds
+	Pass     bool    `json:"pass"`
+	Calls    []Call  `json:"executor_calls"` // dry-run calls
+	RealMs   int64   `json:"real_ms"`
 }
 
 // Result is the Simulation result (step 6.4).
@@ -58,14 +60,49 @@ type Result struct {
 	Config    Config           `json:"config"`
 	Time      time.Time        `json:"time"`
 	Passed    bool             `json:"passed"`
+	Fallback  bool             `json:"fallback,omitempty"`
 	Scenarios []ScenarioResult `json:"scenarios"`
 }
 
-// expected outcomes (step 6.5). comm_lost_on_battery has no pass rule.
-var expected = map[string]string{
-	ScenarioPowerFailLong:  OutcomeShutdown,
-	ScenarioPowerFailShort: OutcomeCancel,
-	ScenarioLowBattery:     OutcomeShutdown,
+// simDischarge is the battery discharge of the simulator model on battery,
+// in percent for each second of virtual time (VLT-IS-005: without a
+// discharge a policy without an on-battery time trigger, for example the
+// Fallback Policy, never starts a countdown in power_fail_short).
+const simDischarge = 0.1
+
+// CommLostMargin is the margin of the comm_lost_on_battery pass rule
+// (VLT-IS-005 Q-IA-4).
+const CommLostMargin = 10 * time.Second
+
+// expected outcomes (VLT-IS-004 step 6.5, VLT-IS-005 Q-IA-4).
+// comm_lost_on_battery: a shutdown request at a time equal to or less than
+// comm lost time + trigger.comm_lost_on_battery_seconds + countdown_seconds
+// + 10 s, when the trigger is on. Policies without an expected outcome for
+// a scenario (the Fallback Policy has no rule for power_fail_long) report it
+// only.
+func expectedFor(c Config, name string, fallback bool) (string, bool) {
+	switch name {
+	case ScenarioPowerFailLong:
+		if fallback {
+			return "", false
+		}
+		return OutcomeShutdown, true
+	case ScenarioPowerFailShort:
+		return OutcomeCancel, true
+	case ScenarioLowBattery:
+		return OutcomeShutdown, true
+	case ScenarioCommLostOnBattery:
+		if c.CommLostOnBatterySecs > 0 {
+			return OutcomeShutdown, true
+		}
+	}
+	return "", false
+}
+
+// CommLostDeadline is the latest virtual time (from the scenario start) of
+// the shutdown request in comm_lost_on_battery.
+func CommLostDeadline(c Config) time.Duration {
+	return simCommAt + time.Duration(c.CommLostOnBatterySecs+c.CountdownSeconds)*time.Second + CommLostMargin
 }
 
 // simEpoch is the virtual start time of each scenario.
@@ -75,12 +112,26 @@ var simEpoch = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 // It does not send a command to the UPS and does not call the OS: the UPS
 // is the simulator model (no Transport) and the executor is DryRun.
 func Simulate(c Config, now time.Time) Result {
-	r := Result{Version: Version(c), Config: c, Time: now.UTC(), Passed: true}
+	return simulate(c, now, false)
+}
+
+// SimulateFallback runs the Simulation of the Fallback Policy with its pass
+// rules (VLT-IS-005 TASK 03-00-00-001 step 1.4).
+func SimulateFallback(now time.Time) Result {
+	return simulate(FallbackConfig(), now, true)
+}
+
+func simulate(c Config, now time.Time, fallback bool) Result {
+	r := Result{Version: Version(c), Config: c, Time: now.UTC(), Passed: true, Fallback: fallback}
 	for _, name := range Scenarios {
 		sr := runScenario(c, name)
-		if want, ok := expected[name]; ok {
+		if want, ok := expectedFor(c, name, fallback); ok {
 			sr.Expected = want
 			sr.Pass = sr.Outcome == want
+			if name == ScenarioCommLostOnBattery {
+				sr.Deadline = CommLostDeadline(c).Seconds()
+				sr.Pass = sr.Pass && sr.At <= sr.Deadline
+			}
 			if !sr.Pass {
 				r.Passed = false
 			}
@@ -126,7 +177,7 @@ func runScenario(c Config, name string) ScenarioResult {
 			}
 		case ScenarioLowBattery:
 			if t == simLowAt {
-				m.Charge = 15 // the model sets bit 6 below 20 %
+				m.SetCharge(15) // the model sets bit 6 below 20 %
 			}
 		case ScenarioCommLostOnBattery:
 			if t == simCommAt {
@@ -135,6 +186,10 @@ func runScenario(c Config, name string) ScenarioResult {
 					add(Step{Time: now, Kind: StepEvent, Detail: e.Type, Data: map[string]any{"severity": e.Severity}})
 				}
 			}
+		}
+		// The battery discharges on battery.
+		if !m.Mains && m.Charge > 0 {
+			m.SetCharge(max(0, m.Charge-simDischarge*simPoll.Seconds()))
 		}
 		// One poll cycle (QS and QBV, the commands of the Event Engine and
 		// the policy). No poll during comm lost.
@@ -170,9 +225,9 @@ func runScenario(c Config, name string) ScenarioResult {
 			case StepCountdownStart:
 				cdStart = now
 			case StepCancel:
-				res.Outcome = OutcomeCancel
+				res.Outcome, res.At = OutcomeCancel, at(now)
 			case StepShutdownRequest:
-				res.Outcome = OutcomeShutdown
+				res.Outcome, res.At = OutcomeShutdown, at(now)
 			}
 		}
 		// low_battery: an operator cancel is refused.
@@ -183,7 +238,7 @@ func runScenario(c Config, name string) ScenarioResult {
 				add(s)
 			} else if err == nil {
 				add(s)
-				res.Outcome = OutcomeCancel
+				res.Outcome, res.At = OutcomeCancel, at(now)
 			}
 		}
 		if res.Outcome != OutcomeNone {

@@ -155,6 +155,7 @@ const (
 	CodeUnavailable      = "unavailable"   // the part of vltd is not running
 	CodeNoSimulation     = "no_simulation" // policy.activate without a passed Simulation
 	CodeLowBattery       = "low_battery"   // shutdown.cancel while LOW_BATTERY is active
+	CodeVaultLocked      = "vault_locked"  // policy.set/activate/deactivate while the Fallback Policy is in use
 )
 
 // Methods of protocol version 1.

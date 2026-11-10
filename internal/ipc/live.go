@@ -315,6 +315,9 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		in, err := b.Policy.Set(ctx, p.Settings, audit.ActorGUI)
 		if err != nil {
 			cn.record(ctx, "policy_set", "policy", "failure", map[string]any{"reason": err.Error()})
+			if errors.Is(err, policy.ErrVaultLocked) {
+				return nil, vaultLocked()
+			}
 			if errors.Is(err, store.ErrVaultUnavailable) {
 				return nil, &wire.Error{Code: wire.CodeVaultUnavailable, Message: "vault not available"}
 			}
@@ -326,6 +329,10 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		return in, nil
 	}
 	return nil, &wire.Error{Code: wire.CodeUnknownMethod, Message: "unknown method"}
+}
+
+func vaultLocked() *wire.Error {
+	return &wire.Error{Code: wire.CodeVaultLocked, Message: "the Vault is locked; the Fallback Policy is in use"}
 }
 
 func (cn *conn) policyMethod(ctx context.Context, method string) (any, *wire.Error) {
@@ -345,6 +352,9 @@ func (cn *conn) policyMethod(ctx context.Context, method string) (any, *wire.Err
 		return r, nil
 	case wire.MethodPolicyActivate:
 		err := pc.Activate(ctx, audit.ActorGUI)
+		if errors.Is(err, policy.ErrVaultLocked) {
+			return nil, vaultLocked()
+		}
 		if errors.Is(err, policy.ErrNoSimulation) {
 			return nil, &wire.Error{Code: wire.CodeNoSimulation, Message: "no passed Simulation of the current policy version"}
 		}
@@ -354,6 +364,9 @@ func (cn *conn) policyMethod(ctx context.Context, method string) (any, *wire.Err
 		return wire.OKResult{OK: true}, nil
 	case wire.MethodPolicyDeactivate:
 		if err := pc.Deactivate(ctx, audit.ActorGUI); err != nil {
+			if errors.Is(err, policy.ErrVaultLocked) {
+				return nil, vaultLocked()
+			}
 			return nil, internal()
 		}
 		return wire.OKResult{OK: true}, nil

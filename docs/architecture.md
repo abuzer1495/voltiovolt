@@ -94,11 +94,11 @@ Before a PIN is set, only system.hello, system.status, auth.status and auth.set_
 | status.unsubscribe | No | none | ok |
 | measurements.query | No | name, from, to (RFC 3339), step (raw, 1m, 1h) | name, unit, step, rows [ts, min, max, mean, count, source] |
 | events.list | No | before (id, 0 = newest), limit (1 to 500, default 100) | events [id, ts, type, severity, data], next |
-| policy.get | No | none | settings, version, active, last_simulation |
-| policy.set | Yes | settings {key: value} (short or full policy keys) | the new policy (inactive) |
+| policy.get | No | none | settings, version, active, fallback, last_simulation |
+| policy.set | Yes | settings {key: value} (short or full policy keys) | the new policy (inactive), or "vault_locked" |
 | policy.simulate | Yes | none | Simulation result |
-| policy.activate | Yes | none | ok, or "no_simulation" |
-| policy.deactivate | Yes | none | ok |
+| policy.activate | Yes | none | ok, or "no_simulation", or "vault_locked" |
+| policy.deactivate | Yes | none | ok, or "vault_locked" |
 | shutdown.status | No | none | countdown {active, trigger, started, ends, remaining_seconds, action, cancelable, requested} |
 | shutdown.cancel | Yes | none | ok, or "low_battery" (LOW_BATTERY active), or "not_found" (no countdown) |
 
@@ -153,7 +153,7 @@ vltd has one flag: --version. It prints the version and exits.
 
 | Dialect | Fast group (every 2 s) | Slow group (every 30 s) | Once (at start and every 6 h) |
 |---------|------------------------|-------------------------|-------------------------------|
-| Voltronic | QGS, QMOD | QS, QBV, QWS, QFLAG | QRI, I, QVFW, QMD |
+| Voltronic | QS, QGS (VLT-IS-005) | QMOD, QBV, QWS, QFLAG (VLT-IS-005) | QRI, I, QVFW, QMD |
 | QS | QS, QMOD (if supported) | QBV, QWS (if supported) | F, I |
 | Q1 | Q1 | none | F, I |
 
@@ -236,9 +236,19 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 1. Scenarios: power_fail_long (mains fails at 10 s), power_fail_short (mains returns at half of the countdown), low_battery (charge 15 % at 30 s, bit 6; an operator cancel is tried and refused), comm_lost_on_battery (comm lost at 20 s).
 2. Each scenario uses the simulator model (no Transport), the real Event Engine without a database, a new Engine and the dry-run executor. A virtual clock moves in steps of 2 seconds. No command goes to a UPS and no OS function is called.
 3. Result: for each scenario the steps with virtual times (event, trigger, countdown_start, cancel, cancel_refused, shutdown_request), the outcome, the dry-run calls and the real time.
-4. Pass: power_fail_long and low_battery give a shutdown request, and power_fail_short gives a cancel. comm_lost_on_battery is reported only.
+4. Pass: power_fail_long and low_battery give a shutdown request, and power_fail_short gives a cancel. comm_lost_on_battery (VLT-IS-005 Q-IA-4): a shutdown request at a virtual time equal to or less than comm lost time (20 s) + trigger.comm_lost_on_battery_seconds + countdown_seconds + 10 s. If trigger.comm_lost_on_battery_seconds is 0 (off), comm_lost_on_battery is reported only.
+4a. On battery, the charge of the model decreases by 0.1 % for each virtual second (VLT-IS-005). Without it, a policy without an on-battery time trigger (the Fallback Policy) never starts a countdown in power_fail_short. The default policy results do not change.
 5. The result and the version are stored in `policy_simulations` (migration 0003).
+5a. Fallback Policy result (CI test `TestFallbackSimulation`): power_fail_long: request at 838 s (no pass rule). power_fail_short: LOW_BATTERY at 810 s, cancel at 826 s. low_battery: request at 60 s. comm_lost_on_battery: request at 350 s (limit 360 s).
 6. Default policy result: power_fail_long: ON_BATTERY at 10 s, trigger at 310 s, request at 370 s. power_fail_short: cancel at 342 s. low_battery: trigger charge_below_percent at 30 s, request at 90 s. comm_lost_on_battery: trigger at 200 s, request at 260 s.
+
+### 10.5 Fallback Policy (VLT-IS-005 TASK 03-00-00-001, Q-IA-1)
+
+1. The Fallback Policy has fixed values in the code (`policy.FallbackConfig`): action shutdown; trigger.low_battery_flag on; trigger.runtime_below_minutes 2; trigger.comm_lost_on_battery_seconds 300; all other triggers off (0); countdown_seconds 30; cancel_when_mains_returns on; force_close_applications on.
+2. vltd uses the Fallback Policy only when the Vault state is "locked". It is active without a stored Simulation; its Simulation runs in CI.
+3. When vltd starts to use it, vltd writes the audit entry `policy_fallback_start` (actor system) and a WARN log entry. When the Vault state is not "locked" again, vltd writes `policy_fallback_end` and uses the stored policy with its active state.
+4. policy.get returns the Fallback Policy with `"fallback": true`. policy.set, policy.activate and policy.deactivate return the error code `vault_locked`. policy.simulate runs the Simulation of the Fallback Policy.
+5. In the Vault state "not configured", no policy is active.
 
 ## 11. Shutdown executor (internal/shutdown, VLT-IS-004 TASK 03-00-00-007)
 

@@ -64,6 +64,24 @@ func DefaultConfig() Config {
 	}
 }
 
+// FallbackConfig is the Fallback Policy (VLT-IS-005 TASK 03-00-00-001
+// step 1, Q-IA-1): fixed values in the code. vltd uses it only when the
+// Vault state is "locked", because a safety function must not depend on
+// the Vault. Its Simulation runs in CI (SEC-055 exception).
+func FallbackConfig() Config {
+	return Config{
+		Action:                 ActionShutdown,
+		OnBatterySeconds:       0,
+		RuntimeBelowMinutes:    2,
+		ChargeBelowPercent:     0,
+		LowBatteryFlag:         true,
+		CommLostOnBatterySecs:  300,
+		CountdownSeconds:       30,
+		CancelWhenMainsReturns: true,
+		ForceCloseApplications: true,
+	}
+}
+
 // Keys are the Setting keys of the policy.
 var Keys = []string{
 	store.SettingPolicyAction,

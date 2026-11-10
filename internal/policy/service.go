@@ -23,6 +23,16 @@ var ErrNoSimulation = errors.New("policy: no passed Simulation of the current po
 // ErrNotPolicyKey is returned by Set for a key that is not a policy key.
 var ErrNotPolicyKey = errors.New("policy: not a policy Setting")
 
+// ErrVaultLocked is returned by Set, Activate and Deactivate while the
+// Fallback Policy is in use (Vault state "locked").
+var ErrVaultLocked = errors.New("policy: the Vault is locked; the Fallback Policy is in use")
+
+// Vault states that change the policy (internal/vault).
+const (
+	vaultLocked        = "locked"
+	vaultNotConfigured = "not configured"
+)
+
 const stateActiveVersion = "active_version"
 
 // SimRecord is one stored Simulation.
@@ -39,6 +49,7 @@ type Info struct {
 	Config         Config     `json:"settings"`
 	Version        string     `json:"version"`
 	Active         bool       `json:"active"`
+	Fallback       bool       `json:"fallback"` // the Fallback Policy is in use
 	LastSimulation *SimRecord `json:"last_simulation,omitempty"`
 }
 
@@ -59,9 +70,41 @@ type Service struct {
 	clock Clock
 	eng   *Engine
 
-	mu      sync.Mutex
-	cfg     Config
-	version string
+	mu         sync.Mutex
+	cfg        Config
+	version    string
+	vaultState func() string
+	fallback   bool
+}
+
+// SetVaultState gives the Service the Vault state. In the state "locked"
+// the Service uses the Fallback Policy; in the state "not configured" no
+// policy is active (VLT-IS-005 Q-IA-1). Without it, the stored policy is
+// used.
+func (s *Service) SetVaultState(f func() string) {
+	s.mu.Lock()
+	s.vaultState = f
+	s.mu.Unlock()
+}
+
+func (s *Service) vault() string {
+	s.mu.Lock()
+	f := s.vaultState
+	s.mu.Unlock()
+	if f == nil {
+		return ""
+	}
+	return f()
+}
+
+// Refresh reads the Vault state and the Settings now.
+func (s *Service) Refresh(ctx context.Context) error { return s.refresh(ctx) }
+
+// Fallback reports whether the Fallback Policy is in use.
+func (s *Service) Fallback() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.fallback
 }
 
 // NewService loads the policy. The Engine gets exec; only cmd/vltd gives
@@ -85,18 +128,45 @@ func NewService(ctx context.Context, st *store.Store, audit Auditor, exec Execut
 // inactive (SEC-093). The Engine is active only if the stored active
 // version is the current version and a passed Simulation of it exists.
 func (s *Service) refresh(ctx context.Context) error {
+	vs := s.vault()
+	if vs == vaultLocked {
+		c := FallbackConfig()
+		s.mu.Lock()
+		was := s.fallback
+		s.cfg, s.version, s.fallback = c, Version(c), true
+		s.mu.Unlock()
+		s.eng.SetConfig(c)
+		s.eng.SetActive(true)
+		if !was {
+			s.log.Warn("policy: the Vault is locked; vltd uses the Fallback Policy", "version", Version(c))
+			s.record(ctx, "system", "policy_fallback_start", "success", map[string]any{"version": Version(c), "vault": vs})
+		}
+		return nil
+	}
+	s.mu.Lock()
+	was := s.fallback
+	s.fallback = false
+	s.mu.Unlock()
+	if was {
+		s.log.Info("policy: the Vault is not locked now; the Fallback Policy is not in use")
+		s.record(ctx, "system", "policy_fallback_end", "success", map[string]any{"vault": vs})
+	}
 	c, err := Load(ctx, s.st)
 	if err != nil {
 		return err
 	}
 	v := Version(c)
 	s.mu.Lock()
-	changed := s.version != "" && v != s.version
+	changed := s.version != "" && v != s.version && !was
 	s.cfg, s.version = c, v
 	s.mu.Unlock()
 	active, err := s.isActive(ctx, v)
 	if err != nil {
 		return err
+	}
+	if vs == vaultNotConfigured {
+		// No active policy until the first-run wizard sets the policy.
+		active = false
 	}
 	s.eng.SetConfig(c)
 	if changed && s.eng.Active() && !active {
@@ -144,7 +214,7 @@ func (s *Service) Info(ctx context.Context) (Info, error) {
 		return Info{}, err
 	}
 	s.mu.Lock()
-	in := Info{Config: s.cfg, Version: s.version}
+	in := Info{Config: s.cfg, Version: s.version, Fallback: s.fallback}
 	s.mu.Unlock()
 	in.Active = s.eng.Active()
 	last, err := s.lastSimulation(ctx)
@@ -178,6 +248,10 @@ func (s *Service) lastSimulation(ctx context.Context) (*SimRecord, error) {
 // keys are full Setting keys ("policy.countdown_seconds") or short keys
 // ("countdown_seconds").
 func (s *Service) Set(ctx context.Context, values map[string]json.RawMessage, actor string) (Info, error) {
+	if s.vault() == vaultLocked {
+		s.record(ctx, actor, "policy_set", "rejected", map[string]any{"reason": "vault locked"})
+		return Info{}, ErrVaultLocked
+	}
 	known := map[string]bool{}
 	for _, k := range Keys {
 		known[k] = true
@@ -261,6 +335,10 @@ func (s *Service) Simulate(ctx context.Context, actor string) (Result, error) {
 
 // Activate makes the current version active (policy.activate).
 func (s *Service) Activate(ctx context.Context, actor string) error {
+	if s.vault() == vaultLocked {
+		s.record(ctx, actor, "policy_activate", "rejected", map[string]any{"reason": "vault locked"})
+		return ErrVaultLocked
+	}
 	if err := s.refresh(ctx); err != nil {
 		return err
 	}
@@ -285,6 +363,10 @@ func (s *Service) Activate(ctx context.Context, actor string) error {
 
 // Deactivate makes the policy inactive (policy.deactivate).
 func (s *Service) Deactivate(ctx context.Context, actor string) error {
+	if s.vault() == vaultLocked {
+		s.record(ctx, actor, "policy_deactivate", "rejected", map[string]any{"reason": "vault locked"})
+		return ErrVaultLocked
+	}
 	if err := s.deactivateState(ctx); err != nil {
 		return err
 	}

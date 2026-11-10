@@ -45,3 +45,27 @@ a { color: var(--accent); }
 .conn-disconnected .conn-icon { color: var(--crit); }
 .conn-reason { color: var(--muted); }
 main { padding: 16px; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 8px; top: 8px; background: var(--bg); padding: 4px 8px; z-index: 10; }
+.lockstate { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.nav { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.nav a { padding: 6px 10px; border-radius: 6px; text-decoration: none; color: var(--fg); }
+.nav a[aria-current="page"] { background: var(--accent); color: var(--accent-fg); text-decoration: underline; }
+button { font: inherit; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--fg); cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.danger { background: var(--crit); color: var(--bg); border-color: var(--crit); }
+button:disabled { opacity: 1; cursor: not-allowed; color: var(--muted); background: var(--bg); border-style: dashed; }
+input, select { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
+label { display: block; margin-top: 8px; font-weight: 600; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+.card h2, .screen h2 { margin-top: 0; font-size: 18px; }
+.pin form { display: grid; gap: 4px; max-width: 360px; }
+.pin form button { margin-top: 10px; justify-self: start; }
+.rules { color: var(--fg); }
+.msg-error { color: var(--crit); font-weight: 600; }
+.msg-ok { color: var(--ok); font-weight: 600; }
+.note, .help { color: var(--fg); }
+.badge { display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); }
+.badge-ok { color: var(--ok); }
+.badge-warn { color: var(--warn); background: var(--warn-bg); }
+.badge-crit { color: var(--crit); background: var(--crit-bg); }

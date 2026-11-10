@@ -224,3 +224,18 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 4. Pass: power_fail_long and low_battery give a shutdown request, and power_fail_short gives a cancel. comm_lost_on_battery is reported only.
 5. The result and the version are stored in `policy_simulations` (migration 0003).
 6. Default policy result: power_fail_long: ON_BATTERY at 10 s, trigger at 310 s, request at 370 s. power_fail_short: cancel at 342 s. low_battery: trigger charge_below_percent at 30 s, request at 90 s. comm_lost_on_battery: trigger at 200 s, request at 260 s.
+
+## 11. Shutdown executor (internal/shutdown, VLT-IS-004 TASK 03-00-00-007)
+
+1. `shutdown.Executor` implements `policy.Executor`: `Shutdown(ctx, reason)` and `Hibernate(ctx, reason)`. cmd/vltd makes it with the Setting policy.force_close_applications and the Audit Log, and gives it to the Policy Engine. The Simulation and all tests use dry-run or fake executors.
+2. Windows:
+    1. Enable SE_SHUTDOWN_NAME (SeShutdownPrivilege) in the process token with AdjustTokenPrivileges. vlt-setup gives the privilege to the service (security.md section 10).
+    2. Shutdown: `InitiateSystemShutdownExW(NULL, message, 0, force_close_applications, FALSE, 0x0006000C)`. Timeout 0: no dialog box. The reason code is SHTDN_REASON_MAJOR_POWER (0x00060000) | SHTDN_REASON_MINOR_ENVIRONMENT (0x0000000C), "Power Failure: Environment", unplanned (source: Microsoft Learn, System Shutdown Reason Codes).
+    3. Hibernate: if `IsPwrHibernateAllowed` is false or `SetSuspendState(TRUE, FALSE, FALSE)` fails, the executor writes the audit entry `os_hibernate_fallback` and does a Shutdown.
+3. Linux (github.com/godbus/dbus/v5, system bus, one connection for each request):
+    1. `ListInhibitors` on org.freedesktop.login1.Manager. The list (what, who, why, mode, uid, pid) goes in the audit entry.
+    2. `PowerOff(false)` or `Hibernate(false)`. interactive = false: polkit does not ask; 50-vltd.rules gives the permission to the user vltd.
+    3. Hibernate: if `CanHibernate` does not return "yes", the executor writes `os_hibernate_fallback` and calls PowerOff.
+4. Audit actions: os_shutdown_request, os_hibernate_request (success or failure, with the error) and os_hibernate_fallback.
+5. Other OS: ErrNotSupported.
+6. SEC-092 test (`TestOnlyPolicyCallsExecutor`, go/ast): only cmd/vltd imports internal/shutdown; only internal/policy calls `Shutdown(ctx, reason)` or `Hibernate(ctx, reason)`; only internal/shutdown uses godbus, the login1 names and the Windows shutdown functions.

@@ -8,6 +8,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.4
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/creack/pty v1.1.24
+	github.com/godbus/dbus/v5 v5.2.4
 	go.bug.st/serial v1.8.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/sys v0.50.0

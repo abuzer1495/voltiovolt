@@ -21,6 +21,7 @@ Permitted licenses for Go modules in VLT binaries: MIT, BSD-2-Clause, BSD-3-Clau
 | github.com/mattn/go-isatty | v0.0.24 (indirect) | MIT | Required by modernc.org/libc | internal/store |
 | github.com/ncruces/go-strftime | v1.1.0 (indirect) | MIT | Required by modernc.org/libc | internal/store |
 | github.com/remyoudompheng/bigfft | v0.0.0-20230129092748-24d4a6f8daec (indirect) | BSD-3-Clause | Required by modernc.org/mathutil | internal/store |
+| github.com/godbus/dbus/v5 | v5.2.4 | BSD-2-Clause | System D-Bus calls to org.freedesktop.login1.Manager (ListInhibitors, CanHibernate, PowerOff, Hibernate) without cgo (VLT-IS-004 TASK 03-00-00-007 step 3.1). License checked in the module zip from proxy.golang.org (LICENSE file, 2 clauses) and with go-licenses. | internal/shutdown (Linux only) |
 
 Note on go-winio (VLT-IS-003 TASK 03-00-00-007 step 3.4). Choice: github.com/Microsoft/go-winio, not own code with golang.org/x/sys/windows. Reason: go-winio is maintained by Microsoft and used by large projects. It gives overlapped I/O, deadlines (needed for the 30-second partial-frame limit), more than one pipe instance, a security descriptor in SDDL format, and it always sets PIPE_REJECT_REMOTE_CLIENTS (pipe.go, v0.6.4). Own code must do all of this again with less test use. go-winio adds no new module except golang.org/x/sys, which VLT already uses.
 

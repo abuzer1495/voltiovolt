@@ -508,4 +508,33 @@ Portable mode is the default mode (OD-35). One application, VoltioVolt, contains
 
 ### 17.6 Default packages
 
-The pre-release test-latest has VoltioVolt-test-windows-amd64.zip (VoltioVolt.exe, vlt-probe.exe, install.cmd, uninstall.cmd, remove-old-test-service.cmd, OKUBENI-README.txt) and VoltioVolt-test-linux-amd64.tar.gz (voltiovolt, vlt-probe, install.sh, uninstall.sh, OKUBENI-README.txt). The install scripts copy files into the folder of the user only, with no administrator rights. A Start menu or desktop shortcut is made only when the user agrees (OD-38). The script remove-old-test-service.cmd is only for computers with the VLT-IS-007 test installation. The binaries vltd, vlt-gui and vlt-setup are not in the default package.
+The pre-release test-latest has VoltioVolt-test-windows-amd64.zip (VoltioVolt.exe, vlt-probe.exe, vlt-simulator.exe, install.cmd, uninstall.cmd, remove-old-test-service.cmd, OKUBENI-README.txt) and VoltioVolt-test-linux-amd64.tar.gz (voltiovolt, vlt-probe, vlt-simulator, install.sh, uninstall.sh, OKUBENI-README.txt). The install scripts copy files into the folder of the user only, with no administrator rights. A Start menu or desktop shortcut is made only when the user agrees (OD-38), and only for VoltioVolt (not for the simulator). The script remove-old-test-service.cmd is only for computers with the VLT-IS-007 test installation. The binaries vltd, vlt-gui and vlt-setup are not in the default package.
+
+## 18. UPS simulator and the test connection (VLT-IS-010)
+
+### 18.1 Simulator server
+
+`cmd/vlt-simulator` is a console application (tcell). It uses the simulator model in `internal/sim`. `internal/sim/server` is the protocol server. It answers READ and CONTROL commands as a UPS. The protocol is the same bytes as on a serial line: ASCII command + CR, response + CR (OD-45, VLT-REF-001). CONTROL commands (T, Tnn, TL, CT, Q, S...R..., C) return no response. One client at a time. A second instance exits with "The simulator already runs" / "Simülatör zaten çalışıyor" (`ListenExclusive`; on Windows the listen error is `ErrAlreadyRunning`).
+
+The server can inject faults (no response, garbage, split, wrong length, old bytes) and a response delay. The model has three Dialect profiles: megatec (ProfileQ1), voltronic-qs (ProfileQS) and voltronic (ProfileVoltronic). Unit tests `TestResponseFormatsParse` and `TestProfilesParse` pass the responses of all three profiles to `internal/dialect.Parse`.
+
+### 18.2 Endpoint (OD-44)
+
+The link is a local stream, not a COM port and not TCP. No change to the operating system (SEC-102).
+
+- Windows: named pipe `\\.\pipe\voltiovolt-simulator`, with `PIPE_REJECT_REMOTE_CLIENTS` and `FILE_FLAG_FIRST_PIPE_INSTANCE` (go-winio).
+- Linux: Unix socket `$XDG_RUNTIME_DIR/voltiovolt-simulator.sock`, or `/tmp/voltiovolt-simulator-<uid>.sock` when `XDG_RUNTIME_DIR` is not set.
+
+### 18.3 Test connection transport (RQ-02)
+
+`internal/testconn` wraps the OD-44 Dial as a `transport.Stream`, so the real Driver `Exchange` is the READ path and `Stream.Control` is CONTROL (SEC-037, SEC-098). The Device transport is `"test"` / "Test connection (simulator)". VoltioVolt does not list real ports in this mode (SEC-099). The open timeout is 1 second; if the simulator is not there, the state is `"simulator not found"` and the help is "Start vlt-simulator.exe, then wait. VoltioVolt connects automatically." The retry is every 5 seconds (`device.RetryWait` / `SimulatorRetry`), not the 1/2/5/10/30 Backoff.
+
+CONTROL commands go to the simulator only, never to real hardware or a real port (OD-47). The OS shutdown is a dry run by default (OD-46, Setting `test.real_shutdown` off). The Policy Guarded Dry is: demo is active, or (test is active and `test.real_shutdown` is off). The countdown message is "Test: the computer would shut down now." A blue banner "TEST CONNECTION" / "TEST BAĞLANTISI" is on all screens.
+
+Measurements and Events have the source `"test"` (OD-48, store migration 0006). History and Events show the current source by default. The filter "Show other sources" / "Diğer kaynakları göster" shows the other sources (real, demo, test). Notifications have the prefix `[TEST]`.
+
+CI runs an end-to-end test (`VoltioVolt --self-test --test-connection`) on windows-latest and ubuntu-latest: the packaged vlt-simulator starts with `--headless --dialect megatec --scenario 1 --scenario-delay 20s`, then VoltioVolt waits for 230 V, ON_BATTERY and shutdown=dry; a second pass uses `--dialect voltronic`. The existing `--self-test` (IS-008, net.Pipe) is unchanged.
+
+### 18.4 Chart series visibility (RQ-03, OD-49)
+
+The History chart keeps one uPlot object. A refresh calls `setData`. The object is destroyed only when the screen unmounts. Series visibility is a user choice in Setting `ui.history.series_visibility`. It stays after a data refresh, a range change and a restart. Hiding a series does not change the recording.

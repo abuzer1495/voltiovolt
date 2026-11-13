@@ -1,4 +1,4 @@
-# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009, VLT-IS-008 TASK 03-00-00-007, VLT-IS-009 TASK 03-00-00-007)
+# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009, VLT-IS-008 TASK 03-00-00-007, VLT-IS-009 TASK 03-00-00-007, VLT-IS-010 TASK 03-00-00-007)
 
 English first. Turkish: section T below.
 
@@ -23,7 +23,7 @@ General preconditions for all tests:
 - The Reference UPS and its USB or serial cable.
 - The test package of the latest pre-release "Test build" (tag test-latest). See "Preparation" above.
 - PIN is optional in portable mode. If no PIN is set, all functions are available. Secret fields stay write-only.
-- Do the tests in this order: T-01 first, then T-08 to T-16. The tests T-02, T-03, T-05, T-07 and the service parts of T-04 and T-06 are in the section "Service mode (later)".
+- Do the tests in this order: T-01 first, then T-08 to T-17. The tests T-02, T-03, T-05, T-07 and the service parts of T-04 and T-06 are in the section "Service mode (later)".
 
 ### T-01 vlt-probe Capture on the Reference UPS
 
@@ -176,13 +176,29 @@ WARNING: The UPS turns off its output during this test. All equipment on the UPS
 - Preconditions: VoltioVolt from the test package is running. If a PIN is set, unlock with the PIN. A real UPS is not necessary.
 - Steps (all in VoltioVolt):
     1. Open "Device" (or the UPS port step of the wizard). Select the transport "Demo (simulator)". A yellow banner "DEMO" is on all screens.
-    2. Open the Dashboard: the values change slowly. Open "Events" and "History": the demo Events and measurements are hidden by default. The checkboxes "Show demo events" and "Show demo measurements" are off. Turn them on: the demo data is visible and marked "demo".
+    2. Open the Dashboard: the values change slowly. Open "Events" and "History": the demo Events and measurements are hidden by default. The checkboxes "Show other sources" are off. Turn them on: the demo data is visible and marked "demo".
     3. On the Device screen, click "Simulate power failure". The simulator goes to battery for 60 seconds, then the mains power returns.
     4. If the Shutdown Policy would shut down the computer, the message is: "Demo: the computer would shut down now." The computer does not shut down.
     5. Open "UPS Control" and start a short test or change the beeper. The command is a dry run: no CONTROL bytes go to a real UPS, and the computer does not change.
     6. If a Notification Channel is configured, a notification has the prefix "[DEMO] ". Do not send a Secret.
     7. Leave demo mode: select a different transport or a real port. The confirmation is: "Leave demo mode and connect to a real UPS? Events and measurements of the demo stay, marked as demo." Confirm or cancel as you wish. The demo history stays, marked as demo.
 - Expected result: the yellow DEMO banner is visible. The values change slowly. "Simulate power failure" lasts 60 seconds. The computer does not shut down. No CONTROL bytes go to a real UPS. Demo Events and measurements are hidden by default and marked "demo". The leave confirmation is the exact text of step 7.
+- Send: the result of each step (OK or the problem). Do not send a Secret. Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
+
+### T-17 Simulator test (VLT-IS-010)
+
+- Purpose: check the UPS simulator and the test connection (VLT-IS-010, RQ-01, RQ-02, RQ-03). This test does not use a real UPS. It must not shut down the computer (leave `test.real_shutdown` off) and must not send CONTROL bytes to a real UPS.
+- Preconditions: the test package is extracted. vlt-simulator is in the same folder as VoltioVolt (`vlt-simulator.exe` on Windows, `./vlt-simulator` on Linux). A real UPS is not necessary. If a PIN is set, unlock with the PIN. Leave the Setting "Permit a real computer shutdown in a test" off. See docs/user/simulator.md for the screen, the keys, the menu and the scenarios.
+- Steps:
+    1. Start the simulator (Windows: `vlt-simulator.exe` in a cmd window; Linux: `./vlt-simulator` in a terminal). The screen "VoltioVolt UPS Simulator" opens. The state is "waiting".
+    2. Start VoltioVolt. Open Device and select "Test connection (simulator)". A blue banner "TEST CONNECTION" is on all screens. The simulator state becomes "connected". The Dashboard shows about 230 V input. If the simulator is not running, the help is: "Start vlt-simulator.exe, then wait. VoltioVolt connects automatically."
+    3. Scenario 1 (key 1, "Power failure now"): the Dashboard shows battery mode (mains off). Open Events: an ON_BATTERY Event with source "test" is there (History and Events show the current source by default). If a Notification Channel is configured, a notification has the prefix "[TEST]". Do not send a Secret. Press 9 or R to return to normal, or go to the next scenario.
+    4. Scenario 2 (key 2, "Power failure for 2 minutes, then mains on"): mains goes off, then after 2 minutes mains returns. Watch the Dashboard for both states. An Event for the return (for example MAINS_RESTORED) has source "test".
+    5. Scenario 5 (key 5, "Overload: 110 %"): the Dashboard load is 110 %. An overload Event, if any, has source "test". Press 9 or R when you have seen it.
+    6. Scenario 6 (key 6, "Battery low: charge 15 % and mains off"): the Dashboard shows a low battery and mains off. If the Shutdown Policy would shut down the computer, a countdown starts and the message at the end is: "Test: the computer would shut down now." The computer does not shut down. Do not turn on "Permit a real computer shutdown in a test".
+    7. Scenario 7 (key 7, "Communication loss for 30 seconds"): the simulator sends no response for 30 seconds, then it is normal again. Watch the Dashboard and Events for the loss and the return.
+    8. Hidden chart series (RQ-03): open History. Hide one series (click its name in the chart legend). Refresh the data (wait for a new point, or change and restore a filter). Change the time range. Close VoltioVolt and start it again (keep the simulator running, and select "Test connection (simulator)" if needed). The same series stays hidden. The recording of that series did not stop: when you show it again, the points of the hidden period are there.
+- Expected result: the blue TEST CONNECTION banner is visible. Scenarios 1, 2, 5, 6 and 7 change the Dashboard as described. Events and Notifications of the test have source "test" and the prefix "[TEST]". The countdown, if it runs, is a dry run: "Test: the computer would shut down now." The computer does not shut down. A hidden History series stays hidden after a refresh, a range change and a restart. No CONTROL bytes go to a real UPS.
 - Send: the result of each step (OK or the problem). Do not send a Secret. Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
 
 ### Service mode (later)
@@ -284,7 +300,7 @@ Tüm testler için genel ön koşullar:
 - Referans UPS ve USB veya seri kablosu.
 - En son "Test build" ön sürümünün (etiket: test-latest) test paketi. Yukarıdaki "Hazırlık" bölümüne bakın.
 - Taşınabilir kipte PIN isteğe bağlıdır. PIN belirlenmemişse tüm işlevler kullanılabilir. Secret alanları yalnızca yazılır.
-- Testleri şu sırayla yapın: önce T-01, sonra T-08 ile T-16. T-02, T-03, T-05, T-07 ve T-04 ile T-06'nın hizmet kısımları "Hizmet kipi (daha sonra)" bölümündedir.
+- Testleri şu sırayla yapın: önce T-01, sonra T-08 ile T-17. T-02, T-03, T-05, T-07 ve T-04 ile T-06'nın hizmet kısımları "Hizmet kipi (daha sonra)" bölümündedir.
 
 ### T-01 Referans UPS ile vlt-probe Capture
 
@@ -437,13 +453,29 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
 - Ön koşullar: Test paketindeki VoltioVolt çalışır. PIN varsa PIN ile kilidi açın. Gerçek bir UPS gerekli değildir.
 - Adımlar (tümü VoltioVolt'ta):
     1. "Aygıt" ekranını (veya sihirbazın UPS portu adımını) açın. Taşıma olarak "Demo (simülatör)" seçin. Tüm ekranlarda sarı bir "DEMO" bandı görünür.
-    2. Gösterge panelini açın: değerler yavaş değişir. "Olaylar" ve "Geçmiş" ekranlarını açın: demo Olayları ve ölçümleri varsayılan olarak gizlidir. "Demo olaylarını göster" ve "Demo ölçümlerini göster" kutuları kapalıdır. Onları açın: demo verisi görünür ve "demo" olarak işaretlidir.
+    2. Gösterge panelini açın: değerler yavaş değişir. "Olaylar" ve "Geçmiş" ekranlarını açın: demo Olayları ve ölçümleri varsayılan olarak gizlidir. "Diğer kaynakları göster" kutuları kapalıdır. Onları açın: demo verisi görünür ve "demo" olarak işaretlidir.
     3. Aygıt ekranında "Güç kesintisini simüle et" düğmesine tıklayın. Simülatör 60 saniye bataryaya geçer, sonra şebeke elektriği döner.
     4. Kapatma Politikası bilgisayarı kapatacak olsa, ileti şudur: "Demo: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz.
     5. "UPS Kontrolü" ekranını açın ve kısa bir test başlatın veya hoparlörü değiştirin. Komut bir kuru çalıştırmadır: gerçek bir UPS'e CONTROL baytı gitmez ve bilgisayar değişmez.
     6. Bir Bildirim Kanalı yapılandırılmışsa, bildirimin ön eki "[DEMO] " olur. Gizli bilgi göndermeyin.
     7. Demo kipinden çıkış: farklı bir taşıma veya gerçek bir port seçin. Onay metni şudur: "Demo modundan çıkılsın ve gerçek bir UPS bağlantısı kullanılsın mı? Demo olayları ve ölçümleri geçmişte kalır ve demo olarak işaretlenir." İsterseniz onaylayın veya iptal edin. Demo geçmişi kalır ve demo olarak işaretlidir.
 - Beklenen sonuç: sarı DEMO bandı görünür. Değerler yavaş değişir. "Güç kesintisini simüle et" 60 saniye sürer. Bilgisayar kapanmaz. Gerçek bir UPS'e CONTROL baytı gitmez. Demo Olayları ve ölçümleri varsayılan olarak gizlidir ve "demo" olarak işaretlidir. Çıkış onayı 7. adımdaki tam metindir.
+- Gönderin: her adımın sonucu (tamam veya sorun). Gizli bilgi göndermeyin. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun.
+
+### T-17 Simülatör testi (VLT-IS-010)
+
+- Amaç: UPS simülatörünü ve test bağlantısını kontrol etmek (VLT-IS-010, RQ-01, RQ-02, RQ-03). Bu test gerçek bir UPS kullanmaz. Bilgisayarı kapatmamalıdır (`test.real_shutdown` kapalı kalsın) ve gerçek bir UPS'e CONTROL baytı göndermemelidir.
+- Ön koşullar: Test paketi çıkarılmıştır. vlt-simulator, VoltioVolt ile aynı klasördedir (Windows'ta `vlt-simulator.exe`, Linux'ta `./vlt-simulator`). Gerçek bir UPS gerekli değildir. PIN varsa PIN ile kilidi açın. "Bir testte gerçek bilgisayar kapanmasına izin ver" ayarını kapalı bırakın. Ekran, tuşlar, menü ve senaryolar için docs/user/simulator.md dosyasına bakın.
+- Adımlar:
+    1. Simülatörü başlatın (Windows: bir cmd penceresinde `vlt-simulator.exe`; Linux: bir uçbirimde `./vlt-simulator`). "VoltioVolt UPS Simülatörü" ekranı açılır. Durum "bekliyor"dur.
+    2. VoltioVolt'u başlatın. Aygıt ekranını açın ve "Test bağlantısı (simülatör)" seçin. Tüm ekranlarda mavi bir "TEST BAĞLANTISI" bandı görünür. Simülatör durumu "bağlı" olur. Gösterge paneli yaklaşık 230 V giriş gösterir. Simülatör çalışmıyorsa yardım metni şudur: "vlt-simulator.exe uygulamasını başlatın, sonra bekleyin. VoltioVolt otomatik bağlanır."
+    3. Senaryo 1 (1 tuşu, "Şimdi elektrik kesintisi"): Gösterge paneli batarya kipini gösterir (şebeke kapalı). Olaylar ekranını açın: kaynağı "test" olan bir ON_BATTERY Olayı vardır (Geçmiş ve Olaylar varsayılan olarak güncel kaynağı gösterir). Bir Bildirim Kanalı yapılandırılmışsa, bildirimin ön eki "[TEST]" olur. Gizli bilgi göndermeyin. Normal değerlere dönmek için 9 veya R tuşuna basın, veya sonraki senaryoya geçin.
+    4. Senaryo 2 (2 tuşu, "2 dakikalık kesinti, sonra şebeke açık"): şebeke kapanır, 2 dakika sonra şebeke döner. Her iki durumu da Gösterge panelinde izleyin. Dönüşe ait bir Olay (örneğin MAINS_RESTORED) "test" kaynağına sahiptir.
+    5. Senaryo 5 (5 tuşu, "Aşırı yük: % 110"): Gösterge panelindeki yük % 110 olur. Varsa bir aşırı yük Olayı "test" kaynağına sahiptir. Gördükten sonra 9 veya R tuşuna basın.
+    6. Senaryo 6 (6 tuşu, "Akü düşük: şarj % 15 ve şebeke kapalı"): Gösterge paneli düşük akü ve kapalı şebeke gösterir. Kapatma Politikası bilgisayarı kapatacak olsa, bir geri sayım başlar ve sonundaki ileti şudur: "Test: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz. "Bir testte gerçek bilgisayar kapanmasına izin ver" ayarını açmayın.
+    7. Senaryo 7 (7 tuşu, "30 saniyelik haberleşme kaybı"): simülatör 30 saniye yanıt göndermez, sonra yeniden normaldir. Kaybı ve dönüşü Gösterge panelinde ve Olaylar ekranında izleyin.
+    8. Gizli grafik serisi (RQ-03): Geçmiş ekranını açın. Bir seriyi gizleyin (grafik gösterimindeki adına tıklayın). Veriyi yenileyin (yeni bir nokta bekleyin, veya bir süzgeci değiştirip geri alın). Zaman aralığını değiştirin. VoltioVolt'u kapatın ve yeniden başlatın (simülatörü çalışır durumda bırakın ve gerekirse "Test bağlantısı (simülatör)" seçin). Aynı seri gizli kalır. O serinin kaydı durmamıştır: yeniden gösterdiğinizde, gizli olduğu sürenin noktaları vardır.
+- Beklenen sonuç: mavi TEST BAĞLANTISI bandı görünür. 1, 2, 5, 6 ve 7. senaryolar Gösterge panelini anlatıldığı gibi değiştirir. Test Olayları ve Bildirimleri "test" kaynağına ve "[TEST]" ön ekine sahiptir. Geri sayım çalışırsa kuru çalıştırmadır: "Test: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz. Gizli bir Geçmiş serisi, yenilemeden, aralık değişiminden ve yeniden başlatmadan sonra gizli kalır. Gerçek bir UPS'e CONTROL baytı gitmez.
 - Gönderin: her adımın sonucu (tamam veya sorun). Gizli bilgi göndermeyin. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun.
 
 ### Hizmet kipi (daha sonra)

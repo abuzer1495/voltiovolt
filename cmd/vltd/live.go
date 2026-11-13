@@ -311,7 +311,8 @@ func (d *daemon) startLive(ctx context.Context) error {
 	}
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
 		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}}
-	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log})
+	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log},
+		desktopChannel{l.hub})
 	// The UPS output off step of the Shutdown Policy (VLT-IS-006 TASK
 	// 03-00-00-006) uses the Controller with the Policy Grant.
 	pol.SetUPSOff(l.ctl)

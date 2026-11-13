@@ -244,6 +244,9 @@ const (
 	PushStatus    = "status"    // every 2 seconds
 	PushEvent     = "event"     // one for each Event
 	PushCountdown = "countdown" // every second during a countdown
+	// PushNotification is a Notification of the Router for the desktop
+	// Channel (VLT-IS-007 TASK 03-00-00-004). Data: notify.Notification.
+	PushNotification = "notification"
 )
 
 // Push is {"v":1,"push":text,"data":object}. It has no id.

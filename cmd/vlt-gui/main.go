@@ -59,13 +59,15 @@ func run(addr string) error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	m := gui.NewManager(addr, nil, log)
 	api := gui.NewAPI(m)
+	osn := newOSNotifier(log)
+	m.OnNotify(osn.show)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	app := application.New(application.Options{
 		Name:        "VLT",
 		Description: "VLT UPS monitor",
-		Services:    []application.Service{application.NewService(api)},
+		Services:    []application.Service{application.NewService(api), application.NewService(osn)},
 		Assets: application.AssetOptions{
 			Handler: cspHandler(application.BundledAssetFileServer(dist)),
 		},

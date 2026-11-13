@@ -40,6 +40,7 @@ jobs:
   windows:
     name: test-build-windows
     runs-on: windows-latest
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -105,12 +106,40 @@ jobs:
           vv="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/VoltioVolt.exe"
           dir="$RUNNER_TEMP/vv-e2e-megatec"
           mkdir -p "$dir"
-          "$sim" --headless --lang en --dialect megatec --scenario 1 --scenario-delay 20s &
+          printf '%s\n' \
+            'import subprocess, sys' \
+            'try:' \
+            '    r = subprocess.run(sys.argv[1:], timeout=120, stdin=subprocess.DEVNULL)' \
+            '    sys.exit(r.returncode or 0)' \
+            'except subprocess.TimeoutExpired:' \
+            '    sys.stderr.write("VoltioVolt --self-test --test-connection timed out after 120s\n")' \
+            '    sys.exit(1)' \
+            > "$RUNNER_TEMP/run_vv_timeout.py"
+          cmd.exe //c "taskkill /F /IM vlt-simulator.exe /T" >/dev/null 2>&1 || true
+          sleep 3
+          "$sim" --headless --lang en --dialect megatec --scenario 1 --scenario-delay 20s >"$dir/sim.log" 2>&1 &
           sim_pid=$!
-          cleanup() { kill "$sim_pid" 2>/dev/null || true; wait "$sim_pid" 2>/dev/null || true; }
+          cleanup() {
+            cmd.exe //c "taskkill /F /IM vlt-simulator.exe /T" >/dev/null 2>&1 || true
+            kill -9 "$sim_pid" 2>/dev/null || true
+            for i in 1 2 3 4 5; do
+              kill -0 "$sim_pid" 2>/dev/null || break
+              sleep 1
+            done
+          }
           trap cleanup EXIT
           sleep 2
-          "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect megatec --expect-event ON_BATTERY
+          if ! kill -0 "$sim_pid" 2>/dev/null; then
+            echo "vlt-simulator exited at once:" >&2
+            cat "$dir/sim.log" >&2 || true
+            exit 1
+          fi
+          python "$RUNNER_TEMP/run_vv_timeout.py" "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect megatec --expect-event ON_BATTERY
+          if [ ! -f "$dir/self-test-connection-result.txt" ]; then
+            echo "no result file; simulator log:" >&2
+            cat "$dir/sim.log" >&2 || true
+            exit 1
+          fi
           test -f "$dir/self-test-connection-result.txt"
           grep -q 'dialect=megatec' "$dir/self-test-connection-result.txt"
           grep -q 'input=230.0' "$dir/self-test-connection-result.txt"
@@ -125,12 +154,40 @@ jobs:
           vv="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/VoltioVolt.exe"
           dir="$RUNNER_TEMP/vv-e2e-voltronic"
           mkdir -p "$dir"
-          "$sim" --headless --lang en --dialect voltronic &
+          printf '%s\n' \
+            'import subprocess, sys' \
+            'try:' \
+            '    r = subprocess.run(sys.argv[1:], timeout=120, stdin=subprocess.DEVNULL)' \
+            '    sys.exit(r.returncode or 0)' \
+            'except subprocess.TimeoutExpired:' \
+            '    sys.stderr.write("VoltioVolt --self-test --test-connection timed out after 120s\n")' \
+            '    sys.exit(1)' \
+            > "$RUNNER_TEMP/run_vv_timeout.py"
+          cmd.exe //c "taskkill /F /IM vlt-simulator.exe /T" >/dev/null 2>&1 || true
+          sleep 3
+          "$sim" --headless --lang en --dialect voltronic >"$dir/sim.log" 2>&1 &
           sim_pid=$!
-          cleanup() { kill "$sim_pid" 2>/dev/null || true; wait "$sim_pid" 2>/dev/null || true; }
+          cleanup() {
+            cmd.exe //c "taskkill /F /IM vlt-simulator.exe /T" >/dev/null 2>&1 || true
+            kill -9 "$sim_pid" 2>/dev/null || true
+            for i in 1 2 3 4 5; do
+              kill -0 "$sim_pid" 2>/dev/null || break
+              sleep 1
+            done
+          }
           trap cleanup EXIT
           sleep 2
-          "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect voltronic
+          if ! kill -0 "$sim_pid" 2>/dev/null; then
+            echo "vlt-simulator exited at once:" >&2
+            cat "$dir/sim.log" >&2 || true
+            exit 1
+          fi
+          python "$RUNNER_TEMP/run_vv_timeout.py" "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect voltronic
+          if [ ! -f "$dir/self-test-connection-result.txt" ]; then
+            echo "no result file; simulator log:" >&2
+            cat "$dir/sim.log" >&2 || true
+            exit 1
+          fi
           test -f "$dir/self-test-connection-result.txt"
           grep -q 'dialect=voltronic' "$dir/self-test-connection-result.txt"
           grep -q 'input=230.0' "$dir/self-test-connection-result.txt"
@@ -177,6 +234,7 @@ jobs:
   linux:
     name: test-build-linux
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -257,15 +257,18 @@ func TestSecondClientGetsNoConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c2, err := DialPath(ctx, path)
-	if err != nil {
-		// A refused connect is "no connection".
-		return
-	}
-	defer c2.Close()
-	_, err = Exchange(context.Background(), c2, "Q1", 300*time.Millisecond)
+	// On Windows, DialPipe waits for a free pipe instance. The server is
+	// busy with the first client and is not in Accept, so Dial would
+	// block until the test timeout (10 m) unless we bound it.
+	dctx, dcancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer dcancel()
+	c2, err := DialPath(dctx, path)
 	if err == nil {
-		t.Fatal("second client got a response")
+		defer c2.Close()
+		_, err = Exchange(context.Background(), c2, "Q1", 300*time.Millisecond)
+		if err == nil {
+			t.Fatal("second client got a response")
+		}
 	}
 
 	// The first client still works.

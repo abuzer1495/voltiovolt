@@ -91,7 +91,7 @@ describe('Notifications screen', () => {
     app.set({ auth: { pin_set: true, elevated: false } as never, conn: { state: 'connected', since: '' } });
     await show();
     expect(root.textContent).toContain(t('locked.need'));
-    const buttons = [...root.querySelectorAll('button')] as HTMLButtonElement[];
+    const buttons = [...root.querySelectorAll('button')].filter((b) => !b.closest('.field-help')) as HTMLButtonElement[];
     expect(buttons.length).toBeGreaterThan(0);
     expect(buttons.every((b) => b.disabled)).toBe(true);
     const inputs = [...root.querySelectorAll('input, select, textarea')] as HTMLInputElement[];

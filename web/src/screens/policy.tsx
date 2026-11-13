@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { api, errorCode, type Countdown, type PolicyInfo, type SimResult } from '../api';
 import { Badge, Confirm, errText } from '../components';
+import { HelpLine } from '../help';
 import { DASH, time } from '../format';
 import { t } from '../i18n';
 import { canActivate, FIELDS, toValues, type Field } from '../policyform';
@@ -40,6 +41,7 @@ export function UPSOffNote({ form }: { form: Record<string, string | boolean> })
       <p class="note">
         {t('policy.upsoff.text', { delay: String(form['ups_off.delay_minutes']), restore: String(form['ups_off.restore_minutes']) })}
       </p>
+      <HelpLine text={t('help.policy.ups_off.example')} />
     </div>
   );
 }
@@ -96,6 +98,12 @@ export function PolicyForm({ p, onSaved }: { p: PolicyInfo; onSaved: (p: PolicyI
               {f.kind === 'int' ? ' · ' + t('policy.range', { min: f.min ?? 0, max: f.max ?? 0, unit: f.unit ? t('unit.' + f.unit) : '' }) : ''}
               {f.kind === 'int' && f.key.startsWith('trigger.') ? ' · ' + t('policy.zero_off') : ''}
             </span>
+            {t('help.policy.' + f.key) !== 'help.policy.' + f.key ? (
+              <HelpLine
+                text={t('help.policy.' + f.key)}
+                more={t('help.policy.' + f.key + '.more') !== 'help.policy.' + f.key + '.more' ? t('help.policy.' + f.key + '.more') : undefined}
+              />
+            ) : null}
             {prob ? <span class="msg msg-error" role="alert">{t(prob, { min: f.min ?? 0, max: f.max ?? 0 })}</span> : null}
           </div>
           </>

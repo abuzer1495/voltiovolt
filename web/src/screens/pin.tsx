@@ -3,6 +3,7 @@
 // (TASK 03-00-00-003).
 import { useEffect, useState } from 'preact/hooks';
 import { api, errorCode } from '../api';
+import { HelpLine } from '../help';
 import { t } from '../i18n';
 
 export const PIN_MIN = 6;
@@ -86,6 +87,7 @@ export function SetPin({ change = false, onDone, nested = false }: { change?: bo
         <h2 id={id + '-title'}>{t('pin.set.title')}</h2>
       )}
       {change ? null : <p>{t('pin.set.intro')}</p>}
+      {change ? null : <HelpLine text={t('help.pin')} />}
       <PinRules />
       <form onSubmit={submit}>
         <label for={id + '-pin'}>{t(change ? 'pin.new' : 'pin.label')}</label>

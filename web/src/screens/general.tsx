@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { api, errorCode, type AboutInfo } from '../api';
 import { errText } from '../components';
+import { HelpLine } from '../help';
 import { DASH } from '../format';
 import { lang, setLang, t, type Lang } from '../i18n';
 import { SetPin, fieldValue } from './pin';
@@ -90,6 +91,7 @@ export function General() {
           <h3 id="data-dir-title">{t('general.dataDir')}</h3>
           <p><code>{about.data_dir}</code></p>
           <p id="data-dir-help">{t('general.dataDir.help')}</p>
+          <HelpLine text={t('help.dataDir')} />
         </section>
       ) : null}
       <section class="card" aria-labelledby="about-title">

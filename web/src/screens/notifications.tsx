@@ -13,6 +13,7 @@ import {
 } from '../api';
 import { errText } from '../components';
 import { DASH, time } from '../format';
+import { HELP_LINKS, HelpLine } from '../help';
 import { t } from '../i18n';
 import { app } from '../state';
 import { useStore } from '../store';
@@ -32,6 +33,10 @@ function SecretField({
   set,
   elevated,
   onSaved,
+  placeholder,
+  help,
+  more,
+  href,
 }: {
   id: string;
   label: string;
@@ -39,6 +44,10 @@ function SecretField({
   set: boolean;
   elevated: boolean;
   onSaved: () => void;
+  placeholder?: string;
+  help?: string;
+  more?: string;
+  href?: string;
 }) {
   const [val, setVal] = useState('');
   const [msg, setMsg] = useState<Msg>(null);
@@ -64,8 +73,10 @@ function SecretField({
         autoComplete="new-password"
         disabled={!elevated}
         value={val}
+        placeholder={placeholder}
         onInput={(e) => setVal((e.target as HTMLInputElement).value)}
       />
+      {help ? <HelpLine text={help} more={more} href={href} /> : null}
       {set ? (
         <p class="note">{t('notify.secret.hint', { hint: hint || DASH })}</p>
       ) : (
@@ -147,9 +158,14 @@ function TelegramSection({
         set={!!ch.secret?.set}
         elevated={elevated}
         onSaved={onReload}
+        placeholder={t('help.telegram.token.example')}
+        help={t('help.telegram.token')}
+        more={t('help.telegram.token.more')}
+        href={HELP_LINKS.telegram}
       />
       <h4>{t('notify.telegram.pair')}</h4>
       <p>{t('notify.telegram.steps')}</p>
+      <HelpLine text={t('help.telegram.pair')} more={t('help.telegram.pair.more')} />
       <button type="button" disabled={!elevated} onClick={() => void pair()}>{t('notify.telegram.pair.button')}</button>
       {active && code ? (
         <p role="status" class="banner banner-info">
@@ -248,18 +264,23 @@ function EmailSection({
         </button>
       ))}
       {gmail ? <p class="note" role="note">{t('notify.email.gmail.help')}</p> : null}
+      {gmail ? (
+        <HelpLine text={t('help.email.gmail')} more={t('help.email.gmail.more')} href={HELP_LINKS.gmail} />
+      ) : (
+        <HelpLine text={t('help.email.server')} more={t('help.email.server.more')} />
+      )}
       <form class="form" onSubmit={save}>
         <label for="email-server">{t('notify.email.server')}</label>
-        <input id="email-server" disabled={!elevated} value={server} autoComplete="off" onInput={(e) => setServer((e.target as HTMLInputElement).value)} />
+        <input id="email-server" disabled={!elevated} value={server} autoComplete="off" placeholder={t('help.email.server.example')} onInput={(e) => setServer((e.target as HTMLInputElement).value)} />
         <label for="email-port">{t('notify.email.port')}</label>
-        <input id="email-port" type="number" min="1" max="65535" disabled={!elevated} value={port} onInput={(e) => setPort((e.target as HTMLInputElement).value)} />
+        <input id="email-port" type="number" min="1" max="65535" disabled={!elevated} value={port} placeholder="465" onInput={(e) => setPort((e.target as HTMLInputElement).value)} />
         <label for="email-security">{t('notify.email.security')}</label>
         <select id="email-security" disabled={!elevated} value={security} onChange={(e) => setSecurity((e.target as HTMLSelectElement).value)}>
           <option value="tls">{t('notify.email.security.tls')}</option>
           <option value="starttls">{t('notify.email.security.starttls')}</option>
         </select>
         <label for="email-user">{t('notify.email.user')}</label>
-        <input id="email-user" disabled={!elevated} value={user} autoComplete="username" onInput={(e) => setUser((e.target as HTMLInputElement).value)} />
+        <input id="email-user" disabled={!elevated} value={user} autoComplete="username" placeholder={t('help.email.user.example')} onInput={(e) => setUser((e.target as HTMLInputElement).value)} />
         <label for="email-from">{t('notify.email.from')}</label>
         <input id="email-from" disabled={!elevated} value={from} autoComplete="off" onInput={(e) => setFrom((e.target as HTMLInputElement).value)} />
         <label for="email-to">{t('notify.email.to')}</label>
@@ -274,6 +295,10 @@ function EmailSection({
         set={!!ch.secret?.set}
         elevated={elevated}
         onSaved={onReload}
+        placeholder={t('help.email.password.example')}
+        help={gmail ? t('help.email.gmail') : t('help.email.server')}
+        more={gmail ? t('help.email.gmail.more') : undefined}
+        href={gmail ? HELP_LINKS.gmail : undefined}
       />
     </>
   );
@@ -331,6 +356,7 @@ function ChannelCard({
         <select id={'sev-' + ch.name} disabled={!elevated} value={sev} onChange={(e) => setSev((e.target as HTMLSelectElement).value)}>
           {SEVERITIES.map((s) => <option value={s}>{t('notify.severity.' + s)}</option>)}
         </select>
+        <HelpLine text={t('help.severity')} more={t('help.severity.more')} />
         <button type="submit" disabled={!elevated}>{t('common.save')}</button>
       </form>
       <button type="button" disabled={!elevated} onClick={() => void test()}>{t('notify.test')}</button>

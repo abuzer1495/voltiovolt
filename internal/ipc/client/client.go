@@ -213,6 +213,10 @@ func (c *Client) Logout(ctx context.Context) error {
 	return c.Call(ctx, wire.MethodLogout, nil, nil)
 }
 
+func (c *Client) ForgotPIN(ctx context.Context, confirmation string) error {
+	return c.Call(ctx, wire.MethodForgotPIN, wire.ForgotPINParams{Confirmation: confirmation}, nil)
+}
+
 func (c *Client) Settings(ctx context.Context) ([]wire.Setting, error) {
 	var r wire.SettingsListResult
 	err := c.Call(ctx, wire.MethodSettingsList, nil, &r)

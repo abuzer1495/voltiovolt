@@ -9,7 +9,7 @@ import { Dashboard } from './screens/dashboard';
 import { Device } from './screens/device';
 import { Events } from './screens/events';
 import { General } from './screens/general';
-import { Wizard, wizardWanted } from './screens/wizard';
+import { Wizard, startWizard, wizardWanted } from './screens/wizard';
 import { Notifications } from './screens/notifications';
 import { History } from './screens/history';
 import { Login } from './screens/pin';
@@ -105,8 +105,8 @@ export function App() {
         {!connected ? (
           s.conn.state === 'connecting' ? <p role="status">{t('conn.connecting')}</p> : <ConnProblem conn={s.conn} />
         ) : firstStart || wiz.open ? (
-          <Wizard first={firstStart} portable={portable} onDone={() => {
-            wizardWanted.set({ open: false });
+          <Wizard first={firstStart} portable={portable} startAt={wiz.start || undefined} onDone={() => {
+            wizardWanted.set({ open: false, start: '' });
             if (portable) {
               void api.setWizardCompleted().then(() => setWizDone(true), () => setWizDone(true));
             }
@@ -116,7 +116,7 @@ export function App() {
           <>
             <FallbackBanner fallback={!!s.policy?.fallback} />
             <CountdownBanner cd={s.countdown} elevated={elevated} lowBattery={!!s.status?.ups?.low_battery} />
-            {unlock && !elevated ? <Login blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} /> : null}
+            {unlock && !elevated ? <Login portable={portable} blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} onForgot={() => { setUnlock(false); refreshAuth(); startWizard('pin'); }} /> : null}
             <Screen />
           </>
         )}

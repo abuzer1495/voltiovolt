@@ -110,11 +110,17 @@ export function remaining(until: string | undefined, now: number = Date.now()): 
 }
 
 /** Login is the PIN entry to unlock (auth.login). It shows the block time. */
-export function Login({ blockUntil, onDone }: { blockUntil?: string; onDone?: () => void }) {
+export function Login({ blockUntil, portable = false, onDone, onForgot }: {
+  blockUntil?: string;
+  portable?: boolean;
+  onDone?: () => void;
+  onForgot?: () => void;
+}) {
   const [pin, setPin] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [until, setUntil] = useState(blockUntil);
   const [, tick] = useState(0);
+  const [forgot, setForgot] = useState(false);
   useEffect(() => setUntil(blockUntil), [blockUntil]);
   const left = remaining(until);
   useEffect(() => {
@@ -147,6 +153,22 @@ export function Login({ blockUntil, onDone }: { blockUntil?: string; onDone?: ()
       }
     }
   }
+  async function forgotSubmit(e: Event) {
+    e.preventDefault();
+    const value = fieldValue(e, 'forgot-reset');
+    setMsg(null);
+    if (value !== 'RESET') {
+      setMsg(t('err.invalid'));
+      return;
+    }
+    try {
+      await api.forgotPIN(value);
+      onForgot?.();
+      onDone?.();
+    } catch (err) {
+      setMsg(errText(errorCode(err)));
+    }
+  }
   return (
     <section class="card pin" aria-labelledby="login-title">
       <h2 id="login-title">{t('login.title')}</h2>
@@ -159,6 +181,19 @@ export function Login({ blockUntil, onDone }: { blockUntil?: string; onDone?: ()
         <button type="submit" disabled={left > 0}>{t('login.button')}</button>
       </form>
       {left > 0 ? <p role="status" class="msg msg-error">{t('login.blocked', { seconds: left })}</p> : null}
+      {portable ? (
+        forgot ? (
+          <form id="forgot-form" onSubmit={forgotSubmit}>
+            <p>{t('login.forgot.text')}</p>
+            <label for="forgot-reset">{t('login.forgot.confirm')}</label>
+            <input id="forgot-reset" name="reset" type="text" autoComplete="off" />
+            <button type="submit">{t('login.forgot.button')}</button>
+            <button type="button" onClick={() => setForgot(false)}>{t('common.cancel')}</button>
+          </form>
+        ) : (
+          <p><button type="button" class="link" onClick={() => { setForgot(true); setMsg(null); }}>{t('login.forgot')}</button></p>
+        )
+      ) : null}
       {msg ? <p role="alert" class="msg msg-error">{msg}</p> : null}
     </section>
   );

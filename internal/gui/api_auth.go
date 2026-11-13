@@ -4,6 +4,7 @@ package gui
 
 import (
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client"
+	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 )
 
 // PIN rules of VLT-IS-003 TASK 03-00-00-005 (internal/auth). The front end
@@ -56,6 +57,20 @@ func (a *API) RemovePIN(pin string) error {
 	c, cancel := ctx()
 	defer cancel()
 	err := a.m.call(c, func(cl *client.Client) error { return cl.RemovePIN(c, pin) })
+	a.m.refreshAuth(c)
+	return wrap(err)
+}
+
+// ForgotPIN calls auth.forgot_pin (VLT-IS-009 OD-40, portable mode).
+// The confirmation text must be "RESET". It removes the PIN, resets
+// the Vault (all Secrets) and makes the Shutdown Policy inactive.
+func (a *API) ForgotPIN(confirmation string) error {
+	if confirmation != wire.ForgotPINConfirmation {
+		return &Error{Code: wire.CodeInvalid}
+	}
+	c, cancel := ctx()
+	defer cancel()
+	err := a.m.call(c, func(cl *client.Client) error { return cl.ForgotPIN(c, confirmation) })
 	a.m.refreshAuth(c)
 	return wrap(err)
 }

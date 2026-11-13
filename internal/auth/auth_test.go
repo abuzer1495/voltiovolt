@@ -356,3 +356,29 @@ func TestRemovePIN(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestClearPIN(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	au := &testOnlyAuditor{}
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	m := newManager(t, st, au, &now)
+	if err := m.ClearPIN(ctx, "gui"); !errors.Is(err, ErrNoPIN) {
+		t.Fatalf("no PIN: %v", err)
+	}
+	if err := m.SetInitialPIN(ctx, "gui", "7a3k9z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.ClearPIN(ctx, "gui"); err != nil {
+		t.Fatal(err)
+	}
+	if set, err := m.PINSet(ctx); err != nil || set {
+		t.Fatalf("PIN still set: %v %v", set, err)
+	}
+	if au.count("pin_forgot:success") != 1 {
+		t.Fatalf("audit count: %d", au.count("pin_forgot:success"))
+	}
+	if err := m.SetInitialPIN(ctx, "gui", "9q8w7e"); err != nil {
+		t.Fatal(err)
+	}
+}

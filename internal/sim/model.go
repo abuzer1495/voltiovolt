@@ -48,8 +48,24 @@ type Model struct {
 	Load        int     // percent
 	Temperature float64 // °C
 	faults      map[Fault]bool
-	live        bool
-	liveAt      time.Time
+
+	// Console fields (VLT-IS-010 TASK 03-00-00-003). A zero value keeps
+	// the test-vector bases of NewModel (209.7 V, and so on), so existing
+	// tests stay exact.
+	console      bool
+	inputV       float64 // V; 0: use the vector 209.7
+	inputFreq    float64 // Hz; 0: 50.0
+	outputV      float64 // V when the output is on; 0: 219.7
+	lastInputV   float64 // input fault voltage (last input when mains went off)
+	battSpeed    int     // 1, 10 or 60; 0: no automatic charge change
+	upsType      UPSType
+	battLowForce bool
+	bypass       bool
+	ratedV       float64 // 0: 220
+	ratedBatt    float64 // 0: 36 (vector); the console default is 24
+	ratedHz      float64 // 0: 50
+	live         bool
+	liveAt       time.Time
 
 	// CONTROL state (VLT-IS-006 TASK 03-00-00-005 step 9). Now gives the
 	// time of the model; nil: time.Now.
@@ -101,6 +117,7 @@ func (m *Model) tick() {
 	if m.outputOff && !now.Before(m.restoreAt) && m.Mains {
 		m.outputOff = false
 	}
+	m.consoleTickLocked()
 }
 
 // testing reports whether a test runs. m.mu is held.
@@ -207,6 +224,13 @@ func (m *Model) SetCharge(p float64) {
 func (m *Model) SetMains(on bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.Mains && !on {
+		in := 209.7
+		if m.inputV != 0 {
+			in = m.inputV
+		}
+		m.lastInputV = in
+	}
 	m.Mains = on
 }
 
@@ -286,8 +310,11 @@ func (m *Model) bits() string {
 	if !m.Mains {
 		b[0] = '1' // bit 7: utility fail
 	}
-	if m.Charge < 20 {
+	if m.battLowForce || m.Charge < SimTestLowCharge {
 		b[1] = '1' // bit 6: battery low
+	}
+	if m.bypass {
+		b[2] = '1' // bit 5: bypass or AVR
 	}
 	if m.faults[FaultUPSFailed] {
 		b[3] = '1' // bit 4: UPS failed
@@ -323,31 +350,46 @@ func (m *Model) Respond(cmd string) []byte {
 		return []byte(cmd + "\r")
 	}
 	in := 209.7
-	if m.live && m.Mains {
+	if m.inputV != 0 {
+		in = m.inputV
+	}
+	if m.live && m.Mains && !m.console {
 		in = 230 + 2*math.Sin(float64(m.now().UnixMilli())/15000)
 	}
+	fault := in
 	if !m.Mains {
+		if m.lastInputV != 0 {
+			fault = m.lastInputV
+		}
 		in = 0
 	}
 	out := 219.7
+	if m.outputV != 0 {
+		out = m.outputV
+	}
 	if m.outputOff {
 		out = 0
 	}
-	battCell := 2.0 + 0.32*m.Charge/100
-	battTotal := 36.0 + 5.8*m.Charge/100
-	runtime := int(58 * m.Charge / 100)
+	freq := 50.0
+	if m.inputFreq != 0 {
+		freq = m.inputFreq
+	}
+	battCell := m.battCellLocked()
+	battTotal := m.battTotalLocked()
+	runtime := m.runtimeLocked()
+	ratedV, ratedBatt, ratedHz := m.ratedLocked()
 	var s string
 	switch cmd {
 	case "Q1":
-		s = fmt.Sprintf("(%05.1f %05.1f %05.1f %03d 50.0 %4.2f %04.1f %s", in, in, out, m.Load, battCell, m.Temperature, m.bits())
+		s = fmt.Sprintf("(%05.1f %05.1f %05.1f %03d %04.1f %4.2f %04.1f %s", in, fault, out, m.Load, freq, battCell, m.Temperature, m.bits())
 	case "QS":
-		s = fmt.Sprintf("(%05.1f %05.1f %05.1f %03d 50.0 %04.1f %04.1f %s", in, in, out, m.Load+1, battTotal, m.Temperature, m.bits())
+		s = fmt.Sprintf("(%05.1f %05.1f %05.1f %03d %04.1f %04.1f %04.1f %s", in, fault, out, m.Load+1, freq, battTotal, m.Temperature, m.bits())
 	case "QGS":
 		qgsBits := "100000000001"
 		if !m.Mains {
 			qgsBits = "110000000001" // raw bit pattern only; meaning UNVERIFIED
 		}
-		s = fmt.Sprintf("(%05.1f 50.0 219.7 50.0 000.8 %03d 374.9 374.3 %05.1f ---.- %05.1f %s", in, m.Load, battTotal, m.Temperature, qgsBits)
+		s = fmt.Sprintf("(%05.1f %04.1f %05.1f %04.1f 000.8 %03d 374.9 374.3 %05.1f ---.- %05.1f %s", in, freq, out, freq, m.Load, battTotal, m.Temperature, qgsBits)
 	case "QMOD":
 		if m.Mains {
 			s = "(L"
@@ -361,9 +403,9 @@ func (m *Model) Respond(cmd string) []byte {
 	case "QFLAG":
 		s = "(EpbshcDrovegfjl"
 	case "QRI":
-		s = "(220.0 004 036.0 50.0"
+		s = fmt.Sprintf("(%05.1f 004 %05.1f %04.1f", ratedV, ratedBatt, ratedHz)
 	case "F":
-		s = "#220.0 004 036.0 50.0"
+		s = fmt.Sprintf("#%05.1f 004 %05.1f %04.1f", ratedV, ratedBatt, ratedHz)
 	case "I":
 		s = fmt.Sprintf("#%-15s %-10s %-10s", "SIMULATOR", "VLT-SIM", "0.0")
 	case "QID":

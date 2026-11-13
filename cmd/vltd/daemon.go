@@ -49,6 +49,10 @@ type config struct {
 	// device.RealScanner; nil gives "unavailable".
 	Scanner      ipc.PortScanner
 	MakeExecutor func(forceClose func() bool, au *audit.Log) policy.Executor
+	// TelegramAPI is the Telegram Bot API base URL (VLT-IS-007 TASK
+	// 03-00-00-005). Empty: https://api.telegram.org. Tests give a fake
+	// server.
+	TelegramAPI string
 }
 
 // daemon runs the start sequence and the stop sequence of step 1 and 2.

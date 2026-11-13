@@ -2,7 +2,7 @@ module github.com/abuzer1495/voltiovolt/cmd/vlt-gui
 
 go 1.27
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/abuzer1495/voltiovolt v0.0.0

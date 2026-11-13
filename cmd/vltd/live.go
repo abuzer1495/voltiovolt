@@ -16,6 +16,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/measure"
 	"github.com/abuzer1495/voltiovolt/internal/notify"
+	"github.com/abuzer1495/voltiovolt/internal/notify/telegram"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/poller"
 	"github.com/abuzer1495/voltiovolt/internal/transport"
@@ -41,6 +42,8 @@ type live struct {
 	ctl *control.Controller
 	// router is the Notification Router (VLT-IS-007 TASK 03-00-00-003).
 	router *notify.Router
+	// telegram is the Telegram Channel (VLT-IS-007 TASK 03-00-00-005).
+	telegram *telegram.Bot
 
 	mu       sync.Mutex
 	commLost bool
@@ -48,6 +51,7 @@ type live struct {
 	runtime  *float64
 	rated    *dialect.Rating // last F response (megatec charge estimate)
 	last     map[string]measure.Point
+	lastEv   *notify.Item // the last Event (Telegram /status)
 
 	tickMu sync.Mutex
 	cancel context.CancelFunc
@@ -184,10 +188,15 @@ func (l *live) run(ctx context.Context) {
 		if !ok {
 			active = true
 		}
+		l.mu.Lock()
+		l.lastEv = &notify.Item{Time: e.Time, Type: e.Type, Severity: e.Severity, Active: active}
+		l.mu.Unlock()
 		l.router.Event(e.Time, e.Type, e.Severity, active)
 	})
 	l.wg.Add(1)
 	go func() { defer l.wg.Done(); l.router.Run(ctx) }()
+	l.wg.Add(1)
+	go func() { defer l.wg.Done(); l.telegram.Run(ctx) }()
 	if l.mgr != nil {
 		l.wg.Add(1)
 		go func() { defer l.wg.Done(); _ = l.mgr.Run(ctx) }()
@@ -256,6 +265,27 @@ func (l *live) snapshot() notify.Snapshot {
 	return s
 }
 
+// telegramStatus is the data of the Telegram commands /status and /durum
+// (VLT-IS-007 TASK 03-00-00-005 step 5).
+func (l *live) telegramStatus(ctx context.Context) notify.Status {
+	st := notify.Status{Snapshot: l.snapshot()}
+	l.mu.Lock()
+	if p, ok := l.last[measure.OutputVoltage]; ok {
+		v := p.Value
+		st.OutputVoltage = &v
+	}
+	if l.lastEv != nil {
+		e := *l.lastEv
+		st.LastEvent = &e
+	}
+	l.mu.Unlock()
+	if in, err := l.pol.Info(ctx); err == nil {
+		st.PolicyActive = in.Active
+		st.PolicyAction = in.Config.Action
+	}
+	return st
+}
+
 // stateSink passes the Poller state to the Device Manager and to live.
 type stateSink struct {
 	l        *live
@@ -313,6 +343,12 @@ func (d *daemon) startLive(ctx context.Context) error {
 		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}}
 	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log},
 		desktopChannel{l.hub})
+	settings := notify.StoreSettings(d.st)
+	l.telegram = telegram.New(telegram.Config{API: d.cfg.TelegramAPI, Secrets: d.vt, Chats: d.st, Audit: d.au, Log: d.log,
+		Enabled:  func(ctx context.Context) bool { return settings(ctx, notify.ChannelTelegram).Enabled },
+		Status:   l.telegramStatus,
+		Language: notify.StoreLanguage(d.st)})
+	l.router.AddChannel(l.telegram)
 	// The UPS output off step of the Shutdown Policy (VLT-IS-006 TASK
 	// 03-00-00-006) uses the Controller with the Policy Grant.
 	pol.SetUPSOff(l.ctl)

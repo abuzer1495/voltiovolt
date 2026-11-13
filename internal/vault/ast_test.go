@@ -16,8 +16,13 @@ import (
 const vaultImport = "github.com/abuzer1495/voltiovolt/internal/vault"
 
 // useAllowList is the list of packages (directories relative to the module
-// root) that can call Vault.Use. It is empty in VLT-IS-003.
-var useAllowList = map[string]bool{}
+// root) that can call Vault.Use. It is empty in VLT-IS-003. VLT-IS-007:
+// the Telegram Channel (S-01, TASK 03-00-00-005) and the e-mail Channel
+// (S-04, TASK 03-00-00-006) read their Secret only for a send.
+var useAllowList = map[string]bool{
+	"internal/notify/telegram": true,
+	"internal/notify/email":    true,
+}
 
 // findUseCalls returns the positions of selector expressions ".Use" in a
 // file that imports internal/vault.

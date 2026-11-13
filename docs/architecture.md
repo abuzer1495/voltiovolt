@@ -420,3 +420,13 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 1. vltd sends each desktop Notification to the connected VLT GUI as the push message "notification" (data: subject, text, severity, type, time). Only connections after status.subscribe get it.
 2. If no VLT GUI is connected, the Notification is not shown and not queued. The Event stays in the Events screen.
 3. The VLT GUI shows it as an OS notification with the Wails notifications service: Windows toast notifications, Linux org.freedesktop.Notifications (D-Bus). If the service does not start (for example no D-Bus session), the VLT GUI continues without OS notifications and writes a log entry.
+
+### 15.2 Telegram Channel (internal/notify/telegram, VLT-IS-007 TASK 03-00-00-005)
+
+1. The Telegram Bot API over HTTPS (certificate verified) with long polling: getUpdates with a timeout of 25 s, allowed update "message". No webhook. vltd polls when the Telegram Channel is on, or when a pairing code is active.
+2. The bot token is the Secret S-01 (Vault ID `telegram.token`). vltd reads it from the Vault for each request (Vault.Use; the go/ast allow list of internal/vault has internal/notify/telegram and internal/notify/email). vltd refuses a token that does not have the format `<digits>:<20 to 100 of A-Z a-z 0-9 _ ->`. The token is in the request URL; errors and log entries have `/bot[REDACTED]` instead.
+3. Pairing: the GUI asks for a code (telegram.pair.start, TASK 03-00-00-007). The code has 6 digits (crypto/rand) and expires after 10 minutes, after one correct use, or after 5 wrong codes. The user sends `/start <code>` to the bot. vltd stores the chat ID, the chat name (title, or first and last name, or @username; 64 characters maximum) and the time in the table telegram_chats (migration 0004). Audit: actor telegram, action telegram_pair, target the chat ID, result success or failure.
+4. Messages of a chat that is not paired get no answer. vltd writes the audit entry telegram_ignored (result denied), at most once in 10 minutes for each chat.
+5. Commands of paired chats: /status and /durum (also with the suffix @botname) give the same text: mode, input and output voltage, load, battery charge, runtime, Shutdown Policy (active and action), last Event. The language is the Setting ui.language. Other text gives the list of commands.
+6. Send: the Notification text goes to each paired chat (sendMessage). The Router tries again only when no chat got the message.
+7. Tests: a fake Telegram HTTPS server (httptest.NewTLSServer). No test connects to api.telegram.org.

@@ -77,3 +77,22 @@ func TestNoEventData(t *testing.T) {
 		t.Fatalf("text:\n%s", n.Text)
 	}
 }
+
+func TestRenderStatus(t *testing.T) {
+	v := func(f float64) *float64 { return &f }
+	ts := time.Date(2026, 11, 10, 10, 0, 0, 0, time.UTC)
+	s := Status{Snapshot: Snapshot{Mode: ModeBattery, InputVoltage: v(0), Load: v(31), Charge: v(87), Runtime: v(12.5)}, OutputVoltage: v(229.8),
+		PolicyActive: true, PolicyAction: "shutdown", LastEvent: &Item{Type: "ON_BATTERY", Severity: Critical, Active: true, Time: ts}}
+	en := RenderStatus("en", s, ts, time.UTC)
+	for _, w := range []string{"VLT status (2026-11-10 10:00:00)", "Mode: On battery", "Input voltage: 0 V", "Output voltage: 229.8 V", "Load: 31 %", "Battery charge: 87 %", "Runtime: 12.5 min", "Shutdown Policy: active (shut down)", "Last Event: On battery, 2026-11-10 10:00:00"} {
+		if !strings.Contains(en, w) {
+			t.Errorf("en: no %q in\n%s", w, en)
+		}
+	}
+	tr := RenderStatus("tr", Status{}, ts, time.UTC)
+	for _, w := range []string{"VLT durumu", "Mod: Bilinmiyor", "Kapatma Politikası: etkin değil", "Son Olay: yok"} {
+		if !strings.Contains(tr, w) {
+			t.Errorf("tr: no %q in\n%s", w, tr)
+		}
+	}
+}

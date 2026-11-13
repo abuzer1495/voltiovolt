@@ -218,6 +218,27 @@ func (m *Manager) RemovePIN(ctx context.Context, src Source, pin string) (time.T
 	return time.Time{}, nil
 }
 
+// ClearPIN removes the PIN without the current PIN. The Forgot PIN
+// method (VLT-IS-009 OD-40, portable mode) calls it after the
+// confirmation "RESET".
+func (m *Manager) ClearPIN(ctx context.Context, actor string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	h, err := m.pinHash(ctx)
+	if err != nil {
+		return err
+	}
+	if h == "" {
+		return ErrNoPIN
+	}
+	if err := m.st.SetAuthState(ctx, map[string]string{keyPINHash: ""}); err != nil {
+		return err
+	}
+	m.log.Info("PIN removed (forgot PIN)")
+	m.record(ctx, actor, "pin_forgot", "success", nil)
+	return nil
+}
+
 // blockFor returns the block time after n failures: 5 minutes after 5
 // failures, doubled after each new failure, 24 hours maximum.
 func blockFor(n int) time.Duration {

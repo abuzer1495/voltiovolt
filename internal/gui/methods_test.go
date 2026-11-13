@@ -33,6 +33,7 @@ func methodCases(secret []byte) map[string]methodCase {
 		"AuthStatus":             {nil, wire.MethodAuthStatus},
 		"SetPIN":                 {[]any{"1234"}, wire.MethodSetPIN},
 		"RemovePIN":              {[]any{"1234"}, wire.MethodRemovePIN},
+		"ForgotPIN":              {[]any{wire.ForgotPINConfirmation}, wire.MethodForgotPIN},
 		"Login":                  {[]any{"1234"}, wire.MethodLogin},
 		"Logout":                 {nil, wire.MethodLogout},
 		"Events":                 {[]any{int64(0), 50}, wire.MethodEventsList},
@@ -74,7 +75,7 @@ func methodCases(secret []byte) map[string]methodCase {
 // allFake answers each vltd method of the GUI.
 func allFake(t *testing.T) *fakeServer {
 	f := newFake(t)
-	for _, m := range []string{wire.MethodStatus, wire.MethodSetPIN, wire.MethodRemovePIN, wire.MethodLogin, wire.MethodLogout,
+	for _, m := range []string{wire.MethodStatus, wire.MethodSetPIN, wire.MethodRemovePIN, wire.MethodForgotPIN, wire.MethodLogin, wire.MethodLogout,
 		wire.MethodEventsList, wire.MethodPolicyGet, wire.MethodShutdownStatus, wire.MethodShutdownCancel,
 		wire.MethodDeviceStatus, wire.MethodDeviceSettingsSet, wire.MethodMeasurements, wire.MethodPolicySet,
 		wire.MethodPolicySimulate, wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodSecretSet,

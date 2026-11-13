@@ -13,11 +13,11 @@ import { ModeView, Values, modeOf } from './dashboard';
 import { Ports } from './device';
 import { SetPin } from './pin';
 
-export const wizardWanted = createStore({ open: false });
+export const wizardWanted = createStore({ open: false, start: '' as Step | '' });
 
-/** startWizard opens the wizard from the General screen. */
-export function startWizard(): void {
-  wizardWanted.set({ open: true });
+/** startWizard opens the wizard. A start step of "pin" is for Forgot PIN (OD-40). */
+export function startWizard(start?: Step): void {
+  wizardWanted.set({ open: true, start: start ?? '' });
 }
 
 export const STEPS = ['pin', 'port', 'values', 'policy', 'telegram', 'email', 'modem', 'summary'] as const;
@@ -245,10 +245,10 @@ function EmailStep({ elevated, onDone }: { elevated: boolean; onDone: () => void
   );
 }
 
-export function Wizard({ first = false, portable = false, onDone }: { first?: boolean; portable?: boolean; onDone?: () => void }) {
+export function Wizard({ first = false, portable = false, startAt, onDone }: { first?: boolean; portable?: boolean; startAt?: Step; onDone?: () => void }) {
   const s = useStore(app);
   const elevated = !!s.auth?.elevated;
-  const start: Step = first && !s.auth?.pin_set ? 'pin' : 'port';
+  const start: Step = startAt || (first && !s.auth?.pin_set ? 'pin' : 'port');
   const [step, setStep] = useState<Step>(start);
   const [res, setRes] = useState<WizardResult>({ ...EMPTY, pin: !!s.auth?.pin_set });
   const [modem, setModem] = useState<'yes' | 'no' | ''>('');

@@ -173,6 +173,7 @@ const (
 	MethodAuthStatus   = "auth.status"
 	MethodSetPIN       = "auth.set_pin"
 	MethodRemovePIN    = "auth.remove_pin"
+	MethodForgotPIN    = "auth.forgot_pin"
 	MethodLogin        = "auth.login"
 	MethodLogout       = "auth.logout"
 	MethodSettingsList = "settings.list"
@@ -237,9 +238,13 @@ const (
 // ScanConfirmation is the confirmation text of device.scan.
 const ScanConfirmation = "SCAN PORTS"
 
+// ForgotPINConfirmation is the confirmation text of auth.forgot_pin
+// (VLT-IS-009 OD-40). The user types "RESET".
+const ForgotPINConfirmation = "RESET"
+
 // Methods lists all methods.
 var Methods = []string{
-	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodRemovePIN, MethodLogin, MethodLogout,
+	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodRemovePIN, MethodForgotPIN, MethodLogin, MethodLogout,
 	MethodSettingsList, MethodSettingsSet, MethodSecretStatus, MethodSecretSet, MethodSecretDelete,
 	MethodVaultReset, MethodAuditList,
 	MethodDeviceStatus, MethodDeviceSettingsSet, MethodSubscribe, MethodUnsubscribe, MethodMeasurements,
@@ -297,6 +302,10 @@ type (
 		Value string `json:"value"`
 	}
 	VaultResetParams struct {
+		Confirmation string `json:"confirmation"`
+	}
+	// ForgotPINParams is the confirmation of auth.forgot_pin (OD-40).
+	ForgotPINParams struct {
 		Confirmation string `json:"confirmation"`
 	}
 	AuditListParams struct {

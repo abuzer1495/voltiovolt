@@ -24,6 +24,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/auth"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/notify/telegram"
+	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/store"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
 )
@@ -300,6 +301,7 @@ var methodAccess = map[string]access{
 	wire.MethodAuthStatus:   open,
 	wire.MethodSetPIN:       setPINRule,
 	wire.MethodRemovePIN:    readOnly, // PIN must be set; the request has the current PIN
+	wire.MethodForgotPIN:    readOnly, // portable only; confirmation "RESET"; no current PIN
 	wire.MethodLogin:        readOnly,
 	wire.MethodLogout:       readOnly,
 	wire.MethodSettingsList: readOnly,
@@ -522,6 +524,46 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 			return nil, &wire.Error{Code: wire.CodePINIncorrect, Message: msg}
 		}
 		return nil, internal()
+
+	case wire.MethodForgotPIN:
+		var p wire.ForgotPINParams
+		if err := wire.Strict(req.Params, &p); err != nil {
+			return nil, bad(err)
+		}
+		if cn.peer != PeerInProcess {
+			return nil, &wire.Error{Code: wire.CodeUnavailable, Message: "Forgot PIN is only available in portable mode"}
+		}
+		if p.Confirmation != wire.ForgotPINConfirmation {
+			return nil, invalid("type RESET to confirm")
+		}
+		set, err := b.Auth.PINSet(ctx)
+		if err != nil {
+			return nil, internal()
+		}
+		if !set {
+			return nil, &wire.Error{Code: wire.CodePINNotSet, Message: "no PIN is set"}
+		}
+		if b.Vault != nil {
+			if err := b.Vault.Reset(ctx, vault.ResetConfirmation); err != nil {
+				return nil, vaultErr(err)
+			}
+		}
+		if b.Policy != nil {
+			if err := b.Policy.Deactivate(ctx, audit.ActorGUI); err != nil {
+				if errors.Is(err, policy.ErrVaultLocked) {
+					return nil, &wire.Error{Code: wire.CodeVaultLocked, Message: "vault is locked"}
+				}
+				return nil, internal()
+			}
+		}
+		if err := b.Auth.ClearPIN(ctx, audit.ActorGUI); err != nil {
+			if errors.Is(err, auth.ErrNoPIN) {
+				return nil, &wire.Error{Code: wire.CodePINNotSet, Message: "no PIN is set"}
+			}
+			return nil, internal()
+		}
+		cn.session.Drop()
+		return wire.OKResult{OK: true}, nil
 
 	case wire.MethodLogin:
 		var p wire.PINParams

@@ -307,6 +307,7 @@ export const api = {
   setPIN: (pin: string) => call<void>('SetPIN', pin),
   removePIN: (pin: string) => call<void>('RemovePIN', pin),
   login: (pin: string) => call<void>('Login', pin),
+  forgotPIN: (confirmation: string) => call<void>('ForgotPIN', confirmation),
   logout: () => call<void>('Logout'),
   wizardCompleted: () => call<boolean>('WizardCompleted'),
   setWizardCompleted: () => call<void>('SetWizardCompleted'),

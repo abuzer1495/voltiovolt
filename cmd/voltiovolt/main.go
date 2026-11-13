@@ -100,7 +100,7 @@ func startEngine(dir string, log *slog.Logger, closer io.Closer, listen func() (
 	cfg := engine.Config{
 		DataDir:    dir,
 		CheckPerms: false,
-		Provider:   vault.NewHostProvider,
+		Provider:   vault.NewPortableProvider,
 		Listen:     listen,
 		Log:        log,
 		LogCloser:  closer,
@@ -155,6 +155,7 @@ func run(dir string) error {
 		return client.New(c), nil
 	})
 	m.SetAutostart(portableAutostart{})
+	m.SetDataDir(dir)
 
 	api := gui.NewAPI(m)
 	osn := newOSNotifier(log)

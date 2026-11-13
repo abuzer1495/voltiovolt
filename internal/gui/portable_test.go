@@ -39,4 +39,8 @@ func TestAboutModeAndAutostart(t *testing.T) {
 	if s.on {
 		t.Fatal("still on")
 	}
+	m.SetDataDir(`/tmp/VoltioVolt-data`)
+	if a.About().DataDir != `/tmp/VoltioVolt-data` {
+		t.Fatalf("data dir %q", a.About().DataDir)
+	}
 }

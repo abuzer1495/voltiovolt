@@ -28,7 +28,10 @@ var (
 )
 
 // osNames are imports and functions that turn off a computer.
-var osImports = map[string]bool{"github.com/godbus/dbus/v5": true}
+// godbus is not an OS-shutdown import by itself: the portable Vault uses
+// it for org.freedesktop.secrets (VLT-IS-008 TASK 03-00-00-002). The
+// login1 method names stay in the string detector below.
+var osImports = map[string]bool{}
 var osFuncs = map[string]bool{
 	"InitiateSystemShutdownEx": true, "InitiateSystemShutdown": true, "ExitWindowsEx": true,
 	"SetSuspendState": true, "PowerOff": true, "Reboot": true,
@@ -158,7 +161,7 @@ func f(e *shutdown.Executor) {
 	for _, x := range inspect(fset, f) {
 		n[x.kind]++
 	}
-	if n["import"] != 1 || n["call"] != 2 || n["os"] != 3 {
-		t.Fatalf("findings %v, want import 1, call 2, os 3", n)
+	if n["import"] != 1 || n["call"] != 2 || n["os"] != 2 {
+		t.Fatalf("findings %v, want import 1, call 2, os 2 (InitiateSystemShutdownEx and login1)", n)
 	}
 }

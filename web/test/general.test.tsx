@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// General screen: start at logon (VLT-IS-008 TASK 03-00-00-001 step 6).
+// General screen: start at logon and data folder (VLT-IS-008 TASK 03-00-00-001 and 002).
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -53,5 +53,21 @@ describe('General start at logon', () => {
     });
     expect(fake.calls.some((c) => c.method === 'SetStartAtLogon' && c.args[0] === true)).toBe(true);
     expect(root.textContent).toContain(t('general.startAtLogon.saved'));
+  });
+});
+
+describe('General data folder', () => {
+  it('hides the path when About has no data_dir', async () => {
+    fake.handlers.About = () => ({ version: '1', vltd_version: '1', protocol: 1, gui_protocol: 1, license: 'AGPL', source: 'x', mode: 'service' });
+    await show(<General />);
+    expect(root.textContent).not.toContain(t('general.dataDir'));
+  });
+
+  it('shows the data folder path in portable mode', async () => {
+    fake.handlers.About = () => ({ version: '1', vltd_version: '1', protocol: 1, gui_protocol: 1, license: 'AGPL', source: 'x', mode: 'portable', data_dir: '/tmp/vv-data' });
+    await show(<General />);
+    expect(root.textContent).toContain(t('general.dataDir'));
+    expect(root.textContent).toContain(t('general.dataDir.help'));
+    expect(root.textContent).toContain('/tmp/vv-data');
   });
 });

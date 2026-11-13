@@ -77,11 +77,13 @@ var (
 
 // Key modes (Linux /etc/vltd/key-mode, Windows "dpapi").
 const (
-	KeyModeHost        = "host"
-	KeyModeTPM2        = "tpm2"
-	KeyModeHostAndTPM2 = "host+tpm2"
-	KeyModeDPAPI       = "dpapi"
-	KeyModeUnknown     = "unknown"
+	KeyModeHost          = "host"
+	KeyModeTPM2          = "tpm2"
+	KeyModeHostAndTPM2   = "host+tpm2"
+	KeyModeDPAPI         = "dpapi"
+	KeyModeSecretService = "secret-service"
+	KeyModePortableFile  = "file"
+	KeyModeUnknown       = "unknown"
 )
 
 // KeyProvider is the host binding. It gives the DEK.
@@ -240,10 +242,13 @@ func (v *Vault) open(ctx context.Context) {
 func (v *Vault) setAvailable(mode string) {
 	v.status = Status{State: StateAvailable, KeyMode: mode}
 	switch mode {
-	case KeyModeTPM2, KeyModeHostAndTPM2, KeyModeDPAPI:
+	case KeyModeTPM2, KeyModeHostAndTPM2, KeyModeDPAPI, KeyModeSecretService:
 	case KeyModeHost:
 		v.status.State = StateReduced
 		v.status.Reason = "key mode host: no TPM2 (SEC-005)"
+	case KeyModePortableFile:
+		v.status.State = StateReduced
+		v.status.Reason = "key mode file: Secret Service is not available"
 	default:
 		v.status.State = StateReduced
 		v.status.Reason = "key mode unknown"

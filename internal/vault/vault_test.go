@@ -275,6 +275,16 @@ func TestStates(t *testing.T) {
 	if v.Status().State != StateReduced {
 		t.Fatalf("unknown: %+v", v.Status())
 	}
+	// Secret Service: available.
+	v = Open(ctx, newStore(t, t.TempDir()), &testOnlyDEKProvider{dek: randomDEK(), mode: KeyModeSecretService}, nil, quietLog(nil))
+	if v.Status().State != StateAvailable || v.Status().KeyMode != KeyModeSecretService {
+		t.Fatalf("secret-service: %+v", v.Status())
+	}
+	// File DEK: reduced protection.
+	v = Open(ctx, newStore(t, t.TempDir()), &testOnlyDEKProvider{dek: randomDEK(), mode: KeyModePortableFile}, nil, quietLog(nil))
+	if v.Status().State != StateReduced || v.Status().KeyMode != KeyModePortableFile {
+		t.Fatalf("file: %+v", v.Status())
+	}
 	// Load error: locked.
 	v = Open(ctx, newStore(t, t.TempDir()), &testOnlyDEKProvider{loadErr: errors.New("x")}, nil, quietLog(nil))
 	if v.Status().State != StateLocked {

@@ -28,6 +28,7 @@ export interface AboutInfo {
   license: string;
   source: string;
   mode?: string;
+  data_dir?: string;
 }
 
 export interface VaultState {

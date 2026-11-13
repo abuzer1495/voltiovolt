@@ -127,6 +127,7 @@ type Manager struct {
 	onNotify  func(OSNotification)
 	mode      string
 	autostart Autostart
+	dataDir   string
 }
 
 // OSNotification is a desktop Notification of vltd (VLT-IS-007 TASK
@@ -186,6 +187,21 @@ func (m *Manager) SetAutostart(a Autostart) {
 	m.mu.Lock()
 	m.autostart = a
 	m.mu.Unlock()
+}
+
+// SetDataDir sets the data folder path shown on the General screen
+// (VLT-IS-008 TASK 03-00-00-002 step 1).
+func (m *Manager) SetDataDir(dir string) {
+	m.mu.Lock()
+	m.dataDir = dir
+	m.mu.Unlock()
+}
+
+// DataDir returns the data folder path.
+func (m *Manager) DataDir() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.dataDir
 }
 
 // OnTray sets the function that gets each new tray state.

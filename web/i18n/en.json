@@ -147,6 +147,8 @@
   "events.more": "Load older Events",
   "fallback.banner": "The Vault is locked. VLT uses the Fallback Policy.",
   "general.about": "About",
+  "general.dataDir": "Data folder",
+  "general.dataDir.help": "VoltioVolt keeps its files in this folder.",
   "general.lang": "Language",
   "general.lang.notsaved": "The language is changed for this session. Set a PIN to save it.",
   "general.lang.saved": "The language is saved.",

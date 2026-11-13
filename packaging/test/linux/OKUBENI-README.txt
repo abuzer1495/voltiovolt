@@ -18,6 +18,24 @@ Yöntem 2: "sh install.sh". sudo gerekmez. Dosyalar ~/.local/opt/voltiovolt klas
 6. Testler: https://github.com/abuzer1495/voltiovolt/blob/main/docs/user/owner-tests.md
 7. Kaldırma: "sh uninstall.sh". Veri klasörü silinmeden önce ayrı bir soru sorulur.
 
+UPS simulator
+-------------
+
+1. ./vlt-simulator programını bir uçbirimde başlatın (çıkarılan klasörde, veya kurulumdan sonra ~/.local/opt/voltiovolt/vlt-simulator).
+2. VoltioVolt'ta Aygıt (Device) ekranını açın ve "Test bağlantısı (simülatör)" seçin.
+3. Simülatörde değerleri ok tuşlarıyla değiştirin. VoltioVolt değişiklikleri hemen gösterir.
+
+Tuşlar:
+  Yukarı, Aşağı              Menü öğesini seç
+  Sol, Sağ                   Değeri bir adım değiştir
+  Page Up, Page Down         Değeri on adım değiştir
+  Enter veya Boşluk          Aç/kapa öğesini değiştir, veya bir işlemi çalıştır
+  1 - 9                      Bir senaryoyu çalıştır
+  R                          Varsayılan değerlere sıfırla
+  L                          Tam günlüğü göster veya gizle
+  Q veya Esc                 Çık (onay ister)
+
+
 ENGLISH
 -------
 
@@ -34,3 +52,21 @@ Method 2: "sh install.sh". No sudo. The files are copied to ~/.local/opt/voltiov
 5. If your user cannot open /dev/ttyUSB* or /dev/ttyACM*, run this command one time, then log out and log in: sudo usermod -aG dialout <user name>. VoltioVolt does not run this command.
 6. Tests: https://github.com/abuzer1495/voltiovolt/blob/main/docs/user/owner-tests.md
 7. Uninstall: "sh uninstall.sh". It asks separately before it deletes the data folder.
+
+UPS simulator
+-------------
+
+1. Start ./vlt-simulator in a terminal (in the extracted folder, or after install: ~/.local/opt/voltiovolt/vlt-simulator).
+2. In VoltioVolt, open Device and select "Test connection (simulator)".
+3. Change the values in the simulator with the arrow keys. Watch VoltioVolt: the values change at once.
+
+Keys:
+  Up, Down            Select a menu item
+  Left, Right         Change the value by one step
+  Page Up, Page Down  Change the value by ten steps
+  Enter or Space      Switch an on/off item, or run an action
+  1 to 9              Run a scenario
+  R                   Reset to the default values
+  L                   Show or hide the full log
+  Q or Esc            Quit (asks for confirmation)
+

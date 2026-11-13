@@ -32,6 +32,7 @@ fi
 
 if [ -f "${DEST}/voltiovolt" ]; then rm -f "${DEST}/voltiovolt"; fi
 if [ -f "${DEST}/vlt-probe" ]; then rm -f "${DEST}/vlt-probe"; fi
+if [ -f "${DEST}/vlt-simulator" ]; then rm -f "${DEST}/vlt-simulator"; fi
 
 DATADIR=
 if [ -d "${DATA1}" ]; then

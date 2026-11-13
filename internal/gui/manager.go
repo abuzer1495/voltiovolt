@@ -210,6 +210,8 @@ func (m *Manager) DataDir() string {
 type FirstRun interface {
 	Completed() (bool, error)
 	SetCompleted() error
+	LaterCount() (int, error)
+	AddLater() (int, error)
 }
 
 // SetFirstRun sets the first-run helper. Nil: the methods return

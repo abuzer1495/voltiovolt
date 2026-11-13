@@ -35,28 +35,65 @@ export interface WizardResult {
 
 const EMPTY: WizardResult = { pin: false, port: '', values: false, policy: false, telegram: false, email: false, modem: '' };
 
+function StepIndicator({ step }: { step: Step }) {
+  const i = STEPS.indexOf(step);
+  return (
+    <>
+      <ol class="wizard-steps" aria-label={t('wizard.progress', { n: i + 1, total: STEPS.length, title: t('wizard.step.' + step) })}>
+        {STEPS.map((s) => (
+          <li aria-current={s === step ? 'step' : undefined}>{t('wizard.step.' + s)}</li>
+        ))}
+      </ol>
+      <p class="intro">{t('wizard.progress', { n: i + 1, total: STEPS.length, title: t('wizard.step.' + step) })}</p>
+    </>
+  );
+}
+
 function Nav({
   step,
   first,
   pinOptional,
+  pinSet,
+  modemReady,
   onBack,
   onSkip,
+  onNext,
 }: {
   step: Step;
   first: boolean;
   pinOptional: boolean;
+  pinSet: boolean;
+  modemReady: boolean;
   onBack: () => void;
   onSkip: () => void;
+  onNext: () => void;
 }) {
-  const i = STEPS.indexOf(step);
   const isFirst = step === 'pin' && first;
   const isLast = step === 'summary';
-  const showSkip = (!isFirst && !isLast) || (step === 'pin' && pinOptional);
+  const canSkip = (!isFirst && !isLast) || (step === 'pin' && pinOptional);
+  const nextDisabled = (step === 'modem' && !modemReady) || (step === 'pin' && !pinOptional && !pinSet);
   return (
-    <div class="row">
-      {!isFirst ? <button type="button" onClick={onBack}>{t('wizard.back')}</button> : null}
-      {showSkip ? <button type="button" onClick={onSkip}>{t('wizard.skip')}</button> : null}
-      <p class="note">{t('wizard.progress', { n: i + 1, total: STEPS.length, title: t('wizard.step.' + step) })}</p>
+    <div class="wizard-footer">
+      <button type="button" onClick={onBack} disabled={isFirst}>{t('wizard.back')}</button>
+      <button type="button" onClick={onSkip} disabled={!canSkip}>{t('wizard.skip')}</button>
+      <button type="button" class="primary" onClick={onNext} disabled={nextDisabled}>
+        {isLast ? t('wizard.finish') : t('wizard.next')}
+      </button>
+    </div>
+  );
+}
+
+/** FirstStartPrompt is the small first-start dialog (VLT-IS-009 OD-41). */
+export function FirstStartPrompt({ onStart, onLater }: { onStart: () => void; onLater: () => void }) {
+  return (
+    <div class="prompt-overlay">
+      <div class="prompt-dialog" role="dialog" aria-labelledby="wiz-prompt-title" aria-modal="true">
+        <h2 id="wiz-prompt-title">{t('wizard.prompt.title')}</h2>
+        <div class="row">
+          <button type="button" class="primary" onClick={onStart}>{t('wizard.prompt.start')}</button>
+          <button type="button" onClick={onLater}>{t('wizard.prompt.later')}</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -132,7 +169,7 @@ function PolicyStep({ elevated, onActivated }: { elevated: boolean; onActivated:
   );
 }
 
-function TelegramStep({ elevated, onDone }: { elevated: boolean; onDone: () => void }) {
+function TelegramStep({ elevated }: { elevated: boolean; onDone?: () => void }) {
   const [token, setToken] = useState('');
   const [code, setCode] = useState('');
   const [expires, setExpires] = useState('');
@@ -174,12 +211,11 @@ function TelegramStep({ elevated, onDone }: { elevated: boolean; onDone: () => v
       <button type="button" disabled={!elevated} onClick={() => void pair()}>{t('notify.telegram.pair.button')}</button>
       {active && code ? <p role="status" class="banner banner-info">{t('notify.telegram.code', { code, until: expires })}</p> : null}
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
-      <button type="button" class="primary" onClick={onDone}>{t('wizard.notify.done')}</button>
     </section>
   );
 }
 
-function EmailStep({ elevated, onDone }: { elevated: boolean; onDone: () => void }) {
+function EmailStep({ elevated }: { elevated: boolean; onDone?: () => void }) {
   const [server, setServer] = useState('');
   const [port, setPort] = useState('465');
   const [security, setSecurity] = useState('tls');
@@ -240,7 +276,6 @@ function EmailStep({ elevated, onDone }: { elevated: boolean; onDone: () => void
         <button type="submit" disabled={!elevated}>{t('common.save')}</button>
       </form>
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
-      <button type="button" class="primary" onClick={onDone}>{t('wizard.notify.done')}</button>
     </section>
   );
 }
@@ -278,11 +313,34 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
     go(STEPS[Math.min(idx() + 1, STEPS.length - 1)]);
   }
 
+  function footerNext() {
+    if (step === 'summary') {
+      onDone?.();
+      return;
+    }
+    if (step === 'values') {
+      setRes((r) => ({ ...r, values: true }));
+    }
+    if (step === 'modem') {
+      if (!modem) return;
+      setRes((r) => ({ ...r, modem: modem as 'yes' | 'no' }));
+    }
+    if (step === 'pin' && !pinOptional && !s.auth?.pin_set) return;
+    if (step === 'pin' && pinOptional && !s.auth?.pin_set) {
+      skip();
+      return;
+    }
+    next();
+  }
+
   return (
-    <div class="screen wizard">
-      <h2>{t('wizard.title')}</h2>
-      <p>{t('wizard.intro')}</p>
-      <Nav step={step} first={first} pinOptional={pinOptional} onBack={back} onSkip={skip} />
+    <div class="wizard-overlay">
+      <div class="wizard-dialog" role="dialog" aria-labelledby="wiz-title" aria-modal="true">
+      <header>
+        <h2 id="wiz-title">{t('wizard.title')}</h2>
+        <StepIndicator step={step} />
+      </header>
+      <div class="wizard-body">
 
       {step === 'pin' ? (
         <>
@@ -307,7 +365,6 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
             }, () => undefined);
           }} />
           {res.port || portName ? <p role="status">{t('wizard.port.selected', { port: res.port || portName })}</p> : null}
-          <button type="button" onClick={next}>{t('wizard.next')}</button>
         </section>
       ) : null}
 
@@ -318,18 +375,12 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
           <ModeView mode={modeOf(s.status)} />
           <Values s={s.status} />
           {s.status?.device?.state !== 'connected' ? <p class="note">{t('wizard.values.wait')}</p> : null}
-          <div class="row">
-            <button type="button" class="primary" onClick={() => { setRes((r) => ({ ...r, values: true })); next(); }}>
-              {t('wizard.values.confirm')}
-            </button>
-          </div>
         </section>
       ) : null}
 
       {step === 'policy' ? (
         <>
           <PolicyStep elevated={elevated} onActivated={() => setRes((r) => ({ ...r, policy: true }))} />
-          <button type="button" onClick={next}>{t('wizard.next')}</button>
         </>
       ) : null}
 
@@ -358,9 +409,6 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
               <span aria-hidden="true">⚠</span> {t('wizard.modem.warn')}
             </p>
           ) : null}
-          <button type="button" class="primary" disabled={!modem} onClick={() => { setRes((r) => ({ ...r, modem: modem as 'yes' | 'no' })); next(); }}>
-            {t('wizard.next')}
-          </button>
         </section>
       ) : null}
 
@@ -383,9 +431,20 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
               <span aria-hidden="true">⚠</span> {t('wizard.modem.warn')}
             </p>
           ) : null}
-          <button type="button" class="primary" onClick={() => onDone?.()}>{t('wizard.finish')}</button>
         </section>
       ) : null}
+      </div>
+      <Nav
+        step={step}
+        first={first}
+        pinOptional={pinOptional}
+        pinSet={!!s.auth?.pin_set || res.pin}
+        modemReady={!!modem}
+        onBack={back}
+        onSkip={skip}
+        onNext={footerNext}
+      />
+      </div>
     </div>
   );
 }

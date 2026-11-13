@@ -2,6 +2,13 @@
 /* Theme follows the OS (prefers-color-scheme). Contrast 4.5:1 or more. */
 :root {
   color-scheme: light dark;
+  --font-size: 14px;
+  --title-size: 20px;
+  --section-size: 16px;
+  --control-height: 32px;
+  --row-gap: 10px;
+  --wizard-w: 760px;
+  --wizard-h: 560px;
   --bg: #ffffff;
   --fg: #1a1a1a;
   --muted: #4d4d4d;
@@ -34,12 +41,12 @@
   }
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: var(--font-size)/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 a { color: var(--accent); }
 .layout { display: grid; grid-template-rows: auto auto 1fr; min-height: 100vh; }
 .top { display: flex; align-items: center; gap: 16px; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
-.brand { font-size: 18px; margin: 0; }
+.brand { font-size: var(--title-size); margin: 0; }
 .conn { display: flex; gap: 6px; align-items: center; }
 .conn-connected .conn-icon { color: var(--ok); }
 .conn-disconnected .conn-icon { color: var(--crit); }
@@ -51,15 +58,15 @@ main { padding: 16px; }
 .nav { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .nav a { padding: 6px 10px; border-radius: 6px; text-decoration: none; color: var(--fg); }
 .nav a[aria-current="page"] { background: var(--accent); color: var(--accent-fg); text-decoration: underline; }
-button { font: inherit; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--fg); cursor: pointer; }
+button { font: inherit; height: var(--control-height); padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--fg); cursor: pointer; }
 button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button.danger { background: var(--crit); color: var(--bg); border-color: var(--crit); }
 button:disabled { opacity: 1; cursor: not-allowed; color: var(--muted); background: var(--bg); border-style: dashed; }
-input, select { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
-label { display: block; margin-top: 8px; font-weight: 600; }
+input, select { font: inherit; height: var(--control-height); padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
+label { display: block; margin-top: 0; font-weight: 600; }
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
-.card h2, .screen h2 { margin-top: 0; font-size: 18px; }
-.pin form { display: grid; gap: 4px; max-width: 360px; }
+.card h2, .screen h2, .prompt-dialog h2 { margin-top: 0; font-size: var(--title-size); }
+.pin form { display: grid; gap: var(--row-gap); max-width: 36em; }
 .pin form button { margin-top: 10px; justify-self: start; }
 .rules { color: var(--fg); }
 .msg-error { color: var(--crit); font-weight: 600; }
@@ -77,7 +84,7 @@ label { display: block; margin-top: 8px; font-weight: 600; }
 .values { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; margin: 0; }
 .value dt { color: var(--muted); font-size: 13px; }
 .value dd { margin: 0; font-size: 20px; font-weight: 600; }
-.card h3 { margin-top: 0; font-size: 16px; }
+.card h3, .screen h3 { margin-top: 0; font-size: var(--section-size); }
 .small { font-size: 14px; }
 .table { border-collapse: collapse; width: 100%; }
 .table caption { text-align: left; font-weight: 700; padding-bottom: 6px; }
@@ -93,7 +100,7 @@ label { display: block; margin-top: 8px; font-weight: 600; }
 .kv dd { margin: 0; word-break: break-word; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .filters label { margin: 0; }
-.form { display: grid; gap: 4px; max-width: 420px; }
+.form { display: grid; gap: var(--row-gap); max-width: 42em; }
 .form button { justify-self: start; margin-top: 10px; }
 label.check { font-weight: 400; display: flex; gap: 6px; align-items: center; }
 .confirm { border: 2px solid var(--crit); background: var(--crit-bg); color: var(--fg); border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
@@ -101,8 +108,8 @@ label.check { font-weight: 400; display: flex; gap: 6px; align-items: center; }
 .chart details { margin-top: 8px; }
 .u-legend { color: var(--fg); }
 button[aria-pressed="true"] { text-decoration: underline; }
-.policy-form { display: grid; gap: 10px; max-width: 560px; }
-.policy-form .field { display: grid; gap: 2px; }
+.policy-form { display: grid; gap: var(--row-gap); max-width: 100%; }
+.policy-form .field { display: grid; gap: 4px; }
 .policy-form button { justify-self: start; }
 .hint { color: var(--muted); font-size: 13px; }
 .scenario h4 { margin: 10px 0 4px; }
@@ -110,3 +117,114 @@ button[aria-pressed="true"] { text-decoration: underline; }
 .vt { font-variant-numeric: tabular-nums; color: var(--muted); }
 fieldset.radio { border: 1px solid var(--border); border-radius: 6px; }
 fieldset.radio legend { font-weight: 600; }
+
+/* VLT-IS-009 TASK 03-00-00-003: compact forms and wizard dialog. */
+input[type="checkbox"], input[type="radio"] { height: auto; width: auto; padding: 0; }
+button.link { height: auto; padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+/* Label and field on one row when the window is wide enough. */
+@media (min-width: 700px) {
+  .form, .pin form {
+    grid-template-columns: minmax(8em, 16em) 1fr;
+    align-items: center;
+  }
+  .form > button, .form > p, .form > ul, .form > .msg, .form > fieldset, .form > .help,
+  .pin form > button, .pin form > p, .pin form > ul, .pin form > .msg, .pin form > fieldset {
+    grid-column: 1 / -1;
+  }
+  .policy-form .field {
+    grid-template-columns: minmax(8em, 18em) 1fr;
+    align-items: center;
+  }
+}
+@media (min-width: 900px) {
+  .policy-form, .form-2col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Wizard dialog: 760 × 560, centered on the main window. */
+.wizard-overlay, .prompt-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  padding: 8px;
+}
+.wizard-dialog {
+  width: var(--wizard-w);
+  height: var(--wizard-h);
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.wizard-dialog > header {
+  padding: 8px 12px 4px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.wizard-dialog > header h2 { margin: 0 0 4px; font-size: var(--title-size); }
+.wizard-dialog > header .intro { margin: 0 0 6px; color: var(--muted); }
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wizard-steps li {
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+}
+.wizard-steps li[aria-current="step"] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.wizard-body {
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 8px 12px;
+  min-height: 0;
+}
+.wizard-body .card { margin-bottom: 8px; padding: 8px 10px; }
+.wizard-body .pin form { max-width: none; }
+.wizard-body .rules { margin: 4px 0; padding-left: 18px; font-size: 13px; }
+.wizard-body .rules li { margin: 0; }
+.wizard-body h3 { margin-bottom: 4px; }
+.wizard-body p { margin: 4px 0; }
+.wizard-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.prompt-dialog {
+  width: 360px;
+  max-width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.prompt-dialog .row { justify-content: flex-end; margin: 16px 0 0; }

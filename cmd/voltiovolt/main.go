@@ -9,7 +9,6 @@ package main
 import (
 	"context"
 	"embed"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -91,23 +90,6 @@ type portableAutostart struct{}
 func (portableAutostart) Enabled() (bool, error) { return portable.AutostartEnabled() }
 func (portableAutostart) Set(on bool) error      { return portable.SetAutostart(on) }
 
-// portableFirstRun keeps a marker file in the data folder.
-type portableFirstRun struct{ dir string }
-
-const wizardDoneFile = "wizard-completed"
-
-func (p portableFirstRun) Completed() (bool, error) {
-	_, err := os.Stat(filepath.Join(p.dir, wizardDoneFile))
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	return err == nil, err
-}
-
-func (p portableFirstRun) SetCompleted() error {
-	return os.WriteFile(filepath.Join(p.dir, wizardDoneFile), []byte("1\n"), 0o600)
-}
-
 // startEngine starts the monitoring engine with an in-process pipe.
 // CheckPerms is false: portable mode does not check or change the ACL
 // (VLT-IS-008 01-20-00, SEC-102).
@@ -174,7 +156,7 @@ func run(dir string) error {
 	})
 	m.SetAutostart(portableAutostart{})
 	m.SetDataDir(dir)
-	m.SetFirstRun(portableFirstRun{dir: dir})
+	m.SetFirstRun(gui.FileFirstRun{Dir: dir})
 
 	api := gui.NewAPI(m)
 	osn := newOSNotifier(log)
@@ -214,11 +196,13 @@ func run(dir string) error {
 	m.SetEmitter(emitter{app})
 	m.SetOpenURL(app.Browser.OpenURL)
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:   "main",
-		Title:  "VoltioVolt",
-		Width:  1100,
-		Height: 760,
-		URL:    "/",
+		Name:      "main",
+		Title:     "VoltioVolt",
+		Width:     1100,
+		Height:    760,
+		MinWidth:  gui.MinWindowWidth,
+		MinHeight: gui.MinWindowHeight,
+		URL:       "/",
 	})
 	var hinted sync.Once
 	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {

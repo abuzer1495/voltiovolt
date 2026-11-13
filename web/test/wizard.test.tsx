@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // First-run wizard (VLT-IS-007 TASK 03-00-00-008).
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLang, t } from '../src/i18n';
 import { General } from '../src/screens/general';
-import { STEPS, Wizard, wizardWanted } from '../src/screens/wizard';
+import { FirstStartPrompt, STEPS, Wizard, wizardWanted } from '../src/screens/wizard';
 import { app } from '../src/state';
 import * as fake from './fakebridge';
 
@@ -76,20 +78,27 @@ async function click(el: HTMLElement) {
 }
 
 describe('first-run wizard', () => {
-  it('starts at the PIN step, with no Skip and no Back', async () => {
+  it('starts at the PIN step, with Skip and Back disabled', async () => {
     await show(<Wizard first />);
     expect(root.textContent).toContain(t('pin.set.title'));
     expect(root.textContent).toContain(t('wizard.progress', { n: 1, total: STEPS.length, title: t('wizard.step.pin') }));
-    expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain(t('wizard.skip'));
-    expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain(t('wizard.back'));
+    expect(byText(t('wizard.skip')).disabled).toBe(true);
+    expect(byText(t('wizard.back')).disabled).toBe(true);
+    const dlg = root.querySelector('.wizard-dialog') as HTMLElement;
+    expect(dlg).toBeTruthy();
+    expect(getComputedStyle(dlg).width === '760px' || dlg.classList.contains('wizard-dialog')).toBe(true);
+    const steps = [...root.querySelectorAll('.wizard-steps li')].map((li) => li.textContent);
+    expect(steps).toEqual(STEPS.map((s) => t('wizard.step.' + s)));
+    expect(root.querySelector('.wizard-steps li[aria-current="step"]')?.textContent).toBe(t('wizard.step.pin'));
+    expect(root.querySelector('.wizard-footer')).toBeTruthy();
   });
 
   it('makes the PIN optional in portable mode, with Skip and the exact help text', async () => {
     await show(<Wizard first portable />);
     expect(root.textContent).toContain(t('wizard.pin.help'));
     expect(t('wizard.pin.help')).toBe('A PIN prevents other people at this computer from changing the shutdown settings.');
-    expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim())).toContain(t('wizard.skip'));
-    expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain(t('wizard.back'));
+    expect(byText(t('wizard.skip')).disabled).toBe(false);
+    expect(byText(t('wizard.back')).disabled).toBe(true);
     await click(byText(t('wizard.skip')));
     expect(root.textContent).toContain(t('wizard.step.port'));
   });
@@ -152,5 +161,48 @@ describe('first-run wizard', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(root.textContent).toContain('This user cannot shut down the computer.');
     expect(root.querySelector('[role="alert"]')?.textContent).toBe(t('sim.os_shutdown.error'));
+  });
+
+    it('is a 760 by 560 dialog with the navigation at the bottom right', async () => {
+    await show(<Wizard first portable />);
+    const dlg = root.querySelector('.wizard-dialog') as HTMLElement;
+    expect(dlg).toBeTruthy();
+    const footer = root.querySelector('.wizard-footer') as HTMLElement;
+    expect(footer).toBeTruthy();
+    expect(footer.compareDocumentPosition(root.querySelector('.wizard-body')!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    const labels = [...footer.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(labels).toEqual([t('wizard.back'), t('wizard.skip'), t('wizard.next')]);
+  });
+});
+
+describe('first-start dialog (OD-41)', () => {
+  it('has the exact English text', () => {
+    expect(t('wizard.prompt.title')).toBe('Start the setup wizard?');
+    expect(t('wizard.prompt.start')).toBe('Start');
+    expect(t('wizard.prompt.later')).toBe('Later');
+  });
+
+  it('Start opens the wizard and Later calls the Later handler', async () => {
+    const onStart = vi.fn();
+    const onLater = vi.fn();
+    await show(<FirstStartPrompt onStart={onStart} onLater={onLater} />);
+    expect(root.textContent).toContain('Start the setup wizard?');
+    await click(byText('Start'));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    await click(byText('Later'));
+    expect(onLater).toHaveBeenCalledTimes(1);
+    expect(root.querySelector('.prompt-dialog')).toBeTruthy();
+  });
+});
+
+describe('compact CSS (VLT-IS-009 003)', () => {
+  it('sets the base sizes as CSS variables', () => {
+    const css = readFileSync(join(__dirname, '../src/styles.css'), 'utf8');
+    expect(css).toContain('--font-size: 14px');
+    expect(css).toContain('--title-size: 20px');
+    expect(css).toContain('--section-size: 16px');
+    expect(css).toContain('--control-height: 32px');
+    expect(css).toContain('--wizard-w: 760px');
+    expect(css).toContain('--wizard-h: 560px');
   });
 });

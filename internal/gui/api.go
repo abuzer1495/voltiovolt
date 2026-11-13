@@ -152,3 +152,28 @@ func (a *API) SetWizardCompleted() error {
 	}
 	return wrap(f.SetCompleted())
 }
+
+// WizardLaterCount returns how many times the user chose "Later" on the
+// first-start dialog (VLT-IS-009 OD-41).
+func (a *API) WizardLaterCount() (int, error) {
+	a.m.mu.Lock()
+	f := a.m.firstRun
+	a.m.mu.Unlock()
+	if f == nil {
+		return 0, &Error{Code: wire.CodeUnavailable}
+	}
+	n, err := f.LaterCount()
+	return n, wrap(err)
+}
+
+// AddWizardLater records one "Later" and returns the new count.
+func (a *API) AddWizardLater() (int, error) {
+	a.m.mu.Lock()
+	f := a.m.firstRun
+	a.m.mu.Unlock()
+	if f == nil {
+		return 0, &Error{Code: wire.CodeUnavailable}
+	}
+	n, err := f.AddLater()
+	return n, wrap(err)
+}

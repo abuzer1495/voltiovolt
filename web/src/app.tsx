@@ -9,7 +9,7 @@ import { Dashboard } from './screens/dashboard';
 import { Device } from './screens/device';
 import { Events } from './screens/events';
 import { General } from './screens/general';
-import { Wizard, startWizard, wizardWanted } from './screens/wizard';
+import { FirstStartPrompt, Wizard, startWizard, wizardWanted } from './screens/wizard';
 import { Notifications } from './screens/notifications';
 import { History } from './screens/history';
 import { Login } from './screens/pin';
@@ -50,6 +50,8 @@ export function App() {
   const [unlock, setUnlock] = useState(false);
   const [portable, setPortable] = useState(false);
   const [wizDone, setWizDone] = useState(false);
+  const [later, setLater] = useState(0);
+  const [laterSession, setLaterSession] = useState(false);
   useEffect(() => start(), []);
   useEffect(() => {
     void api.about().then(async (a) => {
@@ -57,6 +59,12 @@ export function App() {
       setPortable(p);
       if (p) {
         try { setWizDone(await api.wizardCompleted()); } catch { /* leave false: first start */ }
+      }
+      try {
+        setLater(await api.wizardLaterCount());
+      } catch {
+        const n = Number((typeof localStorage !== 'undefined' && localStorage.getItem('vlt.wizard-later')) || '0');
+        if (n > 0) setLater(n);
       }
     }, () => undefined);
   }, []);
@@ -67,9 +75,12 @@ export function App() {
   }, []);
   const connected = s.conn.state === 'connected';
   const auth = s.auth;
-  // Portable (OD-37): the wizard runs once, also when the PIN is skipped.
-  // Service: the wizard runs until a PIN is set.
-  const firstStart = connected && auth !== null && (portable ? !wizDone : !auth.pin_set);
+  // Portable (OD-37, OD-41): a small first-start dialog; the wizard is
+  // not shown again after it is completed or after "Later" two times.
+  // Service: the same dialog, until a PIN is set.
+  const needsPrompt = connected && auth !== null && later < 2 && (portable ? !wizDone : !auth.pin_set);
+  const showPrompt = needsPrompt && !wiz.open && !laterSession;
+  const firstStart = needsPrompt;
   const elevated = !!auth?.elevated;
   const Screen = routes.find((r) => r.id === route)?.comp ?? Dashboard;
 
@@ -92,7 +103,7 @@ export function App() {
           </div>
         ) : null}
       </header>
-      {connected && !firstStart ? (
+      {connected && !showPrompt ? (
         <nav class="nav" aria-label={t('nav.label')}>
           {routes.map((r) => (
             <a href={'#/' + r.id} aria-current={r.id === route ? 'page' : undefined}>{t(r.label)}</a>
@@ -104,20 +115,42 @@ export function App() {
       <main id="main" tabIndex={-1}>
         {!connected ? (
           s.conn.state === 'connecting' ? <p role="status">{t('conn.connecting')}</p> : <ConnProblem conn={s.conn} />
-        ) : firstStart || wiz.open ? (
-          <Wizard first={firstStart} portable={portable} startAt={wiz.start || undefined} onDone={() => {
-            wizardWanted.set({ open: false, start: '' });
-            if (portable) {
-              void api.setWizardCompleted().then(() => setWizDone(true), () => setWizDone(true));
-            }
-            refreshAuth();
-          }} />
         ) : (
           <>
-            <FallbackBanner fallback={!!s.policy?.fallback} />
-            <CountdownBanner cd={s.countdown} elevated={elevated} lowBattery={!!s.status?.ups?.low_battery} />
-            {unlock && !elevated ? <Login portable={portable} blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} onForgot={() => { setUnlock(false); refreshAuth(); startWizard('pin'); }} /> : null}
-            <Screen />
+            {showPrompt ? (
+              <FirstStartPrompt
+                onStart={() => startWizard((portable && !auth?.pin_set) || (!portable && !auth?.pin_set) ? 'pin' : undefined)}
+                onLater={() => {
+                  setLaterSession(true);
+                  void (async () => {
+                    try {
+                      setLater(await api.addWizardLater());
+                    } catch {
+                      const n = later + 1;
+                      try { localStorage.setItem('vlt.wizard-later', String(n)); } catch { /* no store */ }
+                      setLater(n);
+                    }
+                  })();
+                }}
+              />
+            ) : null}
+            {wiz.open ? (
+              <Wizard first={firstStart} portable={portable} startAt={wiz.start || undefined} onDone={() => {
+                wizardWanted.set({ open: false, start: '' });
+                if (portable) {
+                  void api.setWizardCompleted().then(() => setWizDone(true), () => setWizDone(true));
+                }
+                refreshAuth();
+              }} />
+            ) : null}
+            {!showPrompt ? (
+              <>
+                <FallbackBanner fallback={!!s.policy?.fallback} />
+                <CountdownBanner cd={s.countdown} elevated={elevated} lowBattery={!!s.status?.ups?.low_battery} />
+                {unlock && !elevated ? <Login portable={portable} blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} onForgot={() => { setUnlock(false); refreshAuth(); startWizard('pin'); }} /> : null}
+                <Screen />
+              </>
+            ) : null}
           </>
         )}
       </main>

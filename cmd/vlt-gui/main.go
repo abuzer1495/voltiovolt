@@ -80,11 +80,13 @@ func run(addr string) error {
 	m.SetEmitter(emitter{app})
 	m.SetOpenURL(app.Browser.OpenURL)
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:   "main",
-		Title:  "VLT",
-		Width:  1100,
-		Height: 760,
-		URL:    "/",
+		Name:      "main",
+		Title:     "VLT",
+		Width:     1100,
+		Height:    760,
+		MinWidth:  gui.MinWindowWidth,
+		MinHeight: gui.MinWindowHeight,
+		URL:       "/",
 	})
 	setupTray(app, win, m, api)
 	go m.Run(ctx)

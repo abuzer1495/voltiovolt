@@ -24,6 +24,11 @@ const (
 // ErrNotSupported is returned on an OS without an executor.
 var ErrNotSupported = errors.New("shutdown: not supported on this OS")
 
+// ErrCannotShutdown is the Simulation and wizard error when this user
+// cannot shut down the computer (VLT-IS-008 TASK 03-00-00-004). The text
+// is the user text.
+var ErrCannotShutdown = errors.New("This user cannot shut down the computer.")
+
 // Auditor writes audit entries (internal/audit.Log).
 type Auditor interface {
 	Record(ctx context.Context, actor, action, target, result string, details map[string]any) error
@@ -79,9 +84,18 @@ func (e *Executor) Hibernate(ctx context.Context, reason string) error {
 	return e.os.hibernate(ctx, e, reason)
 }
 
+// CanShutdown reports whether this process can shut down the computer.
+// It does not shut the computer down. A normal user has this right on
+// Windows 10 and 11 by default, and the default polkit rules permit it
+// for the active local session on Linux. The error is ErrCannotShutdown.
+func (e *Executor) CanShutdown(ctx context.Context) error {
+	return e.os.canShutdown(ctx, e)
+}
+
 // osAPI is the OS part. Tests replace it with fakes; the fakes never call
 // the OS.
 type osAPI interface {
 	shutdown(ctx context.Context, e *Executor, reason string) error
 	hibernate(ctx context.Context, e *Executor, reason string) error
+	canShutdown(ctx context.Context, e *Executor) error
 }

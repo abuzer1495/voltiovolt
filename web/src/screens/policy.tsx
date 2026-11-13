@@ -114,6 +114,15 @@ export function SimView({ r }: { r: SimResult }) {
         {r.passed ? <Badge kind="ok" icon="✓" text={t('sim.passed')} /> : <Badge kind="crit" icon="✕" text={t('sim.failed')} />}{' '}
         {t('sim.version', { version: r.version.slice(0, 12) })} · {time(r.time)}
       </p>
+      {r.os_shutdown ? (
+        <section class="scenario" aria-labelledby="sc-os-shutdown">
+          <h4 id="sc-os-shutdown">
+            {t('sim.os_shutdown')}{' '}
+            {r.os_shutdown.pass ? <Badge kind="ok" icon="✓" text={t('sim.passed')} /> : <Badge kind="crit" icon="✕" text={t('sim.failed')} />}
+          </h4>
+          {!r.os_shutdown.pass ? <p role="alert" class="msg msg-error">{t('sim.os_shutdown.error')}</p> : null}
+        </section>
+      ) : null}
       {r.scenarios.map((s) => (
         <section class="scenario" aria-labelledby={'sc-' + s.name}>
           <h4 id={'sc-' + s.name}>
@@ -224,6 +233,7 @@ export function Policy() {
               <button type="button" disabled={!elevated || p.fallback || !p.active || busy} onClick={() => setAsk('deactivate')}>{t('policy.deactivate')}</button>
             </div>
             {!canActivate(p, elevated) && elevated && !p.active && !p.fallback ? <p class="small">{t('policy.activate.rule')}</p> : null}
+            {p.os_shutdown && !p.os_shutdown.pass ? <p role="alert" class="msg msg-error">{t('sim.os_shutdown.error')}</p> : null}
             {ask === 'activate' ? (
               <Confirm text={t('policy.activate.confirm')} confirmLabel={t('policy.activate')}
                 onConfirm={() => { setAsk(null); void run(api.activatePolicy, 'policy.activated'); }} onCancel={() => setAsk(null)} />

@@ -335,6 +335,8 @@
   "sim.o.cancel": "cancel",
   "sim.o.none": "nothing",
   "sim.o.shutdown_request": "shutdown request",
+  "sim.os_shutdown": "OS shutdown",
+  "sim.os_shutdown.error": "This user cannot shut down the computer.",
   "sim.outcome": "Result: {outcome}",
   "sim.passed": "passed",
   "sim.s.comm_lost_on_battery": "Communication lost on battery",

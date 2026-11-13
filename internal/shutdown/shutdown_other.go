@@ -19,3 +19,7 @@ func (otherOS) hibernate(ctx context.Context, e *Executor, _ string) error {
 	e.record(ctx, "os_hibernate_request", "failure", map[string]any{"error": ErrNotSupported.Error()})
 	return ErrNotSupported
 }
+
+func (otherOS) canShutdown(context.Context, *Executor) error {
+	return ErrCannotShutdown
+}

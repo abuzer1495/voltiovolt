@@ -146,12 +146,19 @@ export interface ScenarioResult {
   pass: boolean;
 }
 
+export interface OSShutdownStep {
+  name: string;
+  pass: boolean;
+  error?: string;
+}
+
 export interface SimResult {
   version: string;
   passed: boolean;
   time: string;
   fallback?: boolean;
   scenarios: ScenarioResult[];
+  os_shutdown?: OSShutdownStep;
 }
 
 export interface PolicyInfo {
@@ -160,6 +167,7 @@ export interface PolicyInfo {
   active: boolean;
   fallback: boolean;
   last_simulation?: { id: number; time: string; version: string; passed: boolean; result: SimResult } | null;
+  os_shutdown?: OSShutdownStep;
 }
 
 export interface TrayTexts {

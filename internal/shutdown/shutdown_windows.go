@@ -170,3 +170,10 @@ func (w *winOS) hibernate(ctx context.Context, e *Executor, reason string) error
 	e.record(ctx, "os_hibernate_request", "success", map[string]any{"action": ActionHibernate, "message": reason})
 	return nil
 }
+
+func (w *winOS) canShutdown(_ context.Context, _ *Executor) error {
+	if err := w.c.enablePrivilege(); err != nil {
+		return ErrCannotShutdown
+	}
+	return nil
+}

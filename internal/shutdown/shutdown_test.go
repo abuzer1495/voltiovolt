@@ -13,6 +13,7 @@ import (
 
 // The OS executor implements the Policy Engine interface.
 var _ policy.Executor = (*Executor)(nil)
+var _ policy.ShutdownChecker = (*Executor)(nil)
 
 // fakeExecutor is the fake executor for tests. It records the calls and
 // never calls the OS.
@@ -50,6 +51,8 @@ func (f *fakeOS) hibernate(_ context.Context, _ *Executor, r string) error {
 	f.calls = append(f.calls, "hibernate:"+r)
 	return nil
 }
+
+func (f *fakeOS) canShutdown(context.Context, *Executor) error { return nil }
 
 type auditEntry struct {
 	action, result string
@@ -93,5 +96,11 @@ func TestFakeExecutor(t *testing.T) {
 	}
 	if len(f.calls) != 2 {
 		t.Fatalf("calls %v", f.calls)
+	}
+}
+
+func TestErrCannotShutdownText(t *testing.T) {
+	if ErrCannotShutdown.Error() != "This user cannot shut down the computer." {
+		t.Fatalf("text %q", ErrCannotShutdown.Error())
 	}
 }

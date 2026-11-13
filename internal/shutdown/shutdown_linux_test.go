@@ -15,10 +15,12 @@ import (
 // fakeBus is a fake system bus object. It records the method calls and
 // never connects to D-Bus.
 type fakeBus struct {
-	calls        []string
-	args         [][]interface{}
-	canHibernate string
-	failPowerOff bool
+	calls           []string
+	args            [][]interface{}
+	canHibernate    string
+	canPowerOff     string
+	failPowerOff    bool
+	failCanPowerOff bool
 }
 
 func (b *fakeBus) CallWithContext(_ context.Context, method string, _ dbus.Flags, args ...interface{}) *dbus.Call {
@@ -31,6 +33,12 @@ func (b *fakeBus) CallWithContext(_ context.Context, method string, _ dbus.Flags
 		c.Body = []interface{}{[][]interface{}{{"shutdown", "Editor", "Unsaved file", "delay", uint32(1000), uint32(4242)}}}
 	case methodCanHib:
 		c.Body = []interface{}{b.canHibernate}
+	case methodCanPowerOff:
+		if b.failCanPowerOff {
+			c.Err = errors.New("org.freedesktop.DBus.Error.AccessDenied")
+			break
+		}
+		c.Body = []interface{}{b.canPowerOff}
 	case methodPowerOff:
 		if b.failPowerOff {
 			c.Err = errors.New("org.freedesktop.DBus.Error.AccessDenied")
@@ -114,5 +122,51 @@ func TestLinuxHibernateFallback(t *testing.T) {
 		if len(a.entries) != 2 || a.entries[0].action != "os_hibernate_fallback" || a.entries[1].action != "os_shutdown_request" {
 			t.Fatalf("%q: audit %+v", can, a.entries)
 		}
+	}
+}
+
+func TestLinuxCanShutdown(t *testing.T) {
+	b := &fakeBus{canPowerOff: "yes"}
+	e, a := newLinux(b)
+	if err := e.CanShutdown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(b.calls) != 1 || b.calls[0] != methodCanPowerOff {
+		t.Fatalf("calls %v, want CanPowerOff only", b.calls)
+	}
+	if len(a.entries) != 0 {
+		t.Fatalf("audit %+v, want none", a.entries)
+	}
+}
+
+func TestLinuxCanShutdownRefused(t *testing.T) {
+	for _, can := range []string{"no", "na", "challenge", ""} {
+		b := &fakeBus{canPowerOff: can}
+		e, _ := newLinux(b)
+		err := e.CanShutdown(context.Background())
+		if !errors.Is(err, ErrCannotShutdown) {
+			t.Fatalf("%q: %v", can, err)
+		}
+		if err.Error() != "This user cannot shut down the computer." {
+			t.Fatalf("%q: text %q", can, err.Error())
+		}
+	}
+}
+
+func TestLinuxCanShutdownCallFails(t *testing.T) {
+	b := &fakeBus{failCanPowerOff: true}
+	e, _ := newLinux(b)
+	if err := e.CanShutdown(context.Background()); !errors.Is(err, ErrCannotShutdown) {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestLinuxCanShutdownNoBus(t *testing.T) {
+	e := New(Options{})
+	e.os = &linuxOS{connect: func() (busObject, func(), error) {
+		return nil, nil, errors.New("no bus")
+	}}
+	if err := e.CanShutdown(context.Background()); !errors.Is(err, ErrCannotShutdown) {
+		t.Fatalf("%v", err)
 	}
 }

@@ -138,4 +138,19 @@ describe('first-run wizard', () => {
     await click(byText(t('wizard.general.start')));
     expect(wizardWanted.get().open).toBe(true);
   });
+
+  it('the Shutdown Policy step shows the exact error when the user cannot shut down', async () => {
+    expect(t('sim.os_shutdown.error')).toBe('This user cannot shut down the computer.');
+    const base = fake.handlers.Policy as () => object;
+    const pol = base();
+    fake.handlers.Policy = () => ({ ...pol, os_shutdown: { name: 'OS shutdown', pass: false, error: 'This user cannot shut down the computer.' } });
+    app.set({ auth: { pin_set: true, elevated: true } as never, conn: { state: 'connected', since: '' } });
+    await show(<Wizard first={false} />);
+    await click(byText(t('wizard.skip'))); // port
+    await click(byText(t('wizard.skip'))); // values
+    expect(root.textContent).toContain(t('wizard.step.policy'));
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(root.textContent).toContain('This user cannot shut down the computer.');
+    expect(root.querySelector('[role="alert"]')?.textContent).toBe(t('sim.os_shutdown.error'));
+  });
 });

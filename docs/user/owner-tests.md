@@ -1,8 +1,15 @@
-# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009)
+# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009)
 
 English first. Turkish: section T below.
 
 ## E. English
+
+### How to get the test package
+
+1. Open the Releases page of the repository: https://github.com/abuzer1495/voltiovolt/releases
+2. Open the pre-release "Test build" (the tag is test-latest).
+3. Download VoltioVolt-test-windows-amd64.zip or VoltioVolt-test-linux-amd64.tar.gz.
+4. Check the SHA-256 values in SHA256SUMS.txt (docs/user/probe.md section 1).
 
 Each test has: purpose, preconditions, steps, expected result, and what to send to the Instruction Author. Do the tests in order. Send the results of each test as soon as it is complete. Do not send a Secret, a PIN, a DEK, a QID value or a serial number. Check each file before you send it.
 
@@ -10,9 +17,9 @@ General preconditions for all tests:
 
 - A test computer, not a production computer. Save all work before each test.
 - The Reference UPS and its USB or serial cable.
-- The CI artifacts of the latest successful `ci` run on `main`, with the SHA-256 check of docs/user/probe.md section 1.
-- For T-08 to T-10: the VLT GUI artifact `vlt-gui-linux-amd64` or `vlt-gui-windows-amd64` with its SHA-256 file. Linux: the GTK 4 and WebKitGTK 6.0 libraries (for example on Debian and Ubuntu: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: the Microsoft Edge WebView2 Runtime (Windows 10 and 11 have it).
-- Do the tests in this order: T-01 to T-09, then T-10 (OD-23), then T-11 and T-12 (VLT-IS-006).
+- The test package of the latest pre-release "Test build" (tag test-latest). See "How to get the test package" above.
+- For T-08 to T-13: the VLT GUI from the test package (`vlt-gui` on Linux, `vlt-gui.exe` on Windows) with the SHA-256 check. Linux: the GTK 4 and WebKitGTK 6.0 libraries (for example on Debian and Ubuntu: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: the Microsoft Edge WebView2 Runtime (Windows 10 and 11 have it).
+- Do the tests in this order: T-01 to T-09, then T-10 (OD-23), then T-11 and T-12 (VLT-IS-006), then T-13 (VLT-IS-007).
 
 ### T-01 vlt-probe Capture on the Reference UPS
 
@@ -193,7 +200,25 @@ WARNING: The UPS turns off its output during this test. All equipment on the UPS
 - Expected result: the OS shuts down before the UPS output turns off (2 minutes after the shutdown starts). Run 1: the UPS output turns on 1 minute after it turned off. Run 2: the behavior without input power is UNVERIFIED (VLT-REF-001 5.1 item 4); write it down.
 - Send: the times of steps 3 and 4 for both runs, the audit entries and the vltd log lines.
 
+### T-13 Notifications (VLT-IS-007)
+
+- Purpose: check the desktop, Telegram and e-mail Channels (VLT-IS-007 TASK 03-00-00-004, 005 and 006).
+- Preconditions: T-09 is complete. The VLT GUI from the test package is running. A Telegram bot token and a Gmail app password (the Owner's). Do not send the token or the password.
+- Steps (all in the VLT GUI, screen "Notifications", unless a step says otherwise):
+    1. Desktop: start the VLT GUI. Disconnect the UPS input power. A desktop notification appears. Connect the input power. Write down the time.
+    2. Telegram: enter the bot token (write-only). Click "Pair a chat". Send `/start <code>` to the bot from Telegram. Send `/durum`. Disconnect the UPS input power. A Telegram Notification arrives. Connect the input power. Write down the time.
+    3. E-mail: select the preset "Gmail". Enter the Gmail address and the app password (help text: "Use a Google app password, not your normal password. Google account, Security, 2-Step Verification, App passwords."). Click "Send test message". Disconnect the UPS input power. An e-mail Notification arrives. Connect the input power. Write down the time.
+- Expected result: a desktop notification, a Telegram message (including a reply to `/durum` with the UPS status) and an e-mail, each during the power failure. The test e-mail arrives.
+- Send: the times and a confirmation that each Channel worked. Do not send the token, the password or the message text (it can contain status data).
+
 ## T. Türkçe
+
+### Test paketini alma
+
+1. Depo Releases sayfasını açın: https://github.com/abuzer1495/voltiovolt/releases
+2. "Test build" adlı ön sürümü açın (etiket: test-latest).
+3. VoltioVolt-test-windows-amd64.zip veya VoltioVolt-test-linux-amd64.tar.gz dosyasını indirin.
+4. SHA-256 değerlerini SHA256SUMS.txt dosyasından kontrol edin (docs/user/probe.md bölüm 1).
 
 Her testte şunlar vardır: amaç, ön koşullar, adımlar, beklenen sonuç ve Instruction Author'a gönderilecekler. Testleri sırayla yapın. Her testin sonuçlarını test biter bitmez gönderin. Secret, PIN, DEK, QID değeri veya seri numarası göndermeyin. Göndermeden önce her dosyayı kontrol edin.
 
@@ -201,9 +226,9 @@ Tüm testler için genel ön koşullar:
 
 - Üretim bilgisayarı değil, bir test bilgisayarı. Her testten önce tüm çalışmalarınızı kaydedin.
 - Referans UPS ve USB veya seri kablosu.
-- `main` dalındaki son başarılı `ci` çalışmasının CI artifact dosyaları; SHA-256 kontrolü docs/user/probe.md bölüm 1'e göre yapılmış olmalıdır.
-- T-08 ile T-10 için: SHA-256 dosyasıyla birlikte `vlt-gui-linux-amd64` veya `vlt-gui-windows-amd64` VLT GUI artifact dosyası. Linux: GTK 4 ve WebKitGTK 6.0 kitaplıkları (örneğin Debian ve Ubuntu'da: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: Microsoft Edge WebView2 Runtime (Windows 10 ve 11'de vardır).
-- Testleri şu sırayla yapın: T-01 ile T-09, sonra T-10 (OD-23), sonra T-11 ve T-12 (VLT-IS-006).
+- En son "Test build" ön sürümünün (etiket: test-latest) test paketi. Yukarıdaki "Test paketini alma" bölümüne bakın.
+- T-08 ile T-13 için: test paketindeki VLT GUI (`vlt-gui` Linux'ta, `vlt-gui.exe` Windows'ta) ve SHA-256 kontrolü. Linux: GTK 4 ve WebKitGTK 6.0 kitaplıkları (örneğin Debian ve Ubuntu'da: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: Microsoft Edge WebView2 Runtime (Windows 10 ve 11'de vardır).
+- Testleri şu sırayla yapın: T-01 ile T-09, sonra T-10 (OD-23), sonra T-11 ve T-12 (VLT-IS-006), sonra T-13 (VLT-IS-007).
 
 ### T-01 Referans UPS ile vlt-probe Capture
 
@@ -385,3 +410,14 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
     8. ups_off.enabled ayarını yeniden kapatın (varsayılan, OD-28), Simülasyonu çalıştırın ve politikayı etkinleştirin.
 - Beklenen sonuç: işletim sistemi, UPS çıkışı kapanmadan önce (kapatma başladıktan 2 dakika sonra) kapanır. 1. çalıştırma: UPS çıkışı kapandıktan 1 dakika sonra açılır. 2. çalıştırma: giriş gücü olmadan davranış UNVERIFIED'dır (VLT-REF-001 5.1 madde 4); not edin.
 - Gönderin: her iki çalıştırma için 3. ve 4. adımların zamanları, denetim girdileri ve vltd günlük satırları.
+
+### T-13 Bildirimler (VLT-IS-007)
+
+- Amaç: masaüstü, Telegram ve e-posta Kanallarını kontrol etmek (VLT-IS-007 TASK 03-00-00-004, 005 ve 006).
+- Ön koşullar: T-09 tamamlanmıştır. Test paketindeki VLT GUI çalışır. Bir Telegram bot belirteci ve bir Gmail uygulama parolası (Owner'ın). Belirteci veya parolayı göndermeyin.
+- Adımlar (tümü VLT GUI'de, "Bildirimler" ekranı, aksi belirtilmedikçe):
+    1. Masaüstü: VLT GUI'yi başlatın. UPS giriş gücünü kesin. Bir masaüstü bildirimi görünür. Giriş gücünü bağlayın. Zamanı not edin.
+    2. Telegram: bot belirtecini girin (yalnızca yazma). "Sohbet eşleştir" düğmesine tıklayın. Telegram'dan bota `/start <kod>` gönderin. `/durum` gönderin. UPS giriş gücünü kesin. Bir Telegram Bildirimi gelir. Giriş gücünü bağlayın. Zamanı not edin.
+    3. E-posta: "Gmail" hazır ayarını seçin. Gmail adresini ve uygulama parolasını girin (yardım metni: "Normal parolanızı değil, bir Google uygulama parolası kullanın. Google hesabı, Güvenlik, 2 Adımlı Doğrulama, Uygulama parolaları."). "Test mesajı gönder" düğmesine tıklayın. UPS giriş gücünü kesin. Bir e-posta Bildirimi gelir. Giriş gücünü bağlayın. Zamanı not edin.
+- Beklenen sonuç: bir masaüstü bildirimi, bir Telegram iletisi (`/durum` yanıtı UPS durumunu içerir) ve bir e-posta, her biri güç kesintisi sırasında. Test e-postası gelir.
+- Gönderin: zamanlar ve her Kanalın çalıştığına dair onay. Belirteci, parolayı veya ileti metnini göndermeyin (durum verisi içerebilir).

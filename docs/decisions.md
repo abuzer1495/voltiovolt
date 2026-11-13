@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00 and VLT-IS-006 01-00-00. The source texts are in `docs/instructions/`.
+This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00, VLT-IS-006 01-00-00 and VLT-IS-007 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -102,3 +102,16 @@ This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00
 | CH-39 | 2026-11-10 | SEC-099 (new): vltd does not send a byte to a serial port that the user did not select or confirm in the VLT GUI. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
 | CH-40 | 2026-11-10 | SEC-100 (new): VLT never sends "S.0". The permitted shutdown delays are 0.2 to 0.9 minutes (12 to 54 seconds, steps of 6 seconds) and 1 to 10 minutes. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
 | CH-41 | 2026-11-10 | SEC-101 (new): Do not commit a file or a folder of the Owner analysis. A CI check fails if the repository contains the path "ANALIZ/" or a Ghidra project file. | VLT-IS-006 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 05) |
+| Q-IA-1 | 2026-11-13 | Accepted for now. On Windows, DTR and RTS are on after the open. Do not change the library. If T-01 shows a problem, a later instruction changes it. | VLT-IS-007 Rev 00, 01-10-00 |
+| Q-IA-2 | 2026-11-13 | Accepted. | VLT-IS-007 Rev 00, 01-10-00 |
+| Q-IA-3 | 2026-11-13 | In this instruction (TASK 03-00-00-002). SEC-094 is suspended (01-30-00). | VLT-IS-007 Rev 00, 01-10-00 |
+| Q-IA-4 | 2026-11-13 | No VLT action. The computer is off at that time. The GUI text tells the user the behavior after T-12. A later instruction adds the result of T-12 to the text. | VLT-IS-007 Rev 00, 01-10-00 |
+| OD-30 | 2026-11-13 | Test builds: GitHub Actions builds all binaries. The Builder does not build packages on the Builder computer for the Owner. | VLT-IS-007 Rev 00, 01-20-00 |
+| OD-31 | 2026-11-13 | Test releases: The Owner approves a pre-release with the fixed tag "test-latest". The workflow replaces it at each merge to main. Real releases still need Owner approval (SEC-067). | VLT-IS-007 Rev 00, 01-20-00 |
+| OD-32 | 2026-11-13 | Process: Less security process now. The security hardening step comes before release v1.0 (01-40-00). | VLT-IS-007 Rev 00, 01-20-00 |
+| OD-33 | 2026-11-13 | E-mail in the MVP: SMTP with a password (Gmail: app password). Gmail OAuth moves to the security hardening step. | VLT-IS-007 Rev 00, 01-20-00 |
+| CH-42 | 2026-11-13 | SEC-094: Suspended until the security hardening step. | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |
+| CH-43 | 2026-11-13 | SEC-088: Keep: do not export a token in the shell. Remove: the token check log at the start and the end of each task. | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |
+| CH-44 | 2026-11-13 | SEC-067: Add: "Exception: the pre-release test-latest (OD-31)." | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |
+| CH-45 | 2026-11-13 | New code: New code needs normal unit tests. New go/ast tests and fuzz targets are not necessary. | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |
+| CH-46 | 2026-11-13 | Report: The report format is shorter (05-10-00). | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |

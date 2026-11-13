@@ -8,9 +8,10 @@ import { Dashboard } from './screens/dashboard';
 import { Device } from './screens/device';
 import { Events } from './screens/events';
 import { General } from './screens/general';
+import { Wizard, wizardWanted } from './screens/wizard';
 import { Notifications } from './screens/notifications';
 import { History } from './screens/history';
-import { Login, SetPin } from './screens/pin';
+import { Login } from './screens/pin';
 import { Policy } from './screens/policy';
 import { Security } from './screens/security';
 import { UPSControl } from './screens/ups';
@@ -43,6 +44,7 @@ function currentRoute(): string {
 export function App() {
   useLang();
   const s = useStore(app);
+  const wiz = useStore(wizardWanted);
   const [route, setRoute] = useState(currentRoute());
   const [unlock, setUnlock] = useState(false);
   useEffect(() => start(), []);
@@ -88,8 +90,8 @@ export function App() {
       <main id="main" tabIndex={-1}>
         {!connected ? (
           s.conn.state === 'connecting' ? <p role="status">{t('conn.connecting')}</p> : <ConnProblem conn={s.conn} />
-        ) : firstStart ? (
-          <SetPin onDone={refreshAuth} />
+        ) : firstStart || wiz.open ? (
+          <Wizard first={firstStart} onDone={() => { wizardWanted.set({ open: false }); refreshAuth(); }} />
         ) : (
           <>
             <FallbackBanner fallback={!!s.policy?.fallback} />

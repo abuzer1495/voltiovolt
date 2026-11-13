@@ -13,6 +13,7 @@ import { setLang } from '../src/i18n';
 import { Dashboard, ModeView } from '../src/screens/dashboard';
 import { General } from '../src/screens/general';
 import { Notifications } from '../src/screens/notifications';
+import { Wizard } from '../src/screens/wizard';
 import { Policy } from '../src/screens/policy';
 import { Security } from '../src/screens/security';
 import { Events } from '../src/screens/events';
@@ -142,7 +143,7 @@ function setup() {
 describe('accessible names', () => {
   const screens: [string, () => preact.JSX.Element][] = [
     ['App', () => <App />], ['Dashboard', () => <Dashboard />], ['Policy', () => <Policy />], ['Security', () => <Security />], ['General', () => <General />],
-    ['Events', () => <Events />], ['Device', () => <Device />], ['Notifications', () => <Notifications />], ['UPSControl', () => <UPSControl />], ['SetPin', () => <SetPin />], ['Login', () => <Login />],
+    ['Events', () => <Events />], ['Device', () => <Device />], ['Notifications', () => <Notifications />], ['Wizard', () => <Wizard first />], ['UPSControl', () => <UPSControl />], ['SetPin', () => <SetPin />], ['Login', () => <Login />],
   ];
   for (const lang of ['en', 'tr'] as const)
     for (const [n, f] of screens)

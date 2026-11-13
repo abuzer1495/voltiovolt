@@ -1,14 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Test build (VLT-IS-007 TASK 03-00-00-001, OD-30, OD-31). For each push to
-# main (and a manual start), GitHub Actions builds the test packages and
-# replaces the pre-release "test-latest". Each action is pinned to a full
-# commit SHA. The version is in the comment.
+# Test build (VLT-IS-007 TASK 03-00-00-001, VLT-IS-008 TASK 03-00-00-006,
+# OD-30, OD-31). For each push to main (and a manual start), GitHub Actions
+# builds the portable test packages and replaces the pre-release
+# "test-latest". Each action is pinned to a full commit SHA. The version is
+# in the comment.
 #
 # Only the job "release" has write permission (contents: write). It runs
 # only on main, after both build jobs pass. The fixed tag test-latest is the
 # exception to SEC-067 (OD-31). The builds also run for pull requests, but
 # the release job does not.
+#
+# The default packages have VoltioVolt and vlt-probe only (SEC-102). The
+# service binaries vltd, vlt-gui and vlt-setup stay in the source and in
+# the CI of ci.yml. They are not in these packages.
 
 name: test-build
 
@@ -55,7 +60,7 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm run build
-      - name: Build vltd, vlt-setup, vlt-probe and vlt-gui (CGO_ENABLED=0)
+      - name: Build VoltioVolt.exe and vlt-probe.exe (CGO_ENABLED=0)
         env:
           CGO_ENABLED: "0"
           GOOS: windows
@@ -64,16 +69,32 @@ jobs:
           set -euo pipefail
           out="$RUNNER_TEMP/VoltioVolt-test-windows-amd64"
           mkdir -p "$out"
-          go build -trimpath -ldflags "-X main.version=${VLT_VERSION}" -o "$out/vltd.exe" ./cmd/vltd
-          go build -trimpath -ldflags "-X main.version=${VLT_VERSION}" -o "$out/vlt-setup.exe" ./cmd/vlt-setup
+          (cd cmd/voltiovolt && go build -tags production -trimpath -ldflags "-H windowsgui -X main.version=${VLT_VERSION} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=${VLT_VERSION}" -o "$out/VoltioVolt.exe" .)
           go build -trimpath -ldflags "-X main.toolVersion=${VLT_VERSION}" -o "$out/vlt-probe.exe" ./cmd/vlt-probe
-          (cd cmd/vlt-gui && go build -tags production -trimpath -ldflags "-H windowsgui -X github.com/abuzer1495/voltiovolt/internal/gui.Version=${VLT_VERSION}" -o "$out/vlt-gui.exe" .)
-          cp packaging/test/windows/install-test.cmd packaging/test/windows/uninstall-test.cmd packaging/test/windows/OKUBENI-README.txt "$out/"
-          "$out/vltd.exe" --version
-          "$out/vlt-setup.exe" version
-          "$out/vlt-probe.exe" version
-          "$out/vltd.exe" --version | grep -F "$VLT_VERSION"
+          cp packaging/test/windows/install.cmd packaging/test/windows/uninstall.cmd packaging/test/windows/remove-old-test-service.cmd packaging/test/windows/OKUBENI-README.txt "$out/"
           ls -l "$out"
+      - name: Check the install scripts
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/VoltioVolt-test-windows-amd64"
+          for f in install.cmd uninstall.cmd; do
+            if grep -Eiq 'runas|sc |net localgroup|reg add|icacls' "$out/$f"; then
+              echo "ERROR: $f contains a forbidden command (runas, sc, net localgroup, reg add or icacls)." >&2
+              grep -Ein 'runas|sc |net localgroup|reg add|icacls' "$out/$f" >&2 || true
+              exit 1
+            fi
+          done
+          echo "script check ok"
+      - name: Start test of VoltioVolt.exe with the simulator
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/VoltioVolt-test-windows-amd64"
+          dir="$RUNNER_TEMP/vv-self-test"
+          mkdir -p "$dir"
+          "$out/VoltioVolt.exe" --self-test --data-dir "$dir"
+          test -f "$dir/self-test-result.txt"
+          grep -q '^ok ' "$dir/self-test-result.txt"
+          cat "$dir/self-test-result.txt"
       - name: Make the zip file
         shell: pwsh
         run: |
@@ -81,6 +102,28 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Compress-Archive -Path $out -DestinationPath dist/VoltioVolt-test-windows-amd64.zip
           Get-FileHash dist/VoltioVolt-test-windows-amd64.zip -Algorithm SHA256
+      - name: Extract the zip and check the file list
+        run: |
+          set -euo pipefail
+          python - <<PY
+          import os, pathlib, sys, zipfile
+          zpath = pathlib.Path("dist") / "VoltioVolt-test-windows-amd64.zip"
+          want = {
+              "VoltioVolt.exe",
+              "vlt-probe.exe",
+              "install.cmd",
+              "uninstall.cmd",
+              "remove-old-test-service.cmd",
+              "OKUBENI-README.txt",
+          }
+          with zipfile.ZipFile(zpath) as z:
+              names = [n for n in z.namelist() if not n.endswith("/")]
+          bases = {pathlib.Path(n).name for n in names}
+          if bases != want or len(names) != 6:
+              print("files", names, "bases", sorted(bases), file=sys.stderr)
+              sys.exit(1)
+          print("zip file list ok:", ", ".join(sorted(bases)))
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-build-windows
@@ -113,21 +156,28 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm run build
-      - name: Build vltd and vlt-probe (CGO_ENABLED=0), vlt-gui (CGO_ENABLED=1)
+      - name: Build voltiovolt (CGO_ENABLED=1) and vlt-probe (CGO_ENABLED=0)
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/VoltioVolt-test-linux-amd64"
-          mkdir -p "$out/packaging/linux"
-          CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=${VLT_VERSION}" -o "$out/vltd" ./cmd/vltd
+          mkdir -p "$out"
+          (cd cmd/voltiovolt && CGO_ENABLED=1 go build -tags production -trimpath -ldflags "-X main.version=${VLT_VERSION} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=${VLT_VERSION}" -o "$out/voltiovolt" .)
           CGO_ENABLED=0 go build -trimpath -ldflags "-X main.toolVersion=${VLT_VERSION}" -o "$out/vlt-probe" ./cmd/vlt-probe
-          (cd cmd/vlt-gui && CGO_ENABLED=1 go build -tags production -trimpath -ldflags "-X github.com/abuzer1495/voltiovolt/internal/gui.Version=${VLT_VERSION}" -o "$out/vlt-gui" .)
-          cp packaging/linux/* "$out/packaging/linux/"
-          install -m 0755 packaging/test/linux/install-test.sh packaging/test/linux/uninstall-test.sh "$out/"
+          install -m 0755 packaging/test/linux/install.sh packaging/test/linux/uninstall.sh "$out/"
           cp packaging/test/linux/OKUBENI-README.txt "$out/"
-          "$out/vltd" --version | grep -F "$VLT_VERSION"
           "$out/vlt-probe" version | grep -F "$VLT_VERSION"
-          sh -n "$out/install-test.sh"
-          sh -n "$out/uninstall-test.sh"
+          sh -n "$out/install.sh"
+          sh -n "$out/uninstall.sh"
+          python3 - <<PY
+          import os, pathlib, sys
+          out = pathlib.Path(os.environ["RUNNER_TEMP"]) / "VoltioVolt-test-linux-amd64"
+          want = {"voltiovolt", "vlt-probe", "install.sh", "uninstall.sh", "OKUBENI-README.txt"}
+          names = {p.name for p in out.iterdir() if p.is_file()}
+          if names != want:
+              print("files", sorted(names), "want", sorted(want), file=sys.stderr)
+              sys.exit(1)
+          print("file list ok:", ", ".join(sorted(names)))
+          PY
           mkdir -p dist
           tar -C "$RUNNER_TEMP" --owner=0 --group=0 -czf dist/VoltioVolt-test-linux-amd64.tar.gz VoltioVolt-test-linux-amd64
           tar -tzvf dist/VoltioVolt-test-linux-amd64.tar.gz

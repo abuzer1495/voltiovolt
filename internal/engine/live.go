@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/abuzer1495/voltiovolt/internal/control"
+	"github.com/abuzer1495/voltiovolt/internal/demo"
 	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/event"
@@ -46,6 +47,7 @@ type live struct {
 	// telegram is the Telegram Channel (VLT-IS-007 TASK 03-00-00-005).
 	telegram *telegram.Bot
 	email    *email.Mailer
+	demo     *demo.Session
 
 	mu       sync.Mutex
 	commLost bool
@@ -68,6 +70,8 @@ type StatusPush struct {
 	Measurements map[string]measure.Point `json:"measurements"`
 	Countdown    policy.Countdown         `json:"countdown"`
 	PolicyActive bool                     `json:"policy_active"`
+	Demo         bool                     `json:"demo,omitempty"`
+	DemoMessage  string                   `json:"demo_message,omitempty"`
 }
 
 // OnCycle is the Poller sink: Measurements, Events, then the Policy tick.
@@ -120,6 +124,13 @@ func (l *live) OnCycle(c poller.Cycle) {
 		obs.Add(r.Command, r.Value)
 	}
 	l.mu.Unlock()
+	if l.demo != nil && l.demo.Active() {
+		for i := range samples {
+			for j := range samples[i].Points {
+				samples[i].Points[j].Demo = true
+			}
+		}
+	}
 	if len(samples) > 0 {
 		if err := l.writer.WriteCycle(ctx, samples); err != nil {
 			l.d.log.Error("measurements not stored", "err", err)
@@ -176,6 +187,15 @@ func (l *live) status() StatusPush {
 	}
 	if in, err := l.pol.Info(context.Background()); err == nil {
 		s.PolicyActive = in.Active
+	}
+	if l.demo != nil {
+		if l.demo.Active() {
+			s.Demo = true
+		}
+		s.DemoMessage = l.demo.ShutdownMessage()
+	}
+	if l.mgr != nil && l.mgr.Status().Config.Transport == device.TransportDemo {
+		s.Demo = true
 	}
 	return s
 }
@@ -328,10 +348,12 @@ func (d *Daemon) startLive(ctx context.Context) error {
 		}
 		return in.Config.ForceCloseApplications
 	}
+	sess := demo.New()
 	var exec policy.Executor = &policy.DryRun{}
 	if d.cfg.MakeExecutor != nil {
 		exec = d.cfg.MakeExecutor(forceClose, d.au)
 	}
+	exec = &demo.Executor{Real: exec, Sess: sess}
 	pol, err = policy.NewService(ctx, d.st, d.au, exec, nil, d.log)
 	if err != nil {
 		return fmt.Errorf("policy: %w", err)
@@ -342,8 +364,9 @@ func (d *Daemon) startLive(ctx context.Context) error {
 		return fmt.Errorf("policy: %w", err)
 	}
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
-		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}}
-	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log},
+		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}, demo: sess}
+	l.events.SetDemo(sess.Active)
+	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log, Demo: sess.Active},
 		desktopChannel{l.hub})
 	settings := notify.StoreSettings(d.st)
 	l.telegram = telegram.New(telegram.Config{API: d.cfg.TelegramAPI, Secrets: d.vt, Chats: d.st, Audit: d.au, Log: d.log,
@@ -360,9 +383,16 @@ func (d *Daemon) startLive(ctx context.Context) error {
 	if d.cfg.Lister != nil {
 		l.mgr = &device.Manager{
 			Config: func(ctx context.Context) (device.Config, error) { return device.ConfigFromStore(ctx, d.st) },
-			List:   d.cfg.Lister,
+			List:   device.WithDemo(d.cfg.Lister, sess.Candidates),
 			Log:    d.log,
 			Poll: func(ctx context.Context, tr transport.Transport, p device.Profile, setState func(string)) error {
+				demoOn := p.Transport == device.TransportDemo
+				sess.SetActive(demoOn)
+				l.ctl.SetDryRun(demoOn)
+				defer func() {
+					sess.SetActive(false)
+					l.ctl.SetDryRun(false)
+				}()
 				pl := poller.New(tr, p, stateSink{l: l, setState: setState}, poller.Options{Log: d.log})
 				l.ctl.SetLink(pl, p.Dialect)
 				defer l.ctl.SetLink(nil, "")

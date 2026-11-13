@@ -220,6 +220,9 @@ const (
 	MethodTelegramPairStart   = "telegram.pair.start"
 	MethodTelegramChatsList   = "telegram.chats.list"
 	MethodTelegramChatsRemove = "telegram.chats.remove"
+
+	// VLT-IS-009 TASK 03-00-00-005: Simulate power failure in demo mode.
+	MethodDemoPowerFail = "device.demo.power_fail"
 )
 
 // Confirmation texts of ups.test.start.
@@ -254,6 +257,7 @@ var Methods = []string{
 	MethodUPSControlCaps, MethodUPSTestStart, MethodUPSTestCancel, MethodUPSBeeperSet,
 	MethodChannelsList, MethodChannelsSettingsSet, MethodChannelsTest,
 	MethodTelegramPairStart, MethodTelegramChatsList, MethodTelegramChatsRemove,
+	MethodDemoPowerFail,
 }
 
 // Push messages (VLT-IS-004 TASK 03-00-00-008 step 1). The server sends
@@ -318,10 +322,11 @@ type (
 		Settings map[string]json.RawMessage `json:"settings"`
 	}
 	MeasurementsParams struct {
-		Name string `json:"name"`
-		From string `json:"from"` // RFC 3339
-		To   string `json:"to"`   // RFC 3339
-		Step string `json:"step"` // raw, 1m or 1h
+		Name        string `json:"name"`
+		From        string `json:"from"` // RFC 3339
+		To          string `json:"to"`   // RFC 3339
+		Step        string `json:"step"` // raw, 1m or 1h
+		IncludeDemo bool   `json:"include_demo,omitempty"`
 	}
 	DeviceScanParams struct {
 		Ports        []string `json:"ports"`
@@ -336,8 +341,9 @@ type (
 		On bool `json:"on"`
 	}
 	EventsListParams struct {
-		Before int64 `json:"before"` // 0: the newest
-		Limit  int   `json:"limit"`
+		Before      int64 `json:"before"` // 0: the newest
+		Limit       int   `json:"limit"`
+		IncludeDemo bool  `json:"include_demo,omitempty"`
 	}
 )
 
@@ -451,6 +457,7 @@ type (
 		Sends    int    `json:"sends"`
 		Verified bool   `json:"verified"`
 		NoSend   bool   `json:"no_send,omitempty"`
+		DryRun   bool   `json:"dry_run,omitempty"`
 	}
 	EventsListResult struct {
 		Events json.RawMessage `json:"events"`

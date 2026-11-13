@@ -156,7 +156,10 @@ type Config struct {
 	Location *time.Location
 	// SendTimeout is the time limit of one send. 0: 30 s.
 	SendTimeout time.Duration
-	Log         *slog.Logger
+	// Demo reports whether demo mode is active. Notifications then get
+	// the prefix "[DEMO]" (VLT-IS-009 OD-43).
+	Demo func() bool
+	Log  *slog.Logger
 }
 
 // ErrNoChannel is returned by SendTest for an unknown Channel.
@@ -296,6 +299,24 @@ func (r *Router) language(ctx context.Context) string {
 // emit puts a message in the queue of each Channel that is on and has a
 // minimum severity equal to or less than the message severity. r.mu is
 // held.
+func (r *Router) demoPrefix(n Notification) Notification {
+	if r.cfg.Demo == nil || !r.cfg.Demo() {
+		return n
+	}
+	const p = "[DEMO] "
+	if !hasDemoPrefix(n.Subject) {
+		n.Subject = p + n.Subject
+	}
+	if !hasDemoPrefix(n.Text) {
+		n.Text = p + n.Text
+	}
+	return n
+}
+
+func hasDemoPrefix(s string) bool {
+	return len(s) >= 7 && s[:7] == "[DEMO] "
+}
+
 func (r *Router) emitLocked(ctx context.Context, m Message, now time.Time) {
 	for _, c := range r.channels {
 		s := r.settings(ctx, c.Name())
@@ -406,6 +427,7 @@ func (r *Router) processChannel(ctx context.Context, c Channel, now time.Time) {
 		m := d.msg
 		m.Late = d.failures > 0
 		n := Render(lang, m, r.cfg.Location)
+		n = r.demoPrefix(n)
 		sctx, cancel := context.WithTimeout(ctx, r.cfg.SendTimeout)
 		err := c.Send(sctx, n)
 		cancel()
@@ -452,7 +474,7 @@ func (r *Router) SendTest(ctx context.Context, channel string, now time.Time) er
 	m := Message{Type: TypeTest, Severity: Info, Items: []Item{{Time: now, Type: TypeTest, Severity: Info, Active: true}}, Snapshot: r.snapshot()}
 	sctx, cancel := context.WithTimeout(ctx, r.cfg.SendTimeout)
 	defer cancel()
-	return ch.Send(sctx, Render(r.language(ctx), m, r.cfg.Location))
+	return ch.Send(sctx, r.demoPrefix(Render(r.language(ctx), m, r.cfg.Location)))
 }
 
 // Run calls Process every second and after each new Item, until ctx ends.

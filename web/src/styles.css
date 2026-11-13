@@ -251,3 +251,12 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
 }
 .help-panel p { margin: 0 0 6px; }
 .help-panel p:last-child { margin-bottom: 0; }
+
+/* VLT-IS-009 TASK 03-00-00-005: yellow DEMO banner (OD-43). */
+.banner-demo {
+  background: #f5c518;
+  color: #1a1a1a;
+  border-color: #c9a006;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

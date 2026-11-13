@@ -91,7 +91,7 @@ export function EventRow({ e }: { e: VltEvent }) {
       <td>
         <span aria-hidden="true">{sevIcon(e.severity)}</span> {t('sev.' + e.severity)}
       </td>
-      <td>{e.type}</td>
+      <td>{e.type}{e.demo || e.data?.demo ? ' (' + t('event.demo') + ')' : ''}</td>
       <td>{active === true ? t('event.active') : active === false ? t('event.cleared') : DASH}</td>
     </tr>
   );

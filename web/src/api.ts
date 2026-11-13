@@ -69,11 +69,13 @@ export interface Countdown {
 
 export interface StatusPush {
   ts: string;
-  device: { state: string };
+  device: { state: string; config?: { transport?: string } };
   ups: { on_battery: boolean; low_battery: boolean; comm_lost: boolean; active: string[] };
   measurements: Record<string, Point>;
   countdown: Countdown;
   policy_active: boolean;
+  demo?: boolean;
+  demo_message?: string;
 }
 
 export interface VltEvent {
@@ -82,6 +84,7 @@ export interface VltEvent {
   type: string;
   severity: 'INFO' | 'WARNING' | 'CRITICAL';
   data: Record<string, unknown>;
+  demo?: boolean;
 }
 
 export interface EventsPage {
@@ -313,7 +316,7 @@ export const api = {
   setWizardCompleted: () => call<void>('SetWizardCompleted'),
   wizardLaterCount: () => call<number>('WizardLaterCount'),
   addWizardLater: () => call<number>('AddWizardLater'),
-  events: (before: number, limit: number) => call<EventsPage>('Events', before, limit),
+  events: (before: number, limit: number, includeDemo = false) => includeDemo ? call<EventsPage>('EventsPage', before, limit, true) : call<EventsPage>('Events', before, limit),
   policy: () => call<PolicyInfo>('Policy'),
   shutdownStatus: () => call<Countdown>('ShutdownStatus'),
   cancelShutdown: () => call<void>('CancelShutdown'),
@@ -339,6 +342,7 @@ export const api = {
   settings: () => call<{ settings: Setting[] }>('Settings'),
   setLanguage: (l: string) => call<void>('SetLanguage', l),
   setSetting: (key: string, value: unknown) => call<void>('SetSetting', key, value),
+  demoPowerFail: () => call<void>('DemoPowerFail'),
   openSource: () => call<void>('OpenSource'),
   openHelp: (url: string) => call<void>('OpenHelp', url),
   // Notification Channels (VLT-IS-007 TASK 03-00-00-007).
@@ -362,7 +366,7 @@ export const api = {
     return call<void>('SetSecret', id, btoa(bin));
   },
   secretStatus: (id: string) => call<{ id: string; set: boolean; hint?: string; updated_at?: string }>('SecretStatus', id),
-  measurements: (name: string, fromMs: number, toMs: number, step: string) => call<Series>('Measurements', name, fromMs, toMs, step),
+  measurements: (name: string, fromMs: number, toMs: number, step: string, includeDemo = false) => includeDemo ? call<Series>('MeasurementsPage', name, fromMs, toMs, step, true) : call<Series>('Measurements', name, fromMs, toMs, step),
 };
 
 export { on };

@@ -54,6 +54,7 @@ type Event struct {
 	Type     string         `json:"type"`
 	Severity string         `json:"severity"`
 	Data     map[string]any `json:"data"`
+	Demo     bool           `json:"demo,omitempty"`
 }
 
 // Thresholds are the threshold Settings (step 3).
@@ -189,6 +190,15 @@ type Engine struct {
 	lost   bool
 	subs   map[int]func(Event)
 	nextID int
+	demo   func() bool
+}
+
+// SetDemo sets a function that reports whether the Event is from the
+// demo mode (VLT-IS-009 TASK 03-00-00-005).
+func (e *Engine) SetDemo(f func() bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.demo = f
 }
 
 // New returns an Engine that stores Events in db (the events table).
@@ -395,6 +405,16 @@ func (e *Engine) CommState(ctx context.Context, t time.Time, lost bool) []Event 
 
 func (e *Engine) publish(ctx context.Context, evs []Event) {
 	for _, ev := range evs {
+		e.mu.Lock()
+		demo := e.demo != nil && e.demo()
+		e.mu.Unlock()
+		if demo {
+			ev.Demo = true
+			if ev.Data == nil {
+				ev.Data = map[string]any{}
+			}
+			ev.Data["demo"] = true
+		}
 		if err := e.store(ctx, ev); err != nil {
 			e.log.Error("event: store failed", "type", ev.Type, "err", err)
 		}
@@ -423,8 +443,12 @@ func (e *Engine) store(ctx context.Context, ev Event) error {
 	if err != nil {
 		return err
 	}
-	_, err = e.db.ExecContext(ctx, "INSERT INTO events (ts, type, severity, data) VALUES (?, ?, ?, ?)",
-		ev.Time.UnixMilli(), ev.Type, ev.Severity, string(b))
+	demo := 0
+	if ev.Demo {
+		demo = 1
+	}
+	_, err = e.db.ExecContext(ctx, "INSERT INTO events (ts, type, severity, data, demo) VALUES (?, ?, ?, ?, ?)",
+		ev.Time.UnixMilli(), ev.Type, ev.Severity, string(b), demo)
 	return err
 }
 
@@ -440,10 +464,20 @@ const MaxPage = 500
 // List returns Events, newest first, with an ID less than before (0: from
 // the newest). limit is 1 to MaxPage.
 func List(ctx context.Context, db *sql.DB, before int64, limit int) ([]Stored, error) {
+	return ListFilter(ctx, db, before, limit, false)
+}
+
+// ListFilter is List with an option to include demo Events. The default
+// (includeDemo false) hides them (VLT-IS-009 TASK 03-00-00-005).
+func ListFilter(ctx context.Context, db *sql.DB, before int64, limit int, includeDemo bool) ([]Stored, error) {
 	if limit < 1 || limit > MaxPage {
 		return nil, fmt.Errorf("event: limit must be 1 to %d", MaxPage)
 	}
-	q := "SELECT rowid, ts, type, severity, data FROM events WHERE (? = 0 OR rowid < ?) ORDER BY rowid DESC LIMIT ?"
+	q := "SELECT rowid, ts, type, severity, data, demo FROM events WHERE (? = 0 OR rowid < ?)"
+	if !includeDemo {
+		q += " AND demo = 0"
+	}
+	q += " ORDER BY rowid DESC LIMIT ?"
 	rows, err := db.QueryContext(ctx, q, before, before, limit)
 	if err != nil {
 		return nil, err
@@ -454,10 +488,12 @@ func List(ctx context.Context, db *sql.DB, before int64, limit int) ([]Stored, e
 		var s Stored
 		var ts int64
 		var data string
-		if err := rows.Scan(&s.ID, &ts, &s.Type, &s.Severity, &data); err != nil {
+		var demo int
+		if err := rows.Scan(&s.ID, &ts, &s.Type, &s.Severity, &data, &demo); err != nil {
 			return nil, err
 		}
 		s.Time = time.UnixMilli(ts).UTC()
+		s.Demo = demo != 0
 		if err := json.Unmarshal([]byte(data), &s.Data); err != nil {
 			return nil, err
 		}

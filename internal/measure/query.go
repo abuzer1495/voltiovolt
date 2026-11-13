@@ -29,6 +29,7 @@ type Row struct {
 	Mean   float64   `json:"mean"`
 	Count  int64     `json:"count"`
 	Source string    `json:"source,omitempty"`
+	Demo   bool      `json:"demo,omitempty"`
 }
 
 // ErrBadQuery is returned for a query that is not valid.
@@ -36,6 +37,11 @@ var ErrBadQuery = errors.New("measure: query is not valid")
 
 // Query returns the values of name in [from, to) with a step.
 func Query(ctx context.Context, db *sql.DB, name string, from, to time.Time, step string) (string, []Row, error) {
+	return QueryFilter(ctx, db, name, from, to, step, false)
+}
+
+// QueryFilter is Query with an option to include demo Measurements.
+func QueryFilter(ctx context.Context, db *sql.DB, name string, from, to time.Time, step string, includeDemo bool) (string, []Row, error) {
 	unit, ok := Units[name]
 	if !ok {
 		return "", nil, fmt.Errorf("%w: unknown name %q", ErrBadQuery, name)
@@ -46,11 +52,15 @@ func Query(ctx context.Context, db *sql.DB, name string, from, to time.Time, ste
 	var q string
 	switch step {
 	case StepRaw:
-		q = "SELECT ts, value, value, value, 1, source FROM measurements WHERE name = ? AND ts >= ? AND ts < ? AND value IS NOT NULL ORDER BY ts LIMIT ?"
+		q = "SELECT ts, value, value, value, 1, source, demo FROM measurements WHERE name = ? AND ts >= ? AND ts < ? AND value IS NOT NULL"
+		if !includeDemo {
+			q += " AND demo = 0"
+		}
+		q += " ORDER BY ts LIMIT ?"
 	case StepMinute:
-		q = "SELECT ts, min, max, mean, count, '' FROM measurements_1m WHERE name = ? AND ts >= ? AND ts < ? ORDER BY ts LIMIT ?"
+		q = "SELECT ts, min, max, mean, count, '', 0 FROM measurements_1m WHERE name = ? AND ts >= ? AND ts < ? ORDER BY ts LIMIT ?"
 	case StepHour:
-		q = "SELECT ts, min, max, mean, count, '' FROM measurements_1h WHERE name = ? AND ts >= ? AND ts < ? ORDER BY ts LIMIT ?"
+		q = "SELECT ts, min, max, mean, count, '', 0 FROM measurements_1h WHERE name = ? AND ts >= ? AND ts < ? ORDER BY ts LIMIT ?"
 	default:
 		return "", nil, fmt.Errorf("%w: step must be raw, 1m or 1h", ErrBadQuery)
 	}
@@ -63,10 +73,12 @@ func Query(ctx context.Context, db *sql.DB, name string, from, to time.Time, ste
 	for rows.Next() {
 		var r Row
 		var ts int64
-		if err := rows.Scan(&ts, &r.Min, &r.Max, &r.Mean, &r.Count, &r.Source); err != nil {
+		var demo int
+		if err := rows.Scan(&ts, &r.Min, &r.Max, &r.Mean, &r.Count, &r.Source, &demo); err != nil {
 			return "", nil, err
 		}
 		r.TS = time.UnixMilli(ts).UTC()
+		r.Demo = demo != 0
 		out = append(out, r)
 	}
 	return unit, out, rows.Err()

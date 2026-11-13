@@ -70,7 +70,7 @@ const (
 	// Device Settings (VLT-IS-004 TASK 03-00-00-003 step 1).
 	// VLT-IS-006 TASK 03-00-00-004: transport default "not_configured";
 	// DTR and RTS "unchanged", "on" or "off".
-	SettingDeviceTransport = "device.transport"   // not_configured, auto, hid or serial
+	SettingDeviceTransport = "device.transport"   // not_configured, auto, hid, serial or demo
 	SettingDeviceSerial    = "device.serial_port" // the serial port that the user selected
 	SettingDeviceDTR       = "device.serial_dtr"
 	SettingDeviceRTS       = "device.serial_rts"
@@ -386,7 +386,7 @@ func DefaultSettings() []SettingDef {
 		// 03-00-00-004: default transport "not_configured" (OD-27, SEC-099),
 		// DTR and RTS "unchanged" (VLT-REF-001 section 2). A stored value of
 		// the old type (true or false) fails the check and gives the default.
-		{Key: SettingDeviceTransport, Type: TypeString, Default: json.RawMessage(`"not_configured"`), Check: oneOf("not_configured", "auto", "hid", "serial")},
+		{Key: SettingDeviceTransport, Type: TypeString, Default: json.RawMessage(`"not_configured"`), Check: oneOf("not_configured", "auto", "hid", "serial", "demo")},
 		{Key: SettingDeviceSerial, Type: TypeString, Default: json.RawMessage(`""`), Check: serialPort},
 		{Key: SettingDeviceDTR, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},
 		{Key: SettingDeviceRTS, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},

@@ -25,7 +25,7 @@ type UPSControl interface {
 }
 
 func upsResult(r control.Result) wire.UPSControlResult {
-	return wire.UPSControlResult{Function: string(r.Func), Bytes: r.Bytes, Sends: r.Sends, Verified: r.Verified, NoSend: r.NoSend}
+	return wire.UPSControlResult{Function: string(r.Func), Bytes: r.Bytes, Sends: r.Sends, Verified: r.Verified, NoSend: r.NoSend, DryRun: r.DryRun}
 }
 
 // upsError maps a Controller error to a wire error. A not verified

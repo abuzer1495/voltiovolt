@@ -26,7 +26,12 @@ func (a *API) raw(method string, params any) (json.RawMessage, error) {
 
 // Events calls events.list: before (0: the newest) and limit (1 to 500).
 func (a *API) Events(before int64, limit int) (json.RawMessage, error) {
-	return a.raw(wire.MethodEventsList, wire.EventsListParams{Before: before, Limit: limit})
+	return a.EventsPage(before, limit, false)
+}
+
+// EventsPage is Events with an option to include demo Events.
+func (a *API) EventsPage(before int64, limit int, includeDemo bool) (json.RawMessage, error) {
+	return a.raw(wire.MethodEventsList, wire.EventsListParams{Before: before, Limit: limit, IncludeDemo: includeDemo})
 }
 
 // Policy calls policy.get (with the "fallback" field).
@@ -151,6 +156,11 @@ type Series struct {
 // Measurements calls measurements.query from fromMs to toMs (Unix
 // milliseconds) with step raw, 1m or 1h. A long range is queried in parts.
 func (a *API) Measurements(name string, fromMs, toMs int64, step string) (Series, error) {
+	return a.MeasurementsPage(name, fromMs, toMs, step, false)
+}
+
+// MeasurementsPage is Measurements with an option to include demo values.
+func (a *API) MeasurementsPage(name string, fromMs, toMs int64, step string, includeDemo bool) (Series, error) {
 	d, ok := stepLen[step]
 	if !ok || toMs <= fromMs {
 		return Series{}, &Error{Code: wire.CodeInvalid}
@@ -164,7 +174,7 @@ func (a *API) Measurements(name string, fromMs, toMs int64, step string) (Series
 			end = to
 		}
 		raw, err := a.raw(wire.MethodMeasurements, wire.MeasurementsParams{Name: name,
-			From: t.Format(time.RFC3339Nano), To: end.Format(time.RFC3339Nano), Step: step})
+			From: t.Format(time.RFC3339Nano), To: end.Format(time.RFC3339Nano), Step: step, IncludeDemo: includeDemo})
 		if err != nil {
 			return Series{}, err
 		}
@@ -179,4 +189,13 @@ func (a *API) Measurements(name string, fromMs, toMs int64, step string) (Series
 		out.Rows = append(out.Rows, r.Rows...)
 	}
 	return out, nil
+}
+
+// DemoPowerFail starts a 60-second simulated power failure. vltd accepts
+// it only in demo mode (VLT-IS-009 TASK 03-00-00-005).
+func (a *API) DemoPowerFail() error {
+	c, cancel := ctx()
+	defer cancel()
+	err := a.m.call(c, func(cl *client.Client) error { return cl.DemoPowerFail(c) })
+	return wrap(err)
 }

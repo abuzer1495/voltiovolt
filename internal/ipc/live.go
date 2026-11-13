@@ -324,7 +324,7 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		if err1 != nil || err2 != nil {
 			return nil, invalid("from and to must be RFC 3339 times")
 		}
-		unit, rows, err := measure.Query(ctx, b.Store.DB(), p.Name, from, to, p.Step)
+		unit, rows, err := measure.QueryFilter(ctx, b.Store.DB(), p.Name, from, to, p.Step, p.IncludeDemo)
 		if errors.Is(err, measure.ErrBadQuery) {
 			return nil, invalid(err.Error())
 		}
@@ -345,7 +345,7 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		if p.Limit < 1 || p.Limit > event.MaxPage || p.Before < 0 {
 			return nil, invalid("limit must be 1 to 500 and before must be 0 or more")
 		}
-		list, err := event.List(ctx, b.Store.DB(), p.Before, p.Limit)
+		list, err := event.ListFilter(ctx, b.Store.DB(), p.Before, p.Limit, p.IncludeDemo)
 		if err != nil {
 			return nil, internal()
 		}
@@ -392,6 +392,18 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 			return nil, internal()
 		}
 		return in, nil
+	case wire.MethodDemoPowerFail:
+		if err := wire.Strict(req.Params, &wire.NoParams{}); err != nil {
+			return nil, bad(err)
+		}
+		if b.Demo == nil {
+			return nil, unavailable("demo")
+		}
+		if !b.Demo.Active() {
+			return nil, &wire.Error{Code: wire.CodeUnavailable, Message: "demo mode is not active"}
+		}
+		b.Demo.PowerFail(0)
+		return wire.OKResult{OK: true}, nil
 	}
 	return nil, &wire.Error{Code: wire.CodeUnknownMethod, Message: "unknown method"}
 }

@@ -251,3 +251,15 @@ func TestRunSendsAtOnce(t *testing.T) {
 		t.Fatal("no message")
 	}
 }
+
+func TestDemoPrefix(t *testing.T) {
+	r := New(Config{Demo: func() bool { return true }}, &fakeChannel{name: ChannelDesktop})
+	n := r.demoPrefix(Notification{Subject: "[VLT][WARNING] On battery", Text: "body"})
+	if n.Subject != "[DEMO] [VLT][WARNING] On battery" || n.Text != "[DEMO] body" {
+		t.Fatalf("%+v", n)
+	}
+	n2 := r.demoPrefix(n)
+	if n2.Subject != n.Subject {
+		t.Fatalf("double prefix %q", n2.Subject)
+	}
+}

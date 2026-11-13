@@ -46,11 +46,12 @@ type SimRecord struct {
 
 // Info is the result of policy.get.
 type Info struct {
-	Config         Config     `json:"settings"`
-	Version        string     `json:"version"`
-	Active         bool       `json:"active"`
-	Fallback       bool       `json:"fallback"` // the Fallback Policy is in use
-	LastSimulation *SimRecord `json:"last_simulation,omitempty"`
+	Config         Config          `json:"settings"`
+	Version        string          `json:"version"`
+	Active         bool            `json:"active"`
+	Fallback       bool            `json:"fallback"` // the Fallback Policy is in use
+	LastSimulation *SimRecord      `json:"last_simulation,omitempty"`
+	OSShutdown     *OSShutdownStep `json:"os_shutdown,omitempty"`
 }
 
 // Clock gives the time.
@@ -75,6 +76,7 @@ type Service struct {
 	version    string
 	vaultState func() string
 	fallback   bool
+	checker    ShutdownChecker
 }
 
 // SetVaultState gives the Service the Vault state. In the state "locked"
@@ -118,6 +120,9 @@ func NewService(ctx context.Context, st *store.Store, audit Auditor, exec Execut
 	}
 	s := &Service{st: st, db: st.DB(), audit: audit, log: log, clock: clock}
 	s.eng = NewEngine(DefaultConfig(), exec, audit, log)
+	if c, ok := exec.(ShutdownChecker); ok {
+		s.checker = c
+	}
 	if err := s.refresh(ctx); err != nil {
 		return nil, err
 	}
@@ -222,6 +227,7 @@ func (s *Service) Info(ctx context.Context) (Info, error) {
 		return Info{}, err
 	}
 	in.LastSimulation = last
+	in.OSShutdown = s.checkOSShutdown(ctx)
 	return in, nil
 }
 
@@ -313,6 +319,7 @@ func (s *Service) Simulate(ctx context.Context, actor string) (Result, error) {
 	c := s.cfg
 	s.mu.Unlock()
 	r := Simulate(c, s.clock.Now())
+	s.applyOSShutdown(ctx, &r)
 	b, err := json.Marshal(r)
 	if err != nil {
 		return Result{}, err
@@ -398,3 +405,30 @@ func (s *Service) SetUPSOff(u UPSOff) { s.eng.SetUPSOff(u, true) }
 
 // Countdown returns the countdown state (shutdown.status).
 func (s *Service) Countdown() Countdown { return s.eng.Countdown(s.clock.Now()) }
+
+// checkOSShutdown runs the right check when the executor implements
+// ShutdownChecker. A nil result means there is no check.
+func (s *Service) checkOSShutdown(ctx context.Context) *OSShutdownStep {
+	if s.checker == nil {
+		return nil
+	}
+	step := &OSShutdownStep{Name: OSShutdownName, Pass: true}
+	if err := s.checker.CanShutdown(ctx); err != nil {
+		step.Pass = false
+		step.Error = err.Error()
+	}
+	return step
+}
+
+// applyOSShutdown adds the "OS shutdown" step to a Simulation result. If
+// the check fails, Passed is false.
+func (s *Service) applyOSShutdown(ctx context.Context, r *Result) {
+	step := s.checkOSShutdown(ctx)
+	if step == nil {
+		return
+	}
+	r.OSShutdown = step
+	if !step.Pass {
+		r.Passed = false
+	}
+}

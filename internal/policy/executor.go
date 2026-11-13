@@ -8,10 +8,28 @@ import (
 )
 
 // Executor turns off the computer. internal/shutdown has the OS executor;
-// only cmd/vltd gives it to the Policy Engine (SEC-092).
+// only cmd/vltd and cmd/voltiovolt give it to the Policy Engine (SEC-092).
 type Executor interface {
 	Shutdown(ctx context.Context, reason string) error
 	Hibernate(ctx context.Context, reason string) error
+}
+
+// ShutdownChecker reports whether this process can shut down the computer
+// (VLT-IS-008 TASK 03-00-00-004). The OS executor implements it. DryRun
+// and the test fakes do not: a missing check does not fail the Simulation.
+type ShutdownChecker interface {
+	CanShutdown(ctx context.Context) error
+}
+
+// OSShutdownName is the Simulation step name of the right check.
+const OSShutdownName = "OS shutdown"
+
+// OSShutdownStep is the Simulation step "OS shutdown". If Pass is false,
+// the policy cannot be activated.
+type OSShutdownStep struct {
+	Name  string `json:"name"`
+	Pass  bool   `json:"pass"`
+	Error string `json:"error,omitempty"`
 }
 
 // Call is one executor call.

@@ -335,6 +335,8 @@
   "sim.o.cancel": "iptal",
   "sim.o.none": "hiçbir şey",
   "sim.o.shutdown_request": "kapatma isteği",
+  "sim.os_shutdown": "İşletim sistemi kapatması",
+  "sim.os_shutdown.error": "Bu kullanıcı bilgisayarı kapatamaz.",
   "sim.outcome": "Sonuç: {outcome}",
   "sim.passed": "başarılı",
   "sim.s.comm_lost_on_battery": "Aküdeyken iletişim kesilmesi",

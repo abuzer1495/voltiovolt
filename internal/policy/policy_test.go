@@ -507,3 +507,47 @@ func TestServiceTick(t *testing.T) {
 type fakeClock struct{ now time.Time }
 
 func (c *fakeClock) Now() time.Time { return c.now }
+
+// checkExec is a DryRun executor with a CanShutdown result.
+type checkExec struct {
+	DryRun
+	err error
+}
+
+func (c *checkExec) CanShutdown(context.Context) error { return c.err }
+
+// TestOSShutdownCheck is VLT-IS-008 TASK 03-00-00-004: if the user cannot
+// shut down the computer, the Simulation step "OS shutdown" shows the
+// exact error and the policy cannot be activated.
+func TestOSShutdownCheck(t *testing.T) {
+	ctx := context.Background()
+	const msg = "This user cannot shut down the computer."
+
+	fe := &checkExec{err: errors.New(msg)}
+	s, _, _ := openService(t, fe)
+	in, err := s.Info(ctx)
+	if err != nil || in.OSShutdown == nil || in.OSShutdown.Pass || in.OSShutdown.Error != msg || in.OSShutdown.Name != OSShutdownName {
+		t.Fatalf("info %+v %v", in.OSShutdown, err)
+	}
+	r, err := s.Simulate(ctx, "gui")
+	if err != nil || r.Passed || r.OSShutdown == nil || r.OSShutdown.Pass || r.OSShutdown.Error != msg || r.OSShutdown.Name != "OS shutdown" {
+		t.Fatalf("sim passed=%v step=%+v err=%v", r.Passed, r.OSShutdown, err)
+	}
+	if err := s.Activate(ctx, "gui"); !errors.Is(err, ErrNoSimulation) {
+		t.Fatalf("activate %v, want ErrNoSimulation", err)
+	}
+
+	pe := &checkExec{}
+	s2, _, _ := openService(t, pe)
+	in2, err := s2.Info(ctx)
+	if err != nil || in2.OSShutdown == nil || !in2.OSShutdown.Pass || in2.OSShutdown.Error != "" {
+		t.Fatalf("info pass %+v %v", in2.OSShutdown, err)
+	}
+	r2, err := s2.Simulate(ctx, "gui")
+	if err != nil || !r2.Passed || r2.OSShutdown == nil || !r2.OSShutdown.Pass || r2.OSShutdown.Error != "" {
+		t.Fatalf("pass sim passed=%v step=%+v err=%v", r2.Passed, r2.OSShutdown, err)
+	}
+	if err := s2.Activate(ctx, "gui"); err != nil {
+		t.Fatal(err)
+	}
+}

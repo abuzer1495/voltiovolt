@@ -120,6 +120,9 @@ function PolicyStep({ elevated, onActivated }: { elevated: boolean; onActivated:
         <button type="button" class="primary" disabled={!canActivate(info, elevated) || busy} onClick={() => setAsk(true)}>{t('policy.activate')}</button>
       </div>
       {sim ? <p role="status">{t(sim.passed ? 'sim.passed' : 'sim.failed')}</p> : null}
+      {(sim?.os_shutdown && !sim.os_shutdown.pass) || (info?.os_shutdown && !info.os_shutdown.pass) ? (
+        <p role="alert" class="msg msg-error">{t('sim.os_shutdown.error')}</p>
+      ) : null}
       {ask ? (
         <Confirm text={t('policy.activate.confirm')} confirmLabel={t('policy.activate')}
           onConfirm={() => void activate()} onCancel={() => setAsk(false)} />

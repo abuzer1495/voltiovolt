@@ -136,3 +136,29 @@ func TestPrivilegeResult(t *testing.T) {
 		t.Fatal("zero return without an error")
 	}
 }
+
+func TestWindowsCanShutdown(t *testing.T) {
+	r := &winRec{}
+	e := New(Options{})
+	e.os = &winOS{c: fakeWin(r, true, nil)}
+	if err := e.CanShutdown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if r.priv != 1 || len(r.shut) != 0 {
+		t.Fatalf("priv %d shut %d, want a privilege check and no shutdown", r.priv, len(r.shut))
+	}
+}
+
+func TestWindowsCanShutdownNoPrivilege(t *testing.T) {
+	c := fakeWin(&winRec{}, true, nil)
+	c.enablePrivilege = func() error { return errNotAllAssigned }
+	e := New(Options{})
+	e.os = &winOS{c: c}
+	err := e.CanShutdown(context.Background())
+	if !errors.Is(err, ErrCannotShutdown) {
+		t.Fatalf("%v", err)
+	}
+	if err.Error() != "This user cannot shut down the computer." {
+		t.Fatalf("text %q", err.Error())
+	}
+}

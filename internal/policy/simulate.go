@@ -74,6 +74,10 @@ type Result struct {
 	Passed    bool             `json:"passed"`
 	Fallback  bool             `json:"fallback,omitempty"`
 	Scenarios []ScenarioResult `json:"scenarios"`
+	// OSShutdown is the Simulation step "OS shutdown" (VLT-IS-008
+	// TASK 03-00-00-004). If Pass is false, Passed is false and the
+	// policy cannot be activated.
+	OSShutdown *OSShutdownStep `json:"os_shutdown,omitempty"`
 }
 
 // simDischarge is the battery discharge of the simulator model on battery,

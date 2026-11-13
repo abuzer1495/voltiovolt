@@ -69,6 +69,8 @@ func methodCases(secret []byte) map[string]methodCase {
 		"SetStartAtLogon":        {[]any{false}, ""},
 		"WizardCompleted":        {nil, ""},
 		"SetWizardCompleted":     {nil, ""},
+		"WizardLaterCount":       {nil, ""},
+		"AddWizardLater":         {nil, ""},
 	}
 }
 

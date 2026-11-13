@@ -45,10 +45,15 @@ func TestAboutModeAndAutostart(t *testing.T) {
 	}
 }
 
-type fakeFirstRun struct{ done bool }
+type fakeFirstRun struct {
+	done  bool
+	later int
+}
 
 func (f *fakeFirstRun) Completed() (bool, error) { return f.done, nil }
 func (f *fakeFirstRun) SetCompleted() error      { f.done = true; return nil }
+func (f *fakeFirstRun) LaterCount() (int, error) { return f.later, nil }
+func (f *fakeFirstRun) AddLater() (int, error)   { f.later++; return f.later, nil }
 
 func TestWizardCompleted(t *testing.T) {
 	m, a, _ := start(t, allFake(t))
@@ -67,5 +72,30 @@ func TestWizardCompleted(t *testing.T) {
 	on, err = a.WizardCompleted()
 	if err != nil || !on {
 		t.Fatalf("after set %v %v", on, err)
+	}
+}
+
+func TestWizardLater(t *testing.T) {
+	m, a, _ := start(t, allFake(t))
+	if _, err := a.WizardLaterCount(); err == nil {
+		t.Fatal("want unavailable")
+	}
+	f := &fakeFirstRun{}
+	m.SetFirstRun(f)
+	n, err := a.WizardLaterCount()
+	if err != nil || n != 0 {
+		t.Fatalf("count %d %v", n, err)
+	}
+	n, err = a.AddWizardLater()
+	if err != nil || n != 1 {
+		t.Fatalf("add 1: %d %v", n, err)
+	}
+	n, err = a.AddWizardLater()
+	if err != nil || n != 2 {
+		t.Fatalf("add 2: %d %v", n, err)
+	}
+	n, err = a.WizardLaterCount()
+	if err != nil || n != 2 {
+		t.Fatalf("after: %d %v", n, err)
 	}
 }

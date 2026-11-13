@@ -199,3 +199,94 @@ func TestPortBusy(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+// permTransport fails to open with a permission-denied error.
+type permTransport struct{ err error }
+
+func (p *permTransport) Open(context.Context) error { return p.err }
+func (p *permTransport) Close() error               { return nil }
+func (p *permTransport) Exchange(context.Context, []byte) (transport.Response, error) {
+	panic("Exchange on a port that did not open")
+}
+
+func waitState(t *testing.T, m *Manager, want string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for m.Status().State != want {
+		if time.Now().After(deadline) {
+			t.Fatalf("state %q, want %q", m.Status().State, want)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func runDetectManager(t *testing.T, transportKind, port string, openErr, wantDetect error, wantState string) {
+	t.Helper()
+	tr := &permTransport{err: openErr}
+	cand := Candidate{Transport: transportKind, Port: port, New: func() transport.Transport { return tr }}
+	if _, _, err := Detect(context.Background(), Config{Transport: transportKind, SerialPort: port}, listOf(cand), newFakeClock(), nil); !errors.Is(err, wantDetect) {
+		t.Fatalf("Detect: %v, want %v", err, wantDetect)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := &Manager{
+		Config: func(context.Context) (Config, error) {
+			return Config{Transport: transportKind, SerialPort: port}, nil
+		},
+		List:  listOf(cand),
+		Poll:  func(context.Context, transport.Transport, Profile, func(string)) error { t.Error("poll"); return nil },
+		Clock: newFakeClock(),
+	}
+	go func() { _ = m.Run(ctx) }()
+	waitState(t, m, wantState)
+}
+
+// TestPortPermission is VLT-IS-008 TASK 03-00-00-005: a permission-denied
+// open of /dev/ttyUSB* or /dev/ttyACM* gives the state "port permission denied".
+func TestPortPermission(t *testing.T) {
+	err := fmt.Errorf("%w: /dev/ttyUSB0: permission denied", transport.ErrPermissionDenied)
+	runDetectManager(t, TransportSerial, "/dev/ttyUSB0", err, ErrPortPermission, StatePortPermission)
+	err = fmt.Errorf("%w: /dev/ttyACM0: permission denied", transport.ErrPermissionDenied)
+	runDetectManager(t, TransportSerial, "/dev/ttyACM0", err, ErrPortPermission, StatePortPermission)
+}
+
+// TestHIDPermission: a permission-denied open of hidraw gives the state
+// "hid permission denied".
+func TestHIDPermission(t *testing.T) {
+	err := fmt.Errorf("%w: /dev/hidraw0: permission denied", transport.ErrPermissionDenied)
+	runDetectManager(t, TransportHID, "/dev/hidraw0", err, ErrHIDPermission, StateHIDPermission)
+}
+
+// TestBothPermission: serial and HID permission denied gives the combined
+// state "permission denied".
+func TestBothPermission(t *testing.T) {
+	serr := fmt.Errorf("%w: /dev/ttyUSB0", transport.ErrPermissionDenied)
+	herr := fmt.Errorf("%w: /dev/hidraw0", transport.ErrPermissionDenied)
+	sc := Candidate{Transport: TransportSerial, Port: "/dev/ttyUSB0", New: func() transport.Transport { return &permTransport{err: serr} }}
+	hc := Candidate{Transport: TransportHID, Port: "/dev/hidraw0", New: func() transport.Transport { return &permTransport{err: herr} }}
+	if _, _, err := Detect(context.Background(), Config{Transport: TransportAuto}, listOf(sc, hc), newFakeClock(), nil); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("Detect: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := &Manager{
+		Config: func(context.Context) (Config, error) {
+			return Config{Transport: TransportAuto}, nil
+		},
+		List:  listOf(sc, hc),
+		Poll:  func(context.Context, transport.Transport, Profile, func(string)) error { t.Error("poll"); return nil },
+		Clock: newFakeClock(),
+	}
+	go func() { _ = m.Run(ctx) }()
+	waitState(t, m, StatePermissionDenied)
+}
+
+// TestPermissionNotWindowsCOM: a permission error on a Windows COM port
+// does not use the Linux help state.
+func TestPermissionNotWindowsCOM(t *testing.T) {
+	tr := &permTransport{err: fmt.Errorf("open COM3: access is denied")}
+	cand := Candidate{Transport: TransportSerial, Port: "COM3", New: func() transport.Transport { return tr }}
+	if _, _, err := Detect(context.Background(), Config{Transport: TransportSerial, SerialPort: "COM3"}, listOf(cand), newFakeClock(), nil); !errors.Is(err, ErrNoDevice) {
+		t.Fatalf("Detect: %v, want ErrNoDevice", err)
+	}
+}

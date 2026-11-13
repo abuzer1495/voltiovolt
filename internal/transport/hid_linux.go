@@ -118,6 +118,9 @@ func openHID(path string) (ReportDevice, HIDDevice, error) {
 	}
 	fd, err := unix.Open(path, unix.O_RDWR|unix.O_CLOEXEC|unix.O_NONBLOCK, 0)
 	if err != nil {
+		if IsPermission(err) {
+			return nil, HIDDevice{}, fmt.Errorf("%w: %s: %v", ErrPermissionDenied, path, err)
+		}
 		return nil, HIDDevice{}, fmt.Errorf("transport: open %s: %w", path, err)
 	}
 	return &hidraw{fd: fd, ids: info.Lengths.HasReportIDs, buf: make([]byte, info.Lengths.Input+1)}, *info, nil

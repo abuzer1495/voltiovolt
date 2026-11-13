@@ -227,6 +227,8 @@ export function Device() {
           <div><dt>{t('device.serial')}</dt><dd>{p?.serial_number || DASH}</dd></div>
         </dl>
         {d?.state === 'port busy' ? <p role="alert" class="msg msg-error">{t('device.busy.help')}</p> : null}
+        {(d?.state === 'port permission denied' || d?.state === 'permission denied') ? <p role="alert" class="msg msg-error">{t('device.port.permission.help')}</p> : null}
+        {(d?.state === 'hid permission denied' || d?.state === 'permission denied') ? <p role="alert" class="msg msg-error">{t('device.hid.permission.help')}</p> : null}
         {d?.state === 'not configured' ? <p class="note">{t('device.notconfigured.help')}</p> : null}
         <button type="button" onClick={() => void load()}>{t('common.refresh')}</button>
       </section>

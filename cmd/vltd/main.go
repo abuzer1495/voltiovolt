@@ -11,10 +11,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/abuzer1495/voltiovolt/internal/audit"
 	"github.com/abuzer1495/voltiovolt/internal/device"
+	"github.com/abuzer1495/voltiovolt/internal/engine"
 	"github.com/abuzer1495/voltiovolt/internal/ipc"
 	"github.com/abuzer1495/voltiovolt/internal/logging"
 	"github.com/abuzer1495/voltiovolt/internal/platform"
@@ -53,11 +55,11 @@ func run() int {
 		fmt.Fprintln(os.Stderr, "vltd: logging:", err)
 		return 1
 	}
-	d := newDaemon(config{
+	d := engine.New(engine.Config{
 		DataDir:    dir,
 		CheckPerms: true,
 		Provider:   vault.NewHostProvider,
-		Listen:     func() (netListener, ipc.PeerCheck, error) { return ipc.DefaultEndpoint().Listen() },
+		Listen:     func() (net.Listener, ipc.PeerCheck, error) { return ipc.DefaultEndpoint().Listen() },
 		Log:        log,
 		LogCloser:  closer,
 		Version:    version,

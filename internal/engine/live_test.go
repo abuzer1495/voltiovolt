@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package main
+package engine
 
 import (
 	"context"
@@ -51,8 +51,8 @@ func (f *fakeExecutor) Calls() []string {
 var simOpts = transport.Options{Timeout: 30 * time.Millisecond, MinInterval: time.Nanosecond, FlushTime: time.Millisecond}
 
 // withSim gives vltd the simulator Transport and the fake executor.
-func withSim(s *sim.Sim, ex *fakeExecutor) func(*config) {
-	return func(c *config) {
+func withSim(s *sim.Sim, ex *fakeExecutor) func(*Config) {
+	return func(c *Config) {
 		c.Lister = func(context.Context, device.Config) ([]device.Candidate, error) {
 			return []device.Candidate{{Transport: device.TransportSerial, Port: "sim0",
 				New: func() transport.Transport { return s.StreamTransport(simOpts) }}}, nil

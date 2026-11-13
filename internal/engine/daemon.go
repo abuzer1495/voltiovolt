@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package main
+package engine
 
 import (
 	"context"
@@ -32,7 +32,7 @@ const EnvFallbackMode = "VLT_FALLBACK_MODE"
 // config is the daemon configuration. main gives the real values; the
 // integration tests give a temporary directory, a test DEK provider and a
 // test endpoint.
-type config struct {
+type Config struct {
 	DataDir    string
 	CheckPerms bool
 	Provider   func(dataDir string, installID []byte) vault.KeyProvider
@@ -56,8 +56,8 @@ type config struct {
 }
 
 // daemon runs the start sequence and the stop sequence of step 1 and 2.
-type daemon struct {
-	cfg config
+type Daemon struct {
+	cfg Config
 	log *slog.Logger
 
 	st        *store.Store
@@ -70,19 +70,19 @@ type daemon struct {
 	stopErr   error
 }
 
-func newDaemon(cfg config) *daemon {
+func New(cfg Config) *Daemon {
 	l := cfg.Log
 	if l == nil {
 		l = slog.Default()
 	}
-	return &daemon{cfg: cfg, log: l}
+	return &Daemon{cfg: cfg, log: l}
 }
 
 // Start: 1 logging (in cfg.Log), 2 data directory check, 3 Store, 4 Vault
 // (continue on failure, SEC-090), 5 audit chain verification, 5a Device
 // Manager, Event Engine and Policy Engine (VLT-IS-004), 6 IPC.
 // The ready signal (7) is sent by platform.Run after Start.
-func (d *daemon) Start(ctx context.Context) (err error) {
+func (d *Daemon) Start(ctx context.Context) (err error) {
 	d.log.Info("vltd start", "version", d.cfg.Version, "data_dir", d.cfg.DataDir)
 	defer func() {
 		if err != nil {
@@ -162,7 +162,7 @@ func (d *daemon) Start(ctx context.Context) (err error) {
 
 // Stop runs the stop sequence in the reverse order: IPC, Store, logging.
 // It returns an error if ctx ends first (maximum 10 seconds).
-func (d *daemon) Stop(ctx context.Context) error {
+func (d *Daemon) Stop(ctx context.Context) error {
 	done := make(chan struct{})
 	go func() {
 		d.stopOnce.Do(func() {
@@ -182,7 +182,7 @@ func (d *daemon) Stop(ctx context.Context) error {
 	}
 }
 
-func (d *daemon) closeAll() error {
+func (d *Daemon) closeAll() error {
 	var errs []error
 	if d.srv != nil {
 		_ = d.srv.Close()

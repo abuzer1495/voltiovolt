@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package main
+package engine
 
 import (
 	"context"
@@ -37,7 +37,7 @@ type live struct {
 	events *event.Engine
 	pol    *policy.Service
 	hub    *ipc.Hub
-	d      *daemon
+	d      *Daemon
 	// ctl sends the CONTROL commands and verifies them with the fast-group
 	// statuses (VLT-IS-006 TASK 03-00-00-005).
 	ctl *control.Controller
@@ -313,7 +313,7 @@ func (s stateSink) OnState(state string) {
 // startLive makes the UPS part. Without cfg.Lister there is no Device
 // Manager (the IPC tests). Without cfg.MakeExecutor the Policy Engine gets
 // a dry-run executor; main always gives the OS executor.
-func (d *daemon) startLive(ctx context.Context) error {
+func (d *Daemon) startLive(ctx context.Context) error {
 	th, err := event.ThresholdsFromStore(ctx, d.st)
 	if err != nil {
 		d.log.Error("event thresholds not read; use the defaults", "err", err)

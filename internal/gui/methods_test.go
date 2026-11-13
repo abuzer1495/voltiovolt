@@ -63,6 +63,8 @@ func methodCases(secret []byte) map[string]methodCase {
 		"TelegramPairStart":      {nil, wire.MethodTelegramPairStart},
 		"TelegramChats":          {nil, wire.MethodTelegramChatsList},
 		"TelegramChatRemove":     {[]any{int64(100)}, wire.MethodTelegramChatsRemove},
+		"StartAtLogon":           {nil, ""},
+		"SetStartAtLogon":        {[]any{false}, ""},
 	}
 }
 
@@ -115,6 +117,7 @@ func TestEachMethodWithFakeServer(t *testing.T) {
 	f := allFake(t)
 	m, a, _ := start(t, f)
 	m.SetOpenURL(func(string) error { return nil })
+	m.SetAutostart(&fakeAutostart{})
 	cases := methodCases([]byte("value"))
 	for _, name := range exported(a) {
 		c, ok := cases[name]
@@ -159,6 +162,7 @@ func TestSEC096(t *testing.T) {
 	})
 	m, a, rec := start(t, f)
 	m.SetOpenURL(func(string) error { return nil })
+	m.SetAutostart(&fakeAutostart{})
 
 	buf := []byte(value)
 	if err := a.SetSecret("channel.test.token", buf); err != nil {
@@ -273,3 +277,9 @@ func TestUPSTestStartChecks(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type fakeAutostart struct{ on bool }
+
+func (f *fakeAutostart) Enabled() (bool, error) { return f.on, nil }
+
+func (f *fakeAutostart) Set(on bool) error { f.on = on; return nil }

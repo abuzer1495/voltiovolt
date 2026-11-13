@@ -27,6 +27,7 @@ export interface AboutInfo {
   gui_protocol: number;
   license: string;
   source: string;
+  mode?: string;
 }
 
 export interface VaultState {
@@ -289,6 +290,8 @@ export interface TelegramChat {
 export const api = {
   connection: () => call<ConnInfo>('Connection'),
   about: () => call<AboutInfo>('About'),
+  startAtLogon: () => call<boolean>('StartAtLogon'),
+  setStartAtLogon: (on: boolean) => call('SetStartAtLogon', on),
   last: () => call<Record<string, unknown>>('Last'),
   systemStatus: () => call<SystemStatus>('SystemStatus'),
   authStatus: () => call<AuthInfo>('AuthStatus'),

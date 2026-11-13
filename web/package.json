@@ -5,7 +5,7 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && node scripts/copy-frontend.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "licenses": "node scripts/check-licenses.mjs"

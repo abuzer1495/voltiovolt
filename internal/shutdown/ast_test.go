@@ -18,8 +18,8 @@ const shutdownImport = "github.com/abuzer1495/voltiovolt/internal/shutdown"
 // SEC-092 allow lists (directories relative to the module root).
 var (
 	// importAllow: packages that can import internal/shutdown. cmd/vltd
-	// gives the executor to the Policy Engine.
-	importAllow = map[string]bool{"cmd/vltd": true, "internal/shutdown": true}
+	// and cmd/voltiovolt give the executor to the Policy Engine.
+	importAllow = map[string]bool{"cmd/vltd": true, "cmd/voltiovolt": true, "internal/shutdown": true}
 	// callAllow: packages that can call Shutdown(ctx, reason) or
 	// Hibernate(ctx, reason) on an executor.
 	callAllow = map[string]bool{"internal/policy": true, "internal/shutdown": true}

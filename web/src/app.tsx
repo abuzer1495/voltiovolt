@@ -8,6 +8,7 @@ import { Dashboard } from './screens/dashboard';
 import { Device } from './screens/device';
 import { Events } from './screens/events';
 import { General } from './screens/general';
+import { Notifications } from './screens/notifications';
 import { History } from './screens/history';
 import { Login, SetPin } from './screens/pin';
 import { Policy } from './screens/policy';
@@ -29,6 +30,7 @@ export const routes: Route[] = [
   { id: 'history', label: 'nav.history', comp: History },
   { id: 'events', label: 'nav.events', comp: Events },
   { id: 'policy', label: 'nav.policy', comp: Policy },
+  { id: 'notifications', label: 'nav.notifications', comp: Notifications },
   { id: 'security', label: 'nav.security', comp: Security },
   { id: 'general', label: 'nav.general', comp: General },
 ];

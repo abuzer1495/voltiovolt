@@ -12,6 +12,7 @@ import { Badge } from '../src/components';
 import { setLang } from '../src/i18n';
 import { Dashboard, ModeView } from '../src/screens/dashboard';
 import { General } from '../src/screens/general';
+import { Notifications } from '../src/screens/notifications';
 import { Policy } from '../src/screens/policy';
 import { Security } from '../src/screens/security';
 import { Events } from '../src/screens/events';
@@ -124,13 +125,24 @@ function setup() {
   fake.handlers.DevicePorts = () => ({ ports: [{ name: 'COM3', is_usb: true, vid: '1a86', pid: '7523', product: 'USB Serial' }, { name: 'COM1', is_usb: false }] });
   fake.handlers.UPSControlCapabilities = () => ({ connected: true, functions: ['test.10s', 'test.minutes', 'test.until_low', 'test.cancel', 'beeper'], last_test: { result: 'TEST_PASSED', start: '2026-11-10T10:00:00Z', end: '2026-11-10T10:00:10Z', ups_failed: false, battery_low: false, cancelled: false } });
   fake.handlers.About = () => ({ version: 'test', vltd_version: '0.5.0', protocol: 1, gui_protocol: 1, license: 'AGPL-3.0-or-later', source: 'https://github.com/abuzer1495/voltiovolt' });
+  fake.handlers.Channels = () => ({
+    channels: [
+      { name: 'desktop', enabled: true, min_severity: 'WARNING', chats: 0 },
+      { name: 'telegram', enabled: false, min_severity: 'WARNING', secret: { id: 'telegram.token', set: false }, chats: 0 },
+      { name: 'email', enabled: false, min_severity: 'WARNING', secret: { id: 'smtp.password', set: false },
+        settings: { server: '', port: 465, security: 'tls', user: '', from: '', to: [] } },
+    ],
+    email_presets: [{ name: 'gmail', server: 'smtp.gmail.com', port: 465, security: 'tls' }],
+  });
+  fake.handlers.TelegramChats = () => ({ chats: [] });
+
   app.set({ auth: { pin_set: true, elevated: true } as never, conn: { state: 'connected', since: '' }, policy: p as never });
 }
 
 describe('accessible names', () => {
   const screens: [string, () => preact.JSX.Element][] = [
     ['App', () => <App />], ['Dashboard', () => <Dashboard />], ['Policy', () => <Policy />], ['Security', () => <Security />], ['General', () => <General />],
-    ['Events', () => <Events />], ['Device', () => <Device />], ['UPSControl', () => <UPSControl />], ['SetPin', () => <SetPin />], ['Login', () => <Login />],
+    ['Events', () => <Events />], ['Device', () => <Device />], ['Notifications', () => <Notifications />], ['UPSControl', () => <UPSControl />], ['SetPin', () => <SetPin />], ['Login', () => <Login />],
   ];
   for (const lang of ['en', 'tr'] as const)
     for (const [n, f] of screens)

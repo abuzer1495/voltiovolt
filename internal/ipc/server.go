@@ -23,6 +23,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/audit"
 	"github.com/abuzer1495/voltiovolt/internal/auth"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
+	"github.com/abuzer1495/voltiovolt/internal/notify/telegram"
 	"github.com/abuzer1495/voltiovolt/internal/store"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
 )
@@ -53,6 +54,8 @@ type Backend struct {
 	Ports PortScanner
 	// VLT-IS-006 TASK 03-00-00-007. A nil field gives "unavailable".
 	UPS UPSControl
+	// VLT-IS-007 TASK 03-00-00-007. A nil field gives "unavailable".
+	Channels ChannelControl
 }
 
 // PeerCheck accepts or refuses a new connection and returns the peer
@@ -321,6 +324,13 @@ var methodAccess = map[string]access{
 	wire.MethodUPSTestStart:   elevated,
 	wire.MethodUPSTestCancel:  elevated,
 	wire.MethodUPSBeeperSet:   elevated,
+	// VLT-IS-007 TASK 03-00-00-007 step 1: elevated for all changes.
+	wire.MethodChannelsList:        readOnly,
+	wire.MethodChannelsSettingsSet: elevated,
+	wire.MethodChannelsTest:        elevated,
+	wire.MethodTelegramPairStart:   elevated,
+	wire.MethodTelegramChatsList:   readOnly,
+	wire.MethodTelegramChatsRemove: elevated,
 }
 
 func (cn *conn) idle(ctx context.Context) time.Duration {
@@ -566,6 +576,13 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 		}
 		val := []byte(p.Value)
 		p.Value = ""
+		// VLT-IS-007 TASK 03-00-00-005: refuse a Telegram bot token that
+		// does not have the Telegram format.
+		if p.ID == telegram.SecretID && !telegram.ValidToken(val) {
+			clear(val)
+			cn.record(ctx, "secret_set", p.ID, "failure", map[string]any{"reason": "token format"})
+			return nil, invalid("the bot token does not have the Telegram format")
+		}
 		err := b.Vault.Set(ctx, p.ID, val)
 		clear(val)
 		if err != nil {
@@ -619,6 +636,10 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 
 	case wire.MethodUPSControlCaps, wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet:
 		return cn.dispatchUPS(ctx, req, elev)
+
+	case wire.MethodChannelsList, wire.MethodChannelsSettingsSet, wire.MethodChannelsTest,
+		wire.MethodTelegramPairStart, wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove:
+		return cn.dispatchChannels(ctx, req)
 
 	default:
 		return cn.dispatchLive(ctx, req)

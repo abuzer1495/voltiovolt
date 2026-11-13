@@ -163,6 +163,7 @@ const (
 	CodeNotSupported = "not_supported"    // the Dialect does not support the function
 	CodeNoUPS        = "no_ups"           // no UPS connected
 	CodeControlBusy  = "control_busy"     // another UPS Control request runs
+	CodeSendFailed   = "send_failed"      // channels.test: the Channel did not send the test message
 )
 
 // Methods of protocol version 1.
@@ -208,6 +209,15 @@ const (
 	MethodUPSTestStart   = "ups.test.start"
 	MethodUPSTestCancel  = "ups.test.cancel"
 	MethodUPSBeeperSet   = "ups.beeper.set"
+
+	// VLT-IS-007 TASK 03-00-00-007: Notification Channels. All changes
+	// need the elevated state.
+	MethodChannelsList        = "channels.list"
+	MethodChannelsSettingsSet = "channels.settings.set"
+	MethodChannelsTest        = "channels.test"
+	MethodTelegramPairStart   = "telegram.pair.start"
+	MethodTelegramChatsList   = "telegram.chats.list"
+	MethodTelegramChatsRemove = "telegram.chats.remove"
 )
 
 // Confirmation texts of ups.test.start.
@@ -236,6 +246,8 @@ var Methods = []string{
 	MethodPolicyDeactivate, MethodShutdownStatus, MethodShutdownCancel,
 	MethodDevicePorts, MethodDeviceScan,
 	MethodUPSControlCaps, MethodUPSTestStart, MethodUPSTestCancel, MethodUPSBeeperSet,
+	MethodChannelsList, MethodChannelsSettingsSet, MethodChannelsTest,
+	MethodTelegramPairStart, MethodTelegramChatsList, MethodTelegramChatsRemove,
 }
 
 // Push messages (VLT-IS-004 TASK 03-00-00-008 step 1). The server sends
@@ -435,3 +447,68 @@ type (
 		Next   int64           `json:"next"` // the before value of the next page; 0: no more
 	}
 )
+
+// ChannelInfo is one Notification Channel in channels.list (VLT-IS-007
+// TASK 03-00-00-007). Secret has only the set state and the hint, never
+// the value.
+type ChannelInfo struct {
+	Name        string                     `json:"name"`
+	Enabled     bool                       `json:"enabled"`
+	MinSeverity string                     `json:"min_severity"`
+	Secret      *SecretStatusResult        `json:"secret,omitempty"`
+	Settings    map[string]json.RawMessage `json:"settings,omitempty"`
+	Pairing     *TelegramPairResult        `json:"pairing,omitempty"` // an active pairing code (telegram)
+	Chats       int                        `json:"chats"`             // paired chats (telegram)
+}
+
+// EmailPreset is a set of SMTP server Settings (the preset "Gmail").
+type EmailPreset struct {
+	Name     string `json:"name"`
+	Server   string `json:"server"`
+	Port     int    `json:"port"`
+	Security string `json:"security"`
+}
+
+// ChannelsListResult is the result of channels.list.
+type ChannelsListResult struct {
+	Channels []ChannelInfo `json:"channels"`
+	Presets  []EmailPreset `json:"email_presets"`
+}
+
+// ChannelSettingsParams are the params of channels.settings.set. Settings
+// is for the e-mail Channel: server, port, security, user, from, to.
+type ChannelSettingsParams struct {
+	Channel     string                     `json:"channel"`
+	Enabled     *bool                      `json:"enabled,omitempty"`
+	MinSeverity *string                    `json:"min_severity,omitempty"`
+	Settings    map[string]json.RawMessage `json:"settings,omitempty"`
+}
+
+// ChannelParams are the params of channels.test.
+type ChannelParams struct {
+	Channel string `json:"channel"`
+}
+
+// TelegramPairResult is the result of telegram.pair.start: the one-time
+// code of 6 digits and its end time (RFC 3339).
+type TelegramPairResult struct {
+	Code    string `json:"code,omitempty"`
+	Expires string `json:"expires"`
+}
+
+// TelegramChat is one paired chat.
+type TelegramChat struct {
+	ChatID   int64  `json:"chat_id"`
+	Name     string `json:"name"`
+	PairedAt string `json:"paired_at"`
+}
+
+// TelegramChatsResult is the result of telegram.chats.list.
+type TelegramChatsResult struct {
+	Chats []TelegramChat `json:"chats"`
+}
+
+// TelegramChatParams are the params of telegram.chats.remove.
+type TelegramChatParams struct {
+	ChatID int64 `json:"chat_id"`
+}

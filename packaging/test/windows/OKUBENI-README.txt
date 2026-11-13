@@ -19,6 +19,24 @@ Yöntem 2: install.cmd dosyasını çalıştırın. Yönetici hakları gerekmez.
 7. Testler: https://github.com/abuzer1495/voltiovolt/blob/main/docs/user/owner-tests.md
 8. Kaldırma: uninstall.cmd dosyasını çalıştırın. Veri klasörü silinmeden önce ayrı bir soru sorulur.
 
+UPS simulator
+-------------
+
+1. vlt-simulator.exe dosyasını başlatın (klasörde çift tıklayın veya bir cmd penceresinde çalıştırın).
+2. VoltioVolt'ta Aygıt (Device) ekranını açın ve "Test bağlantısı (simülatör)" seçin.
+3. Simülatörde değerleri ok tuşlarıyla değiştirin. VoltioVolt değişiklikleri hemen gösterir.
+
+Tuşlar:
+  Yukarı, Aşağı              Menü öğesini seç
+  Sol, Sağ                   Değeri bir adım değiştir
+  Page Up, Page Down         Değeri on adım değiştir
+  Enter veya Boşluk          Aç/kapa öğesini değiştir, veya bir işlemi çalıştır
+  1 - 9                      Bir senaryoyu çalıştır
+  R                          Varsayılan değerlere sıfırla
+  L                          Tam günlüğü göster veya gizle
+  Q veya Esc                 Çık (onay ister)
+
+
 ENGLISH
 -------
 
@@ -36,3 +54,21 @@ Method 2: run install.cmd. No administrator rights are necessary. The files are 
 6. If the old test (VLT-IS-007) was installed, run remove-old-test-service.cmd one time (administrator rights are necessary).
 7. Tests: https://github.com/abuzer1495/voltiovolt/blob/main/docs/user/owner-tests.md
 8. Uninstall: run uninstall.cmd. It asks separately before it deletes the data folder.
+
+UPS simulator
+-------------
+
+1. Start vlt-simulator.exe (double-click it in the folder, or run it in a cmd window).
+2. In VoltioVolt, open Device and select "Test connection (simulator)".
+3. Change the values in the simulator with the arrow keys. Watch VoltioVolt: the values change at once.
+
+Keys:
+  Up, Down            Select a menu item
+  Left, Right         Change the value by one step
+  Page Up, Page Down  Change the value by ten steps
+  Enter or Space      Switch an on/off item, or run an action
+  1 to 9              Run a scenario
+  R                   Reset to the default values
+  L                   Show or hide the full log
+  Q or Esc            Quit (asks for confirmation)
+

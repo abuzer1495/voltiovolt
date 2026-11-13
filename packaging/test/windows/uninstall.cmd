@@ -33,6 +33,7 @@ if exist "%STARTUP%" (
 
 if exist "%DEST%\VoltioVolt.exe" del /Q "%DEST%\VoltioVolt.exe" || goto :fail
 if exist "%DEST%\vlt-probe.exe" del /Q "%DEST%\vlt-probe.exe" || goto :fail
+if exist "%DEST%\vlt-simulator.exe" del /Q "%DEST%\vlt-simulator.exe" || goto :fail
 
 rem The data folder can be next to the binary or in the profile folder.
 set "DATADIR="

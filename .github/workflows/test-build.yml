@@ -11,9 +11,10 @@
 # exception to SEC-067 (OD-31). The builds also run for pull requests, but
 # the release job does not.
 #
-# The default packages have VoltioVolt and vlt-probe only (SEC-102). The
-# service binaries vltd, vlt-gui and vlt-setup stay in the source and in
-# the CI of ci.yml. They are not in these packages.
+# The default packages have VoltioVolt, vlt-probe and vlt-simulator
+# (VLT-IS-010 TASK 03-00-00-006). The service binaries vltd, vlt-gui and
+# vlt-setup stay in the source and in the CI of ci.yml. They are not in
+# these packages (SEC-102).
 
 name: test-build
 
@@ -60,7 +61,7 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm run build
-      - name: Build VoltioVolt.exe and vlt-probe.exe (CGO_ENABLED=0)
+      - name: Build VoltioVolt.exe, vlt-probe.exe and vlt-simulator.exe (CGO_ENABLED=0)
         env:
           CGO_ENABLED: "0"
           GOOS: windows
@@ -71,6 +72,7 @@ jobs:
           mkdir -p "$out"
           (cd cmd/voltiovolt && go build -tags production -trimpath -ldflags "-H windowsgui -X main.version=${VLT_VERSION} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=${VLT_VERSION}" -o "$out/VoltioVolt.exe" .)
           go build -trimpath -ldflags "-X main.toolVersion=${VLT_VERSION}" -o "$out/vlt-probe.exe" ./cmd/vlt-probe
+          go build -trimpath -ldflags "-X main.version=${VLT_VERSION}" -o "$out/vlt-simulator.exe" ./cmd/vlt-simulator
           cp packaging/test/windows/install.cmd packaging/test/windows/uninstall.cmd packaging/test/windows/remove-old-test-service.cmd packaging/test/windows/OKUBENI-README.txt "$out/"
           ls -l "$out"
       - name: Check the install scripts
@@ -96,17 +98,10 @@ jobs:
           grep -q '^ok ' "$dir/self-test-result.txt"
           cat "$dir/self-test-result.txt"
 
-      - name: Build vlt-simulator for the end-to-end test (VLT-IS-010 005)
-        env:
-          CGO_ENABLED: "0"
-        run: |
-          set -euo pipefail
-          go build -trimpath -o "$RUNNER_TEMP/vlt-simulator.exe" ./cmd/vlt-simulator
-
       - name: End-to-end test connection, megatec and scenario 1 (VLT-IS-010 005)
         run: |
           set -euo pipefail
-          sim="$RUNNER_TEMP/vlt-simulator.exe"
+          sim="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/vlt-simulator.exe"
           vv="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/VoltioVolt.exe"
           dir="$RUNNER_TEMP/vv-e2e-megatec"
           mkdir -p "$dir"
@@ -126,7 +121,7 @@ jobs:
       - name: End-to-end test connection, voltronic dialect (VLT-IS-010 005)
         run: |
           set -euo pipefail
-          sim="$RUNNER_TEMP/vlt-simulator.exe"
+          sim="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/vlt-simulator.exe"
           vv="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/VoltioVolt.exe"
           dir="$RUNNER_TEMP/vv-e2e-voltronic"
           mkdir -p "$dir"
@@ -158,6 +153,7 @@ jobs:
           want = {
               "VoltioVolt.exe",
               "vlt-probe.exe",
+              "vlt-simulator.exe",
               "install.cmd",
               "uninstall.cmd",
               "remove-old-test-service.cmd",
@@ -166,7 +162,7 @@ jobs:
           with zipfile.ZipFile(zpath) as z:
               names = [n for n in z.namelist() if not n.endswith("/")]
           bases = {pathlib.Path(n).name for n in names}
-          if bases != want or len(names) != 6:
+          if bases != want or len(names) != 7:
               print("files", names, "bases", sorted(bases), file=sys.stderr)
               sys.exit(1)
           print("zip file list ok:", ", ".join(sorted(bases)))
@@ -203,13 +199,14 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm run build
-      - name: Build voltiovolt (CGO_ENABLED=1) and vlt-probe (CGO_ENABLED=0)
+      - name: Build voltiovolt (CGO_ENABLED=1), vlt-probe and vlt-simulator (CGO_ENABLED=0)
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/VoltioVolt-test-linux-amd64"
           mkdir -p "$out"
           (cd cmd/voltiovolt && CGO_ENABLED=1 go build -tags production -trimpath -ldflags "-X main.version=${VLT_VERSION} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=${VLT_VERSION}" -o "$out/voltiovolt" .)
           CGO_ENABLED=0 go build -trimpath -ldflags "-X main.toolVersion=${VLT_VERSION}" -o "$out/vlt-probe" ./cmd/vlt-probe
+          CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=${VLT_VERSION}" -o "$out/vlt-simulator" ./cmd/vlt-simulator
           install -m 0755 packaging/test/linux/install.sh packaging/test/linux/uninstall.sh "$out/"
           cp packaging/test/linux/OKUBENI-README.txt "$out/"
           "$out/vlt-probe" version | grep -F "$VLT_VERSION"
@@ -218,7 +215,7 @@ jobs:
           python3 - <<PY
           import os, pathlib, sys
           out = pathlib.Path(os.environ["RUNNER_TEMP"]) / "VoltioVolt-test-linux-amd64"
-          want = {"voltiovolt", "vlt-probe", "install.sh", "uninstall.sh", "OKUBENI-README.txt"}
+          want = {"voltiovolt", "vlt-probe", "vlt-simulator", "install.sh", "uninstall.sh", "OKUBENI-README.txt"}
           names = {p.name for p in out.iterdir() if p.is_file()}
           if names != want:
               print("files", sorted(names), "want", sorted(want), file=sys.stderr)
@@ -230,19 +227,12 @@ jobs:
           tar -tzvf dist/VoltioVolt-test-linux-amd64.tar.gz
           sha256sum dist/VoltioVolt-test-linux-amd64.tar.gz
 
-      - name: Build vlt-simulator for the end-to-end test (VLT-IS-010 005)
-        env:
-          CGO_ENABLED: "0"
-        run: |
-          set -euo pipefail
-          go build -trimpath -o "$RUNNER_TEMP/vlt-simulator" ./cmd/vlt-simulator
-
       - name: End-to-end test connection, megatec and scenario 1 (VLT-IS-010 005)
         run: |
           set -euo pipefail
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-e2e-megatec"
           mkdir -p "$XDG_RUNTIME_DIR"
-          sim="$RUNNER_TEMP/vlt-simulator"
+          sim="$RUNNER_TEMP/VoltioVolt-test-linux-amd64/vlt-simulator"
           vv="$RUNNER_TEMP/VoltioVolt-test-linux-amd64/voltiovolt"
           dir="$RUNNER_TEMP/vv-e2e-megatec"
           mkdir -p "$dir"
@@ -264,7 +254,7 @@ jobs:
           set -euo pipefail
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-e2e-voltronic"
           mkdir -p "$XDG_RUNTIME_DIR"
-          sim="$RUNNER_TEMP/vlt-simulator"
+          sim="$RUNNER_TEMP/VoltioVolt-test-linux-amd64/vlt-simulator"
           vv="$RUNNER_TEMP/VoltioVolt-test-linux-amd64/voltiovolt"
           dir="$RUNNER_TEMP/vv-e2e-voltronic"
           mkdir -p "$dir"

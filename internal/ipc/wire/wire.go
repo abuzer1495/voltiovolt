@@ -172,6 +172,7 @@ const (
 	MethodStatus       = "system.status"
 	MethodAuthStatus   = "auth.status"
 	MethodSetPIN       = "auth.set_pin"
+	MethodRemovePIN    = "auth.remove_pin"
 	MethodLogin        = "auth.login"
 	MethodLogout       = "auth.logout"
 	MethodSettingsList = "settings.list"
@@ -238,7 +239,7 @@ const ScanConfirmation = "SCAN PORTS"
 
 // Methods lists all methods.
 var Methods = []string{
-	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodLogin, MethodLogout,
+	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodRemovePIN, MethodLogin, MethodLogout,
 	MethodSettingsList, MethodSettingsSet, MethodSecretStatus, MethodSecretSet, MethodSecretDelete,
 	MethodVaultReset, MethodAuditList,
 	MethodDeviceStatus, MethodDeviceSettingsSet, MethodSubscribe, MethodUnsubscribe, MethodMeasurements,

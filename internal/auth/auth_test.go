@@ -323,3 +323,36 @@ func TestSession(t *testing.T) {
 		t.Fatal("elevated after Drop")
 	}
 }
+
+func TestRemovePIN(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	au := &testOnlyAuditor{}
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+	m := newManager(t, st, au, &now)
+	if _, err := m.RemovePIN(ctx, srcA, "7a3k9z"); !errors.Is(err, ErrNoPIN) {
+		t.Fatalf("no PIN: %v", err)
+	}
+	if err := m.SetInitialPIN(ctx, "gui", "7a3k9z"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.RemovePIN(ctx, srcA, "wrong0"); !errors.Is(err, ErrIncorrect) {
+		t.Fatalf("wrong PIN: %v", err)
+	}
+	if set, err := m.PINSet(ctx); err != nil || !set {
+		t.Fatalf("still set after wrong PIN: %v %v", set, err)
+	}
+	if _, err := m.RemovePIN(ctx, srcA, "7a3k9z"); err != nil {
+		t.Fatal(err)
+	}
+	if set, err := m.PINSet(ctx); err != nil || set {
+		t.Fatalf("PIN still set: %v %v", set, err)
+	}
+	if au.count("pin_remove:success") != 1 {
+		t.Fatalf("audit count: %d", au.count("pin_remove:success"))
+	}
+	// After remove, SetInitialPIN works again.
+	if err := m.SetInitialPIN(ctx, "gui", "9q8w7e"); err != nil {
+		t.Fatal(err)
+	}
+}

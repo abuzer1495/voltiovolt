@@ -38,21 +38,24 @@ const EMPTY: WizardResult = { pin: false, port: '', values: false, policy: false
 function Nav({
   step,
   first,
+  pinOptional,
   onBack,
   onSkip,
 }: {
   step: Step;
   first: boolean;
+  pinOptional: boolean;
   onBack: () => void;
   onSkip: () => void;
 }) {
   const i = STEPS.indexOf(step);
   const isFirst = step === 'pin' && first;
   const isLast = step === 'summary';
+  const showSkip = (!isFirst && !isLast) || (step === 'pin' && pinOptional);
   return (
     <div class="row">
       {!isFirst ? <button type="button" onClick={onBack}>{t('wizard.back')}</button> : null}
-      {!isFirst && !isLast ? <button type="button" onClick={onSkip}>{t('wizard.skip')}</button> : null}
+      {showSkip ? <button type="button" onClick={onSkip}>{t('wizard.skip')}</button> : null}
       <p class="note">{t('wizard.progress', { n: i + 1, total: STEPS.length, title: t('wizard.step.' + step) })}</p>
     </div>
   );
@@ -239,7 +242,7 @@ function EmailStep({ elevated, onDone }: { elevated: boolean; onDone: () => void
   );
 }
 
-export function Wizard({ first = false, onDone }: { first?: boolean; onDone?: () => void }) {
+export function Wizard({ first = false, portable = false, onDone }: { first?: boolean; portable?: boolean; onDone?: () => void }) {
   const s = useStore(app);
   const elevated = !!s.auth?.elevated;
   const start: Step = first && !s.auth?.pin_set ? 'pin' : 'port';
@@ -247,6 +250,7 @@ export function Wizard({ first = false, onDone }: { first?: boolean; onDone?: ()
   const [res, setRes] = useState<WizardResult>({ ...EMPTY, pin: !!s.auth?.pin_set });
   const [modem, setModem] = useState<'yes' | 'no' | ''>('');
   const [portName, setPortName] = useState('');
+  const pinOptional = portable;
 
   function go(next: Step) {
     setStep(next);
@@ -263,7 +267,7 @@ export function Wizard({ first = false, onDone }: { first?: boolean; onDone?: ()
     go(STEPS[idx() - 1]);
   }
   function skip() {
-    if (step === 'pin') return;
+    if (step === 'pin' && !pinOptional) return;
     if (step === 'modem') setRes((r) => ({ ...r, modem: 'skip' }));
     go(STEPS[Math.min(idx() + 1, STEPS.length - 1)]);
   }
@@ -275,14 +279,17 @@ export function Wizard({ first = false, onDone }: { first?: boolean; onDone?: ()
     <div class="screen wizard">
       <h2>{t('wizard.title')}</h2>
       <p>{t('wizard.intro')}</p>
-      <Nav step={step} first={first} onBack={back} onSkip={skip} />
+      <Nav step={step} first={first} pinOptional={pinOptional} onBack={back} onSkip={skip} />
 
       {step === 'pin' ? (
-        <SetPin nested onDone={() => {
-          setRes((r) => ({ ...r, pin: true }));
-          refreshAuth();
-          next();
-        }} />
+        <>
+          {pinOptional ? <p>{t('wizard.pin.help')}</p> : null}
+          <SetPin nested onDone={() => {
+            setRes((r) => ({ ...r, pin: true }));
+            refreshAuth();
+            next();
+          }} />
+        </>
       ) : null}
 
       {step === 'port' ? (

@@ -200,6 +200,24 @@ func (m *Manager) setPIN(ctx context.Context, actor, pin string, initial bool) e
 	return nil
 }
 
+// RemovePIN removes the PIN after a correct current PIN (VLT-IS-008
+// TASK 03-00-00-003). The lockout of Login applies. After a success, no
+// PIN is set.
+func (m *Manager) RemovePIN(ctx context.Context, src Source, pin string) (time.Time, error) {
+	until, err := m.Login(ctx, src, pin)
+	if err != nil {
+		return until, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := m.st.SetAuthState(ctx, map[string]string{keyPINHash: ""}); err != nil {
+		return time.Time{}, err
+	}
+	m.log.Info("PIN removed")
+	m.record(ctx, src.Actor, "pin_remove", "success", nil)
+	return time.Time{}, nil
+}
+
 // blockFor returns the block time after n failures: 5 minutes after 5
 // failures, doubled after each new failure, 24 hours maximum.
 func blockFor(n int) time.Duration {

@@ -3,6 +3,7 @@ import type { ComponentType } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { CountdownBanner, FallbackBanner } from './banners';
 import { ConnProblem, ConnState } from './components';
+import { api } from './api';
 import { t, useLang } from './i18n';
 import { Dashboard } from './screens/dashboard';
 import { Device } from './screens/device';
@@ -47,7 +48,18 @@ export function App() {
   const wiz = useStore(wizardWanted);
   const [route, setRoute] = useState(currentRoute());
   const [unlock, setUnlock] = useState(false);
+  const [portable, setPortable] = useState(false);
+  const [wizDone, setWizDone] = useState(false);
   useEffect(() => start(), []);
+  useEffect(() => {
+    void api.about().then(async (a) => {
+      const p = a.mode === 'portable';
+      setPortable(p);
+      if (p) {
+        try { setWizDone(await api.wizardCompleted()); } catch { /* leave false: first start */ }
+      }
+    }, () => undefined);
+  }, []);
   useEffect(() => {
     const f = () => setRoute(currentRoute());
     window.addEventListener('hashchange', f);
@@ -55,7 +67,9 @@ export function App() {
   }, []);
   const connected = s.conn.state === 'connected';
   const auth = s.auth;
-  const firstStart = connected && auth !== null && !auth.pin_set;
+  // Portable (OD-37): the wizard runs once, also when the PIN is skipped.
+  // Service: the wizard runs until a PIN is set.
+  const firstStart = connected && auth !== null && (portable ? !wizDone : !auth.pin_set);
   const elevated = !!auth?.elevated;
   const Screen = routes.find((r) => r.id === route)?.comp ?? Dashboard;
 
@@ -91,7 +105,13 @@ export function App() {
         {!connected ? (
           s.conn.state === 'connecting' ? <p role="status">{t('conn.connecting')}</p> : <ConnProblem conn={s.conn} />
         ) : firstStart || wiz.open ? (
-          <Wizard first={firstStart} onDone={() => { wizardWanted.set({ open: false }); refreshAuth(); }} />
+          <Wizard first={firstStart} portable={portable} onDone={() => {
+            wizardWanted.set({ open: false });
+            if (portable) {
+              void api.setWizardCompleted().then(() => setWizDone(true), () => setWizDone(true));
+            }
+            refreshAuth();
+          }} />
         ) : (
           <>
             <FallbackBanner fallback={!!s.policy?.fallback} />

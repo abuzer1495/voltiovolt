@@ -44,3 +44,28 @@ func TestAboutModeAndAutostart(t *testing.T) {
 		t.Fatalf("data dir %q", a.About().DataDir)
 	}
 }
+
+type fakeFirstRun struct{ done bool }
+
+func (f *fakeFirstRun) Completed() (bool, error) { return f.done, nil }
+func (f *fakeFirstRun) SetCompleted() error      { f.done = true; return nil }
+
+func TestWizardCompleted(t *testing.T) {
+	m, a, _ := start(t, allFake(t))
+	if _, err := a.WizardCompleted(); err == nil {
+		t.Fatal("want unavailable")
+	}
+	f := &fakeFirstRun{}
+	m.SetFirstRun(f)
+	on, err := a.WizardCompleted()
+	if err != nil || on {
+		t.Fatalf("completed %v %v", on, err)
+	}
+	if err := a.SetWizardCompleted(); err != nil {
+		t.Fatal(err)
+	}
+	on, err = a.WizardCompleted()
+	if err != nil || !on {
+		t.Fatalf("after set %v %v", on, err)
+	}
+}

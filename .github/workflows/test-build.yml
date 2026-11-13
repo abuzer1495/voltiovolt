@@ -28,8 +28,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: test-build-${{ github.ref }}
-  cancel-in-progress: false
+  # v2: a stuck run in the previous group must not block a new push.
+  group: test-build-v2-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   GO_VERSION: "1.27.4"

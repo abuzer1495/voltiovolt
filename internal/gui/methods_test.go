@@ -57,6 +57,12 @@ func methodCases(secret []byte) map[string]methodCase {
 		"UPSTestStart":           {[]any{"10s", 0, TestConfirmation}, wire.MethodUPSTestStart},
 		"UPSTestCancel":          {nil, wire.MethodUPSTestCancel},
 		"UPSBeeperSet":           {[]any{false}, wire.MethodUPSBeeperSet},
+		"Channels":               {nil, wire.MethodChannelsList},
+		"SetChannel":             {[]any{"email", true, "WARNING", map[string]any{"port": 465}}, wire.MethodChannelsSettingsSet},
+		"ChannelTest":            {[]any{"desktop"}, wire.MethodChannelsTest},
+		"TelegramPairStart":      {nil, wire.MethodTelegramPairStart},
+		"TelegramChats":          {nil, wire.MethodTelegramChatsList},
+		"TelegramChatRemove":     {[]any{int64(100)}, wire.MethodTelegramChatsRemove},
 	}
 }
 
@@ -69,7 +75,9 @@ func allFake(t *testing.T) *fakeServer {
 		wire.MethodPolicySimulate, wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodSecretSet,
 		wire.MethodVaultReset, wire.MethodAuditList, wire.MethodSettingsList, wire.MethodSettingsSet,
 		wire.MethodDevicePorts, wire.MethodDeviceScan,
-		wire.MethodUPSControlCaps, wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet} {
+		wire.MethodUPSControlCaps, wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet,
+		wire.MethodChannelsList, wire.MethodChannelsSettingsSet, wire.MethodChannelsTest, wire.MethodTelegramPairStart,
+		wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove} {
 		f.handle(m, func(json.RawMessage) (any, *wire.Error) { return map[string]any{"ok": true}, nil })
 	}
 	f.handle(wire.MethodSecretStatus, func(json.RawMessage) (any, *wire.Error) {

@@ -246,6 +246,46 @@ export function errorCode(e: unknown): string {
   return /^[a-z_]+$/.test(m) ? m : 'ipc_error';
 }
 
+/** SecretHint is the write-only Secret status (never the value). */
+export interface SecretHint {
+  id: string;
+  set: boolean;
+  hint?: string;
+  updated_at?: string;
+}
+
+/** ChannelInfo is one Notification Channel (channels.list). */
+export interface ChannelInfo {
+  name: string;
+  enabled: boolean;
+  min_severity: string;
+  secret?: SecretHint;
+  settings?: Record<string, unknown>;
+  pairing?: { code?: string; expires: string };
+  chats: number;
+}
+
+/** EmailPreset is a set of SMTP server Settings (the preset "Gmail"). */
+export interface EmailPreset {
+  name: string;
+  server: string;
+  port: number;
+  security: string;
+}
+
+/** ChannelsList is the result of channels.list. */
+export interface ChannelsList {
+  channels: ChannelInfo[];
+  email_presets: EmailPreset[];
+}
+
+/** TelegramChat is one paired Telegram chat. */
+export interface TelegramChat {
+  chat_id: number;
+  name: string;
+  paired_at: string;
+}
+
 export const api = {
   connection: () => call<ConnInfo>('Connection'),
   about: () => call<AboutInfo>('About'),
@@ -281,6 +321,14 @@ export const api = {
   settings: () => call<{ settings: Setting[] }>('Settings'),
   setLanguage: (l: string) => call<void>('SetLanguage', l),
   openSource: () => call<void>('OpenSource'),
+  // Notification Channels (VLT-IS-007 TASK 03-00-00-007).
+  channels: () => call<ChannelsList>('Channels'),
+  setChannel: (channel: string, enabled: boolean, minSeverity: string, settings: Record<string, unknown>) =>
+    call<void>('SetChannel', channel, enabled, minSeverity, settings),
+  channelTest: (channel: string) => call<void>('ChannelTest', channel),
+  telegramPairStart: () => call<{ code: string; expires: string }>('TelegramPairStart'),
+  telegramChats: () => call<{ chats: TelegramChat[] }>('TelegramChats'),
+  telegramChatRemove: (chatID: number) => call<void>('TelegramChatRemove', chatID),
   /**
    * setSecret sends the text of an input field to the Go side (SEC-096).
    * The Go side sends it to vltd with secret.set and clears its buffer.

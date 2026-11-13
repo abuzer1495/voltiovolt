@@ -439,3 +439,9 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 4. TLS 1.2 or later; the server certificate is verified with the system CAs. In the `starttls` mode, if the server does not offer STARTTLS or the STARTTLS handshake fails, vltd sends nothing and does not use the password.
 5. Message: subject "[VLT][severity] Event" (one line, Q-encoded), UTF-8 text, quoted-printable. Addresses and the subject cannot add header lines.
 6. Tests: a fake SMTP server (implicit TLS and STARTTLS, a test CA). No test connects to a real server.
+
+### 15.4 Channel screens and IPC methods (VLT-IS-007 TASK 03-00-00-007)
+
+1. IPC methods (elevated state for all changes; list and telegram.chats.list are read-only): `channels.list`, `channels.settings.set`, `channels.test`, `telegram.pair.start`, `telegram.chats.list`, `telegram.chats.remove`. Secret values go only through `secret.set`. `channels.list` shows only the set state and the hint, never the value. The pairing code is in the result of `telegram.pair.start` only, not in `channels.list` and not in the audit log.
+2. The VLT GUI screen "Notifications": one section for each Channel (on or off, minimum severity, "Send test message"). Telegram: write-only bot token, "Pair a chat", the code and the steps, the list of paired chats with "Remove". E-mail: SMTP Settings, the preset "Gmail" (smtp.gmail.com, port 465, TLS) with the help text "Use a Google app password, not your normal password. Google account, Security, 2-Step Verification, App passwords.", write-only SMTP password.
+3. All user text is in en.json and tr.json.

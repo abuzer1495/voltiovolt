@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00, VLT-IS-006 01-00-00, VLT-IS-007 01-00-00 and VLT-IS-008 01-00-00. The source texts are in `docs/instructions/`.
+This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00, VLT-IS-006 01-00-00, VLT-IS-007 01-00-00, VLT-IS-008 01-00-00 and VLT-IS-009 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -127,3 +127,7 @@ This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00
 | CH-50 | 2026-11-13 | SEC-004 and SEC-005, portable mode on Linux: if the Secret Service is available, keep the DEK there; if not, keep the DEK in a file with mode 0600 in the data folder (Vault state "reduced protection"). | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
 | CH-51 | 2026-11-13 | SEC-022 applies only when a PIN is set (OD-37). | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
 | CH-52 | 2026-11-13 | The data folder permission check (VLT-IS-003 TASK 03-00-00-003 step 6) applies to the service mode only. | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
+| OD-40 | 2026-11-13 | A "Forgot PIN" function exists in portable mode. It removes the PIN, deletes all Secrets (Vault reset), and makes the Shutdown Policy inactive. Settings, Measurements and Events stay. It writes an audit entry. If a Channel stays configured after the reset, no message is possible, because the Secrets are deleted. | VLT-IS-009 Rev 00, 01-00-00 |
+| OD-41 | 2026-11-13 | At the first start, VLT shows a small dialog: "Start the setup wizard?" with "Start" and "Later". "Later" opens the Dashboard. The wizard is also available in the General screen. | VLT-IS-009 Rev 00, 01-00-00 |
+| OD-42 | 2026-11-13 | Help text can have links to official documentation of the vendor only (Telegram, Google, Microsoft). A link opens in the default browser of the user. | VLT-IS-009 Rev 00, 01-00-00 |
+| OD-43 | 2026-11-13 | A device choice "Demo (simulator)". The OS shutdown executor and all CONTROL commands are dry runs in demo mode. | VLT-IS-009 Rev 00, 01-00-00 |

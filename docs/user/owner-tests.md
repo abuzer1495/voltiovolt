@@ -1,4 +1,4 @@
-# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009, VLT-IS-008 TASK 03-00-00-007)
+# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009, VLT-IS-008 TASK 03-00-00-007, VLT-IS-009 TASK 03-00-00-007)
 
 English first. Turkish: section T below.
 
@@ -23,7 +23,7 @@ General preconditions for all tests:
 - The Reference UPS and its USB or serial cable.
 - The test package of the latest pre-release "Test build" (tag test-latest). See "Preparation" above.
 - PIN is optional in portable mode. If no PIN is set, all functions are available. Secret fields stay write-only.
-- Do the tests in this order: T-01 first, then T-08 to T-13. The tests T-02, T-03, T-05, T-07 and the service parts of T-04 and T-06 are in the section "Service mode (later)".
+- Do the tests in this order: T-01 first, then T-08 to T-16. The tests T-02, T-03, T-05, T-07 and the service parts of T-04 and T-06 are in the section "Service mode (later)".
 
 ### T-01 vlt-probe Capture on the Reference UPS
 
@@ -142,6 +142,49 @@ WARNING: The UPS turns off its output during this test. All equipment on the UPS
 - Expected result: a desktop notification, a Telegram message (including a reply to `/durum` with the UPS status) and an e-mail, each during the power failure. The test e-mail arrives.
 - Send: the times and a confirmation that each Channel worked. Do not send the token, the password or the message text (it can contain status data).
 
+
+### T-14 PIN set, lock, unlock, restart and Forgot PIN (VLT-IS-009)
+
+- Purpose: check that a correct PIN unlocks the GUI (including after a restart), and check "Forgot PIN" (VLT-IS-009 TASK 03-00-00-001 and 002, OD-40, R-02).
+- Preconditions: VoltioVolt from the test package is running in portable mode. Use a data folder where you can set a PIN. Do not send the PIN.
+- Steps (all in VoltioVolt):
+    1. Set PIN: if no PIN is set, open "General" and click "Set PIN", or use the PIN step of the setup wizard. Set a PIN of at least 6 characters. If a PIN is already set from an earlier test, you can keep it.
+    2. Lock: click "Lock". The GUI shows "Locked" and still shows the Dashboard.
+    3. Unlock: click "Unlock", enter the correct PIN, and click "Unlock" again (the button on the login screen). The GUI unlocks. This is the function of R-02.
+    4. Restart: use the tray menu "Quit", confirm, and start VoltioVolt again from the same folder and the same data folder.
+    5. Unlock after the restart: enter the same correct PIN and click "Unlock". The GUI unlocks.
+    6. Forgot PIN: click "Lock", then click "Forgot PIN". The text is: "This removes the PIN and deletes all saved passwords and tokens (Telegram, e-mail). The automatic shutdown becomes inactive. Your settings and your history stay." The confirmation is: "Type RESET to confirm." Type RESET (this word is the same in English and in Turkish). Click "Reset PIN".
+    7. After the reset: the setup wizard starts at the PIN step. The Shutdown Policy is inactive. Settings, Events and History stay. Saved passwords and tokens are deleted. Open "Security" and find the audit entry of the reset.
+- Expected result: steps 3 and 5 unlock with the correct PIN. Step 6 removes the PIN, deletes the Secrets and makes the policy inactive. Settings and history stay. The confirmation word is RESET.
+- Send: the result of each step (OK or the problem) and the audit entry. Do not send the PIN. Screenshots are permitted; check that no PIN and no Secret is in them.
+
+### T-15 Wizard and screens at 1280 × 720 (VLT-IS-009)
+
+- Purpose: check the first-start dialog, the compact wizard and all screens at 1280 × 720 and at the display scale of the Owner (VLT-IS-009 TASK 03-00-00-003, R-04, OD-41).
+- Preconditions: VoltioVolt from the test package. For the first-start dialog, use a new data folder (for example a new empty folder, started with the data-folder option or a fresh extract). Write down the display scale of the Owner computer (Windows: Settings, System, Display, Scale; for example 100 %, 125 % or 150 %).
+- Steps:
+    1. First start: the dialog is "Start the setup wizard?" with "Start" and "Later". Click "Later": the Dashboard opens. Quit and start VoltioVolt again: the dialog shows again. Click "Later" a second time: the dialog does not show again. The General screen still has the button "Start the setup wizard".
+    2. Wizard size: with a new data folder, or from General, click "Start" or "Start the setup wizard". The wizard is a dialog of 760 × 560 pixels. The buttons Back, Skip and Next (or Finish) are at the bottom right. Go through each step (PIN, UPS port, live values, Shutdown Policy, Telegram, e-mail, modem and router, Summary). At 1280 × 720, each step fits in the dialog without a scroll bar. The help lines and the example values of the fields are visible.
+    3. Screens at 1280 × 720: after the wizard (Finish or Later), open each screen at 1280 × 720: Dashboard, Device, History, Events, Shutdown Policy, UPS Control, Notifications, Security, General. Each screen is usable: no important control is cut off.
+    4. Display scale of the Owner: keep the usual scale of the Owner computer. Repeat step 3 (and step 2 if you can). Write down the scale.
+- Expected result: the first-start dialog works as written in step 1. Each wizard step fits in 760 × 560 pixels without a scroll bar. The screens work at 1280 × 720 and at the display scale of the Owner.
+- Send: the result of each step, the display scale, and the OS. Screenshots are permitted; check that no Secret, no PIN and no serial number is in them. If a step or a screen has a scroll bar or a cut-off control, write it down and send a screenshot of that step or screen.
+
+### T-16 Demo mode (VLT-IS-009)
+
+- Purpose: check the Demo (simulator) transport (VLT-IS-009 TASK 03-00-00-005, OD-43). This test does not use a real UPS. It must not shut down the computer and must not send CONTROL bytes to a real UPS.
+- Preconditions: VoltioVolt from the test package is running. If a PIN is set, unlock with the PIN. A real UPS is not necessary.
+- Steps (all in VoltioVolt):
+    1. Open "Device" (or the UPS port step of the wizard). Select the transport "Demo (simulator)". A yellow banner "DEMO" is on all screens.
+    2. Open the Dashboard: the values change slowly. Open "Events" and "History": the demo Events and measurements are hidden by default. The checkboxes "Show demo events" and "Show demo measurements" are off. Turn them on: the demo data is visible and marked "demo".
+    3. On the Device screen, click "Simulate power failure". The simulator goes to battery for 60 seconds, then the mains power returns.
+    4. If the Shutdown Policy would shut down the computer, the message is: "Demo: the computer would shut down now." The computer does not shut down.
+    5. Open "UPS Control" and start a short test or change the beeper. The command is a dry run: no CONTROL bytes go to a real UPS, and the computer does not change.
+    6. If a Notification Channel is configured, a notification has the prefix "[DEMO] ". Do not send a Secret.
+    7. Leave demo mode: select a different transport or a real port. The confirmation is: "Leave demo mode and connect to a real UPS? Events and measurements of the demo stay, marked as demo." Confirm or cancel as you wish. The demo history stays, marked as demo.
+- Expected result: the yellow DEMO banner is visible. The values change slowly. "Simulate power failure" lasts 60 seconds. The computer does not shut down. No CONTROL bytes go to a real UPS. Demo Events and measurements are hidden by default and marked "demo". The leave confirmation is the exact text of step 7.
+- Send: the result of each step (OK or the problem). Do not send a Secret. Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
+
 ### Service mode (later)
 
 These tests need the service mode (vltd, vlt-setup, a local group and a user right). The service mode stays in the source code. It is not in the default package (OD-36). Do not run these tests with the VLT-IS-008 portable package. The text of T-02, T-03, T-04, T-05, T-06 and T-07 is kept here for a later release.
@@ -241,7 +284,7 @@ Tüm testler için genel ön koşullar:
 - Referans UPS ve USB veya seri kablosu.
 - En son "Test build" ön sürümünün (etiket: test-latest) test paketi. Yukarıdaki "Hazırlık" bölümüne bakın.
 - Taşınabilir kipte PIN isteğe bağlıdır. PIN belirlenmemişse tüm işlevler kullanılabilir. Secret alanları yalnızca yazılır.
-- Testleri şu sırayla yapın: önce T-01, sonra T-08 ile T-13. T-02, T-03, T-05, T-07 ve T-04 ile T-06'nın hizmet kısımları "Hizmet kipi (daha sonra)" bölümündedir.
+- Testleri şu sırayla yapın: önce T-01, sonra T-08 ile T-16. T-02, T-03, T-05, T-07 ve T-04 ile T-06'nın hizmet kısımları "Hizmet kipi (daha sonra)" bölümündedir.
 
 ### T-01 Referans UPS ile vlt-probe Capture
 
@@ -359,6 +402,49 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
     3. E-posta: "Gmail" hazır ayarını seçin. Gmail adresini ve uygulama parolasını girin (yardım metni: "Normal parolanızı değil, bir Google uygulama parolası kullanın. Google hesabı, Güvenlik, 2 Adımlı Doğrulama, Uygulama parolaları."). "Test mesajı gönder" düğmesine tıklayın. UPS giriş gücünü kesin. Bir e-posta Bildirimi gelir. Giriş gücünü bağlayın. Zamanı not edin.
 - Beklenen sonuç: bir masaüstü bildirimi, bir Telegram iletisi (`/durum` yanıtı UPS durumunu içerir) ve bir e-posta, her biri güç kesintisi sırasında. Test e-postası gelir.
 - Gönderin: zamanlar ve her Kanalın çalıştığına dair onay. Belirteci, parolayı veya ileti metnini göndermeyin (durum verisi içerebilir).
+
+
+### T-14 PIN belirleme, kilitleme, kilit açma, yeniden başlatma ve PIN'i unuttum (VLT-IS-009)
+
+- Amaç: doğru PIN ile kilidin açıldığını (yeniden başlatmadan sonra da) ve "PIN'i unuttum" işlevini kontrol etmek (VLT-IS-009 TASK 03-00-00-001 ve 002, OD-40, R-02).
+- Ön koşullar: Test paketindeki VoltioVolt taşınabilir kipte çalışır. PIN belirleyebileceğiniz bir veri klasörü kullanın. PIN'i göndermeyin.
+- Adımlar (tümü VoltioVolt'ta):
+    1. PIN belirleme: PIN yoksa "Genel" ekranında "PIN belirle" düğmesine tıklayın veya kurulum sihirbazının PIN adımını kullanın. En az 6 karakterlik bir PIN belirleyin. Daha önceki bir testten PIN varsa onu kullanabilirsiniz.
+    2. Kilitleme: "Kilitle" düğmesine tıklayın. Arayüz "Kilitli" gösterir ve Gösterge paneli görünür kalır.
+    3. Kilit açma: "Kilidi aç" düğmesine tıklayın, doğru PIN'i girin ve giriş ekranındaki "Kilidi aç" düğmesine tıklayın. Arayüzün kilidi açılır. Bu, R-02 işlevidir.
+    4. Yeniden başlatma: tepsi menüsünden "Çık"ı kullanın, onaylayın ve VoltioVolt'u aynı klasörden ve aynı veri klasörüyle yeniden başlatın.
+    5. Yeniden başlatmadan sonra kilit açma: aynı doğru PIN'i girin ve "Kilidi aç" düğmesine tıklayın. Arayüzün kilidi açılır.
+    6. PIN'i unuttum: "Kilitle" düğmesine tıklayın, sonra "PIN'i unuttum" bağlantısına tıklayın. Metin şudur: "Bu işlem PIN'i kaldırır ve kayıtlı tüm parolaları ve belirteçleri (Telegram, e-posta) siler. Otomatik kapatma devre dışı kalır. Ayarlarınız ve geçmişiniz kalır." Onay metni şudur: "Onaylamak için RESET yazın." RESET yazın (bu sözcük İngilizce ve Türkçede aynıdır). "PIN'i sıfırla" düğmesine tıklayın.
+    7. Sıfırlamadan sonra: kurulum sihirbazı PIN adımında başlar. Kapatma Politikası devre dışıdır. Ayarlar, Olaylar ve Geçmiş kalır. Kayıtlı parolalar ve belirteçler silinir. "Güvenlik" ekranını açın ve sıfırlamanın denetim kaydını bulun.
+- Beklenen sonuç: 3. ve 5. adımlarda doğru PIN ile kilit açılır. 6. adım PIN'i kaldırır, Gizli bilgileri siler ve politikayı devre dışı bırakır. Ayarlar ve geçmiş kalır. Onay sözcüğü RESET'tir.
+- Gönderin: her adımın sonucu (tamam veya sorun) ve denetim kaydı. PIN'i göndermeyin. Ekran görüntülerine izin vardır; PIN ve Gizli bilgi olmadığından emin olun.
+
+### T-15 1280 × 720 boyutunda sihirbaz ve ekranlar (VLT-IS-009)
+
+- Amaç: ilk açılış penceresini, kompakt sihirbazı ve tüm ekranları 1280 × 720 boyutunda ve Owner'ın ekran ölçeğinde kontrol etmek (VLT-IS-009 TASK 03-00-00-003, R-04, OD-41).
+- Ön koşullar: Test paketindeki VoltioVolt. İlk açılış penceresi için yeni bir veri klasörü kullanın (örneğin yeni boş bir klasör, veri klasörü seçeneğiyle veya taze bir çıkarımla). Owner bilgisayarının ekran ölçeğini not edin (Windows: Ayarlar, Sistem, Ekran, Ölçek; örneğin %100, %125 veya %150).
+- Adımlar:
+    1. İlk açılış: pencere "Kurulum sihirbazı başlatılsın mı?" metni ile "Başlat" ve "Daha sonra" düğmelerini gösterir. "Daha sonra"ya tıklayın: Gösterge paneli açılır. VoltioVolt'tan çıkın ve yeniden başlatın: pencere yine görünür. "Daha sonra"ya ikinci kez tıklayın: pencere bir daha görünmez. "Genel" ekranında "Kurulum sihirbazını başlat" düğmesi durur.
+    2. Sihirbaz boyutu: yeni bir veri klasörüyle veya Genel ekranından "Başlat" veya "Kurulum sihirbazını başlat" düğmesine tıklayın. Sihirbaz 760 × 560 piksellik bir penceredir. Geri, Atla ve İleri (veya Bitir) düğmeleri sağ alttadır. Her adımdan geçin (PIN, UPS portu, canlı değerler, Kapatma Politikası, Telegram, e-posta, modem ve yönlendirici, Özet). 1280 × 720 boyutunda her adım kaydırma çubuğu olmadan sığar. Alanların yardım satırları ve örnek değerleri görünür.
+    3. 1280 × 720 ekranlar: sihirbazdan sonra (Bitir veya Daha sonra) her ekranı 1280 × 720 boyutunda açın: Gösterge paneli, Aygıt, Geçmiş, Olaylar, Kapatma Politikası, UPS Kontrolü, Bildirimler, Güvenlik, Genel. Her ekran kullanılabilir: önemli bir denetim kesilmez.
+    4. Owner'ın ekran ölçeği: Owner bilgisayarının olağan ölçeğini koruyun. 3. adımı (ve mümkünse 2. adımı) yineleyin. Ölçeği not edin.
+- Beklenen sonuç: ilk açılış penceresi 1. adımdaki gibi çalışır. Her sihirbaz adımı kaydırma çubuğu olmadan 760 × 560 piksele sığar. Ekranlar 1280 × 720 boyutunda ve Owner'ın ekran ölçeğinde çalışır.
+- Gönderin: her adımın sonucu, ekran ölçeği ve işletim sistemi. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun. Bir adımda veya ekranda kaydırma çubuğu veya kesilmiş bir denetim varsa bunu yazın ve o adımın veya ekranın görüntüsünü gönderin.
+
+### T-16 Demo kipi (VLT-IS-009)
+
+- Amaç: Demo (simülatör) taşımasını kontrol etmek (VLT-IS-009 TASK 03-00-00-005, OD-43). Bu test gerçek bir UPS kullanmaz. Bilgisayarı kapatmamalı ve gerçek bir UPS'e CONTROL baytı göndermemelidir.
+- Ön koşullar: Test paketindeki VoltioVolt çalışır. PIN varsa PIN ile kilidi açın. Gerçek bir UPS gerekli değildir.
+- Adımlar (tümü VoltioVolt'ta):
+    1. "Aygıt" ekranını (veya sihirbazın UPS portu adımını) açın. Taşıma olarak "Demo (simülatör)" seçin. Tüm ekranlarda sarı bir "DEMO" bandı görünür.
+    2. Gösterge panelini açın: değerler yavaş değişir. "Olaylar" ve "Geçmiş" ekranlarını açın: demo Olayları ve ölçümleri varsayılan olarak gizlidir. "Demo olaylarını göster" ve "Demo ölçümlerini göster" kutuları kapalıdır. Onları açın: demo verisi görünür ve "demo" olarak işaretlidir.
+    3. Aygıt ekranında "Güç kesintisini simüle et" düğmesine tıklayın. Simülatör 60 saniye bataryaya geçer, sonra şebeke elektriği döner.
+    4. Kapatma Politikası bilgisayarı kapatacak olsa, ileti şudur: "Demo: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz.
+    5. "UPS Kontrolü" ekranını açın ve kısa bir test başlatın veya hoparlörü değiştirin. Komut bir kuru çalıştırmadır: gerçek bir UPS'e CONTROL baytı gitmez ve bilgisayar değişmez.
+    6. Bir Bildirim Kanalı yapılandırılmışsa, bildirimin ön eki "[DEMO] " olur. Gizli bilgi göndermeyin.
+    7. Demo kipinden çıkış: farklı bir taşıma veya gerçek bir port seçin. Onay metni şudur: "Demo modundan çıkılsın ve gerçek bir UPS bağlantısı kullanılsın mı? Demo olayları ve ölçümleri geçmişte kalır ve demo olarak işaretlenir." İsterseniz onaylayın veya iptal edin. Demo geçmişi kalır ve demo olarak işaretlidir.
+- Beklenen sonuç: sarı DEMO bandı görünür. Değerler yavaş değişir. "Güç kesintisini simüle et" 60 saniye sürer. Bilgisayar kapanmaz. Gerçek bir UPS'e CONTROL baytı gitmez. Demo Olayları ve ölçümleri varsayılan olarak gizlidir ve "demo" olarak işaretlidir. Çıkış onayı 7. adımdaki tam metindir.
+- Gönderin: her adımın sonucu (tamam veya sorun). Gizli bilgi göndermeyin. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun.
 
 ### Hizmet kipi (daha sonra)
 

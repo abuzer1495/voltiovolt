@@ -2,7 +2,7 @@
 
 //go:build windows
 
-package main
+package engine
 
 import (
 	"crypto/rand"

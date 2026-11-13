@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package main
+package engine
 
 import (
 	"context"
@@ -45,10 +45,10 @@ func testOnlyDEK() []byte {
 }
 
 // startTestDaemon starts vltd in the test process (step 7.1).
-func startTestDaemon(t *testing.T, dir string, p vault.KeyProvider, opts ...func(*config)) (*daemon, string) {
+func startTestDaemon(t *testing.T, dir string, p vault.KeyProvider, opts ...func(*Config)) (*Daemon, string) {
 	t.Helper()
 	listen, addr := testListen(t)
-	cfg := config{
+	cfg := Config{
 		DataDir:    dir,
 		CheckPerms: runtime.GOOS != "windows", // Windows: the ACL check needs the installer (vlt-setup dev-install)
 		Provider:   func(string, []byte) vault.KeyProvider { return p },
@@ -59,7 +59,7 @@ func startTestDaemon(t *testing.T, dir string, p vault.KeyProvider, opts ...func
 	for _, o := range opts {
 		o(&cfg)
 	}
-	d := newDaemon(cfg)
+	d := New(cfg)
 	if err := d.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func startTestDaemon(t *testing.T, dir string, p vault.KeyProvider, opts ...func
 	return d, addr
 }
 
-func stopTestDaemon(t *testing.T, d *daemon) {
+func stopTestDaemon(t *testing.T, d *Daemon) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), platform.StopTimeout)
 	defer cancel()
@@ -308,7 +308,7 @@ func TestPermissionCheckStopsStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	listen, _ := testListen(t)
-	d := newDaemon(config{DataDir: dir, CheckPerms: true, Listen: listen,
+	d := New(Config{DataDir: dir, CheckPerms: true, Listen: listen,
 		Provider: func(string, []byte) vault.KeyProvider { return &testOnlyDEKProvider{} },
 		Log:      slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err := d.Start(context.Background()); err == nil {

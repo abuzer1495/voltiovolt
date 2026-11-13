@@ -74,12 +74,13 @@ type AboutInfo struct {
 	GUIProtocol int    `json:"gui_protocol"`
 	License     string `json:"license"`
 	Source      string `json:"source"`
+	Mode        string `json:"mode"`
 }
 
 // About returns the versions, the license and the source link.
 func (a *API) About() AboutInfo {
 	ci := a.Connection()
-	return AboutInfo{Version: Version, VltdVersion: ci.Version, Protocol: ci.Protocol, GUIProtocol: wire.Version, License: License, Source: SourceURL}
+	return AboutInfo{Version: Version, VltdVersion: ci.Version, Protocol: ci.Protocol, GUIProtocol: wire.Version, License: License, Source: SourceURL, Mode: a.m.Mode()}
 }
 
 // Last returns the last push messages ("status", "event", "countdown") for
@@ -100,4 +101,28 @@ func (a *API) SystemStatus() (r wire.StatusResult, err error) {
 	defer cancel()
 	err = a.m.call(c, func(cl *client.Client) error { r, err = cl.Status(c); return err })
 	return r, wrap(err)
+}
+
+// StartAtLogon reports whether the start-at-logon shortcut is present
+// (VLT-IS-008 TASK 03-00-00-001 step 6, OD-39).
+func (a *API) StartAtLogon() (bool, error) {
+	a.m.mu.Lock()
+	s := a.m.autostart
+	a.m.mu.Unlock()
+	if s == nil {
+		return false, &Error{Code: wire.CodeUnavailable}
+	}
+	on, err := s.Enabled()
+	return on, wrap(err)
+}
+
+// SetStartAtLogon makes or deletes the start-at-logon shortcut.
+func (a *API) SetStartAtLogon(on bool) error {
+	a.m.mu.Lock()
+	s := a.m.autostart
+	a.m.mu.Unlock()
+	if s == nil {
+		return &Error{Code: wire.CodeUnavailable}
+	}
+	return wrap(s.Set(on))
 }

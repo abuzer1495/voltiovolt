@@ -364,6 +364,39 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+      - name: go vet, test and build VoltioVolt (CGO_ENABLED=1)
+        working-directory: cmd/voltiovolt
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          set -euo pipefail
+          go vet -tags production .
+          go test -tags production .
+          mkdir -p dist
+          go build -tags production -trimpath -ldflags "-X main.version=ci-${GITHUB_SHA::12} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=ci-${GITHUB_SHA::12}" -o dist/voltiovolt-linux-amd64 .
+          (cd dist && sha256sum voltiovolt-linux-amd64 > voltiovolt-linux-amd64.sha256 && cat voltiovolt-linux-amd64.sha256)
+      - name: go-licenses and govulncheck of VoltioVolt
+        working-directory: cmd/voltiovolt
+        env:
+          CGO_ENABLED: "1"
+          GOFLAGS: "-tags=production"
+        run: |
+          set -euo pipefail
+          GOBIN="$RUNNER_TEMP/bin" go install "github.com/google/go-licenses/v2@${GO_LICENSES_VERSION}"
+          GOBIN="$RUNNER_TEMP/bin" go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+          "$RUNNER_TEMP/bin/go-licenses" report . --ignore github.com/abuzer1495/voltiovolt
+          "$RUNNER_TEMP/bin/go-licenses" check . --allowed_licenses="${ALLOWED_LICENSES}" --ignore github.com/abuzer1495/voltiovolt
+          "$RUNNER_TEMP/bin/govulncheck" ./...
+      - name: Upload VoltioVolt linux-amd64 (not a release)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: voltiovolt-linux-amd64
+          path: |
+            cmd/voltiovolt/dist/voltiovolt-linux-amd64
+            cmd/voltiovolt/dist/voltiovolt-linux-amd64.sha256
+          retention-days: 14
+          if-no-files-found: error
+
   gui-windows:
     name: gui-windows
     runs-on: windows-latest
@@ -434,5 +467,39 @@ jobs:
           path: |
             cmd/vlt-gui/dist/vlt-gui-windows-amd64.exe
             cmd/vlt-gui/dist/vlt-gui-windows-amd64.exe.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: go vet, test and build VoltioVolt (CGO_ENABLED=0)
+        working-directory: cmd/voltiovolt
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          go vet -tags production .
+          go test -tags production .
+          mkdir -p dist
+          go build -tags production -trimpath -ldflags "-H windowsgui -X main.version=ci-${GITHUB_SHA::12} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=ci-${GITHUB_SHA::12}" -o dist/VoltioVolt.exe .
+          (cd dist && sha256sum VoltioVolt.exe > VoltioVolt.exe.sha256 && cat VoltioVolt.exe.sha256)
+      - name: go-licenses and govulncheck of VoltioVolt
+        working-directory: cmd/voltiovolt
+        env:
+          CGO_ENABLED: "0"
+          GOFLAGS: "-tags=production"
+        run: |
+          set -euo pipefail
+          GOBIN="$RUNNER_TEMP/bin" go install "github.com/google/go-licenses/v2@${GO_LICENSES_VERSION}"
+          GOBIN="$RUNNER_TEMP/bin" go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+          "$RUNNER_TEMP/bin/go-licenses" report . --ignore github.com/abuzer1495/voltiovolt
+          # git.sr.ht/~jackmordaunt/go-toast/v2 is "Unlicense OR MIT". VLT uses MIT.
+          "$RUNNER_TEMP/bin/go-licenses" check . --allowed_licenses="${ALLOWED_LICENSES}" --ignore github.com/abuzer1495/voltiovolt --ignore git.sr.ht/~jackmordaunt/go-toast/v2
+          "$RUNNER_TEMP/bin/govulncheck" ./...
+      - name: Upload VoltioVolt windows-amd64 (not a release)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: voltiovolt-windows-amd64
+          path: |
+            cmd/voltiovolt/dist/VoltioVolt.exe
+            cmd/voltiovolt/dist/VoltioVolt.exe.sha256
           retention-days: 14
           if-no-files-found: error

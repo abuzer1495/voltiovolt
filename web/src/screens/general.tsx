@@ -12,9 +12,25 @@ import { startWizard } from './wizard';
 export function General() {
   const [about, setAbout] = useState<AboutInfo | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [logon, setLogon] = useState(false);
   useEffect(() => {
-    void api.about().then(setAbout, () => undefined);
+    void api.about().then(async (a) => {
+      setAbout(a);
+      if (a.mode === 'portable') {
+        try { setLogon(await api.startAtLogon()); } catch { /* hide errors: switch stays off */ }
+      }
+    }, () => undefined);
   }, []);
+  async function chooseLogon(on: boolean) {
+    setMsg(null);
+    try {
+      await api.setStartAtLogon(on);
+      setLogon(on);
+      setMsg({ kind: 'ok', text: t('general.startAtLogon.saved') });
+    } catch (e) {
+      setMsg({ kind: 'error', text: errText(errorCode(e)) });
+    }
+  }
   async function choose(l: Lang) {
     setLang(l);
     setMsg(null);
@@ -42,6 +58,16 @@ export function General() {
         <h3>{t('general.theme')}</h3>
         <p>{t('general.theme.os')}</p>
       </section>
+      {about?.mode === 'portable' ? (
+        <section class="card" aria-labelledby="logon-title">
+          <h3 id="logon-title">{t('general.startAtLogon')}</h3>
+          <label class="check">
+            <input type="checkbox" checked={logon} onChange={(e) => void chooseLogon((e.target as HTMLInputElement).checked)} />
+            {t('general.startAtLogon')}
+          </label>
+          <p id="logon-help">{t('general.startAtLogon.help')}</p>
+        </section>
+      ) : null}
       <section class="card" aria-labelledby="wiz-title">
         <h3 id="wiz-title">{t('wizard.title')}</h3>
         <p>{t('wizard.general.intro')}</p>

@@ -72,6 +72,19 @@ type Emitter interface {
 // Dialer opens an IPC connection.
 type Dialer func(ctx context.Context, addr string) (*client.Client, error)
 
+// Mode values for AboutInfo.Mode (VLT-IS-008).
+const (
+	ModeService  = "service"
+	ModePortable = "portable"
+)
+
+// Autostart turns the start-at-logon shortcut on or off (OD-39). The
+// implementation writes only to the startup folder of the user.
+type Autostart interface {
+	Enabled() (bool, error)
+	Set(on bool) error
+}
+
 // ConnInfo is the connection state.
 type ConnInfo struct {
 	State    string    `json:"state"`
@@ -98,20 +111,22 @@ type Manager struct {
 	now   func() time.Time
 	retry time.Duration
 
-	mu       sync.Mutex
-	c        *client.Client
-	conn     ConnInfo
-	auth     AuthInfo
-	last     map[string]json.RawMessage
-	critical map[string]bool
-	lastReq  time.Time
-	elevAt   time.Time
-	idle     time.Duration
-	lockT    *time.Timer
-	onTray   func(TrayState)
-	texts    TrayTexts
-	openURL  func(string) error
-	onNotify func(OSNotification)
+	mu        sync.Mutex
+	c         *client.Client
+	conn      ConnInfo
+	auth      AuthInfo
+	last      map[string]json.RawMessage
+	critical  map[string]bool
+	lastReq   time.Time
+	elevAt    time.Time
+	idle      time.Duration
+	lockT     *time.Timer
+	onTray    func(TrayState)
+	texts     TrayTexts
+	openURL   func(string) error
+	onNotify  func(OSNotification)
+	mode      string
+	autostart Autostart
 }
 
 // OSNotification is a desktop Notification of vltd (VLT-IS-007 TASK
@@ -137,7 +152,40 @@ func NewManager(addr string, emit Emitter, log *slog.Logger) *Manager {
 		log = slog.Default()
 	}
 	return &Manager{addr: addr, dial: client.Dial, emit: emit, log: log, now: time.Now, retry: RetryInterval,
-		conn: ConnInfo{State: ConnConnecting, Since: time.Now().UTC()}, last: map[string]json.RawMessage{}, critical: map[string]bool{}}
+		conn: ConnInfo{State: ConnConnecting, Since: time.Now().UTC()}, last: map[string]json.RawMessage{}, critical: map[string]bool{}, mode: ModeService}
+}
+
+// SetDial sets the function that opens the IPC connection. Portable mode
+// gives an in-process net.Pipe dial (VLT-IS-008 TASK 03-00-00-001 step 3).
+func (m *Manager) SetDial(d Dialer) {
+	if d != nil {
+		m.dial = d
+	}
+}
+
+// SetMode sets the application mode ("portable" or "service").
+func (m *Manager) SetMode(mode string) {
+	m.mu.Lock()
+	m.mode = mode
+	m.mu.Unlock()
+}
+
+// Mode returns the application mode.
+func (m *Manager) Mode() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.mode == "" {
+		return ModeService
+	}
+	return m.mode
+}
+
+// SetAutostart sets the start-at-logon helper. Nil: the methods return
+// "unavailable".
+func (m *Manager) SetAutostart(a Autostart) {
+	m.mu.Lock()
+	m.autostart = a
+	m.mu.Unlock()
 }
 
 // OnTray sets the function that gets each new tray state.

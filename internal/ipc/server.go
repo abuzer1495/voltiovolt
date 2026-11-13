@@ -57,6 +57,14 @@ type Backend struct {
 	UPS UPSControl
 	// VLT-IS-007 TASK 03-00-00-007. A nil field gives "unavailable".
 	Channels ChannelControl
+	// VLT-IS-009 TASK 03-00-00-005. A nil field gives "unavailable".
+	Demo DemoControl
+}
+
+// DemoControl is the in-process demo session (transport "demo").
+type DemoControl interface {
+	Active() bool
+	PowerFail(d time.Duration)
 }
 
 // PeerCheck accepts or refuses a new connection and returns the peer
@@ -342,6 +350,8 @@ var methodAccess = map[string]access{
 	wire.MethodTelegramPairStart:   elevated,
 	wire.MethodTelegramChatsList:   readOnly,
 	wire.MethodTelegramChatsRemove: elevated,
+	// VLT-IS-009 TASK 03-00-00-005.
+	wire.MethodDemoPowerFail: elevated,
 }
 
 func (cn *conn) idle(ctx context.Context) time.Duration {

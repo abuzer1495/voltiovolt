@@ -19,9 +19,10 @@ export function Events() {
   const [sev, setSev] = useState('');
   const [type, setType] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  async function load(before: number, reset: boolean) {
+  const [showDemo, setShowDemo] = useState(false);
+  async function load(before: number, reset: boolean, demo = showDemo) {
     try {
-      const p = await api.events(before, PAGE);
+      const p = await api.events(before, PAGE, demo);
       const evs = p.events ?? [];
       setList((old) => (reset ? evs : [...old, ...evs]));
       setNext(p.next);
@@ -31,8 +32,8 @@ export function Events() {
     }
   }
   useEffect(() => {
-    void load(0, true);
-  }, []);
+    void load(0, true, showDemo);
+  }, [showDemo]);
   const types = [...new Set(list.map((e) => e.type))].sort();
   const shown = filterEvents(list, sev, type);
   return (
@@ -51,7 +52,11 @@ export function Events() {
           <option value="">{t('common.all')}</option>
           {types.map((x) => <option value={x}>{x}</option>)}
         </select>
-        <button type="button" onClick={() => void load(0, true)}>{t('common.refresh')}</button>
+        <label class="check" for="ev-demo">
+          <input id="ev-demo" type="checkbox" checked={showDemo} onChange={(e) => setShowDemo((e.target as HTMLInputElement).checked)} />
+          {t('events.show_demo')}
+        </label>
+        <button type="button" onClick={() => void load(0, true, showDemo)}>{t('common.refresh')}</button>
       </div>
       {err ? <p role="alert" class="msg msg-error">{err}</p> : null}
       <p role="status">{t('events.count', { shown: shown.length, loaded: list.length })}</p>

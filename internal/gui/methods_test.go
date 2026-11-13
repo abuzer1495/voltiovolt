@@ -38,12 +38,14 @@ func methodCases(secret []byte) map[string]methodCase {
 		"Login":                  {[]any{"1234"}, wire.MethodLogin},
 		"Logout":                 {nil, wire.MethodLogout},
 		"Events":                 {[]any{int64(0), 50}, wire.MethodEventsList},
+		"EventsPage":             {[]any{int64(0), 50, false}, wire.MethodEventsList},
 		"Policy":                 {nil, wire.MethodPolicyGet},
 		"ShutdownStatus":         {nil, wire.MethodShutdownStatus},
 		"CancelShutdown":         {nil, wire.MethodShutdownCancel},
 		"DeviceStatus":           {nil, wire.MethodDeviceStatus},
 		"SetDeviceSettings":      {[]any{map[string]any{"device.buzzer": true}}, wire.MethodDeviceSettingsSet},
 		"Measurements":           {[]any{"battery.capacity", int64(0), int64(3_600_000), "1m"}, wire.MethodMeasurements},
+		"MeasurementsPage":       {[]any{"battery.capacity", int64(0), int64(3_600_000), "1m", false}, wire.MethodMeasurements},
 		"SetPolicy":              {[]any{map[string]any{"policy.low_battery.percent": 20}}, wire.MethodPolicySet},
 		"Simulate":               {nil, wire.MethodPolicySimulate},
 		"ActivatePolicy":         {nil, wire.MethodPolicyActivate},
@@ -73,6 +75,7 @@ func methodCases(secret []byte) map[string]methodCase {
 		"SetWizardCompleted":     {nil, ""},
 		"WizardLaterCount":       {nil, ""},
 		"AddWizardLater":         {nil, ""},
+		"DemoPowerFail":          {nil, wire.MethodDemoPowerFail},
 	}
 }
 
@@ -87,7 +90,7 @@ func allFake(t *testing.T) *fakeServer {
 		wire.MethodDevicePorts, wire.MethodDeviceScan,
 		wire.MethodUPSControlCaps, wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet,
 		wire.MethodChannelsList, wire.MethodChannelsSettingsSet, wire.MethodChannelsTest, wire.MethodTelegramPairStart,
-		wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove} {
+		wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove, wire.MethodDemoPowerFail} {
 		f.handle(m, func(json.RawMessage) (any, *wire.Error) { return map[string]any{"ok": true}, nil })
 	}
 	f.handle(wire.MethodSecretStatus, func(json.RawMessage) (any, *wire.Error) {

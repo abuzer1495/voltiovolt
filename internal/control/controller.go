@@ -76,6 +76,8 @@ type Result struct {
 	Verified bool   `json:"verified"`
 	// NoSend is true when the beeper was already in the wanted state.
 	NoSend bool `json:"no_send,omitempty"`
+	// DryRun is true in demo mode: no CONTROL bytes were sent (OD-43).
+	DryRun bool `json:"dry_run,omitempty"`
 }
 
 // Verification table of TASK 03-00-00-005 step 4.
@@ -136,6 +138,14 @@ type Controller struct {
 	cancel   bool // "cancel test" sent during the running test
 	test     TestResult
 	lastTest *TestResult
+	dry      bool // demo mode: do not send CONTROL bytes
+}
+
+// SetDryRun enables or disables CONTROL dry runs (VLT-IS-009 OD-43).
+func (c *Controller) SetDryRun(on bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.dry = on
 }
 
 // SetLink sets the connected UPS. A nil link removes it.
@@ -333,6 +343,15 @@ func (c *Controller) run(ctx context.Context, cmd Command, needStatus bool) (Res
 	}
 	if !cmd.Valid() {
 		return fail(ErrBytes)
+	}
+	c.mu.Lock()
+	dry := c.dry
+	c.mu.Unlock()
+	if dry {
+		res.DryRun = true
+		res.Verified = true
+		c.record(ctx, actor, "ups_control", string(f), "dry_run", base)
+		return res, nil
 	}
 	// The shutdown and restore command has the first priority (VLT-REF-001
 	// 4.4): it does not wait for a running test or beeper request.

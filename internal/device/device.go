@@ -35,6 +35,8 @@ const (
 	TransportAuto   = "auto"
 	TransportHID    = "hid"
 	TransportSerial = "serial"
+	// TransportDemo is the in-process simulator (VLT-IS-009 OD-43).
+	TransportDemo = "demo"
 )
 
 // MinGap is the minimum time between two requests (VLT-IS-002 TASK

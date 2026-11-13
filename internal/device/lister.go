@@ -81,3 +81,20 @@ func ListerFor(os OSFuncs, opts transport.Options) Lister {
 		return out, nil
 	}
 }
+
+// WithDemo wraps a Lister. When Config.Transport is "demo", it returns
+// only the in-process simulator candidates. No real port is listed.
+func WithDemo(base Lister, demo func() []Candidate) Lister {
+	return func(ctx context.Context, c Config) ([]Candidate, error) {
+		if c.Transport == TransportDemo {
+			if demo == nil {
+				return nil, nil
+			}
+			return demo(), nil
+		}
+		if base == nil {
+			return nil, nil
+		}
+		return base(ctx, c)
+	}
+}

@@ -131,6 +131,7 @@ export function History() {
   const [data, setData] = useState<Record<string, Series>>({});
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
   useEffect(() => {
     let stop = false;
     const to = Date.now();
@@ -138,7 +139,7 @@ export function History() {
     setBusy(true);
     setErr(null);
     const names = CHARTS.flatMap((c) => c.names);
-    Promise.all(names.map((n) => api.measurements(n, from, to, range.step)))
+    Promise.all(names.map((n) => api.measurements(n, from, to, range.step, showDemo)))
       .then((list) => {
         if (stop) return;
         const m: Record<string, Series> = {};
@@ -150,7 +151,7 @@ export function History() {
     return () => {
       stop = true;
     };
-  }, [range]);
+  }, [range, showDemo]);
   return (
     <div class="screen">
       <h2>{t('nav.history')}</h2>
@@ -160,6 +161,10 @@ export function History() {
             {t('hist.range.' + r.id)}
           </button>
         ))}
+        <label class="check" for="hist-demo">
+          <input id="hist-demo" type="checkbox" checked={showDemo} onChange={(e) => setShowDemo((e.target as HTMLInputElement).checked)} />
+          {t('hist.show_demo')}
+        </label>
       </div>
       {busy ? <p role="status">{t('common.loading')}</p> : null}
       {err ? <p role="alert" class="msg msg-error">{err}</p> : null}

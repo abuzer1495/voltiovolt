@@ -84,6 +84,7 @@ export function DeviceSettings({ cfg, elevated, onSaved }: { cfg: Cfg; elevated:
           <option value="auto">{t('device.transport.auto')}</option>
           <option value="hid">{t('device.transport.hid')}</option>
           <option value="serial">{t('device.transport.serial')}</option>
+          <option value="demo">{t('device.transport.demo')}</option>
         </select>
         <label for="dev-port">{t('device.serial_port')}</label>
         <input id="dev-port" disabled={!elevated} value={v.serial_port}
@@ -98,7 +99,10 @@ export function DeviceSettings({ cfg, elevated, onSaved }: { cfg: Cfg; elevated:
         <HelpLine text={t('help.dtr')} />
         <button type="submit" class="primary" disabled={!elevated}>{t('common.save')}</button>
       </form>
-      {ask ? <Confirm text={t('device.confirm')} confirmLabel={t('device.confirm.button')} onConfirm={() => void save()} onCancel={() => setAsk(false)} /> : null}
+      {ask ? <Confirm
+        text={cfg.transport === 'demo' && v.transport !== 'demo' ? t('device.demo.leave') : t('device.confirm')}
+        confirmLabel={cfg.transport === 'demo' && v.transport !== 'demo' ? t('device.demo.leave.button') : t('device.confirm.button')}
+        onConfirm={() => void save()} onCancel={() => setAsk(false)} /> : null}
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
     </section>
   );
@@ -117,7 +121,7 @@ function resultText(r: ScanResult | undefined): string {
 }
 
 /** Ports is the port list with the scan and "Use this port". */
-export function Ports({ elevated, onUsed }: { elevated: boolean; onUsed: () => void }) {
+export function Ports({ elevated, onUsed, fromDemo = false }: { elevated: boolean; onUsed: () => void; fromDemo?: boolean }) {
   const [ports, setPorts] = useState<SerialPort[] | null>(null);
   const [marked, setMarked] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, ScanResult>>({});
@@ -201,7 +205,9 @@ export function Ports({ elevated, onUsed }: { elevated: boolean; onUsed: () => v
         <button type="submit" class="danger" disabled={!elevated || text !== SCAN_TEXT || list.length === 0}>{t('device.scan.button')}</button>
       </form>
       {use ? (
-        <Confirm text={t('device.ports.use.confirm', { name: use })} confirmLabel={t('device.ports.use.button')} onConfirm={() => void useNow(use)} onCancel={() => setUse(null)} />
+        <Confirm text={fromDemo ? t('device.demo.leave') : t('device.ports.use.confirm', { name: use })}
+          confirmLabel={fromDemo ? t('device.demo.leave.button') : t('device.ports.use.button')}
+          onConfirm={() => void useNow(use)} onCancel={() => setUse(null)} />
       ) : null}
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
     </section>
@@ -239,11 +245,12 @@ export function Device() {
         {d?.state === 'not configured' ? <p class="note">{t('device.notconfigured.help')}</p> : null}
         <button type="button" onClick={() => void load()}>{t('common.refresh')}</button>
       </section>
-      <Ports elevated={elevated} onUsed={() => void load()} />
+      <Ports elevated={elevated} onUsed={() => void load()} fromDemo={d?.config?.transport === 'demo'} />
       <section class="card"><h3>{t('device.nominal')}</h3><KV obj={p?.nominal} /></section>
       <BatteryEstimate elevated={elevated} />
       <section class="card"><h3>{t('device.model')}</h3><KV obj={p?.info} /><KV obj={p?.model_data} /><KV obj={p?.firmware} /></section>
       {d ? <DeviceSettings cfg={{ ...DEFAULT_CFG, ...(d.config ?? {}) }} elevated={elevated} onSaved={() => void load()} /> : null}
+      {d?.config?.transport === 'demo' ? <DemoPowerFail elevated={elevated} /> : null}
     </div>
   );
 }
@@ -297,6 +304,30 @@ function BatteryEstimate({ elevated }: { elevated: boolean }) {
         ))}
         <button type="submit" class="primary" disabled={!elevated}>{t('common.save')}</button>
       </form>
+      {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
+    </section>
+  );
+}
+
+function DemoPowerFail({ elevated }: { elevated: boolean }) {
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api.demoPowerFail();
+      setMsg({ kind: 'ok', text: t('device.demo.powerfail') });
+    } catch (e) {
+      setMsg({ kind: 'error', text: errText(errorCode(e)) });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section class="card" aria-labelledby="demo-pf-title">
+      <h3 id="demo-pf-title">{t('device.transport.demo')}</h3>
+      <button type="button" class="primary" disabled={!elevated || busy} onClick={() => void run()}>{t('device.demo.powerfail')}</button>
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
     </section>
   );

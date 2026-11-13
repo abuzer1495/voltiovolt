@@ -7,6 +7,7 @@ package sim
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,6 +48,8 @@ type Model struct {
 	Load        int     // percent
 	Temperature float64 // °C
 	faults      map[Fault]bool
+	live        bool
+	liveAt      time.Time
 
 	// CONTROL state (VLT-IS-006 TASK 03-00-00-005 step 9). Now gives the
 	// time of the model; nil: time.Now.
@@ -207,6 +210,46 @@ func (m *Model) SetMains(on bool) {
 	m.Mains = on
 }
 
+// MainsOn reports whether mains power is present.
+func (m *Model) MainsOn() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.Mains
+}
+
+// SetLive turns on slow value changes for the Demo transport
+// (VLT-IS-009 TASK 03-00-00-005). Tests leave this off so that the
+// response vectors stay exact.
+func (m *Model) SetLive(on bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.live = on
+}
+
+// liveTickLocked updates charge and load slowly. m.mu is held.
+func (m *Model) liveTickLocked() {
+	if !m.live {
+		return
+	}
+	now := m.now()
+	if !m.liveAt.IsZero() {
+		dt := now.Sub(m.liveAt).Seconds()
+		if dt < 0 {
+			dt = 0
+		}
+		if !m.Mains {
+			m.Charge = max(0, m.Charge-dt*(1.0/30.0))
+		} else if m.Charge < 100 {
+			m.Charge = min(100, m.Charge+dt*(1.0/60.0))
+		}
+		m.Load = 19 + int(2*math.Sin(float64(now.UnixMilli())/8000))
+		if m.Load < 1 {
+			m.Load = 1
+		}
+	}
+	m.liveAt = now
+}
+
 func (m *Model) supports(cmd string) bool {
 	switch m.Profile {
 	case ProfileQ1:
@@ -260,6 +303,7 @@ func (m *Model) Respond(cmd string) []byte {
 		return []byte(cmd + "\r")
 	}
 	m.tick()
+	m.liveTickLocked()
 	// CONTROL commands: the response is not read (VLT-REF-001 section 5).
 	// The model gives no response.
 	if m.control(cmd) {
@@ -272,6 +316,9 @@ func (m *Model) Respond(cmd string) []byte {
 		return []byte(cmd + "\r")
 	}
 	in := 209.7
+	if m.live && m.Mains {
+		in = 230 + 2*math.Sin(float64(m.now().UnixMilli())/15000)
+	}
 	if !m.Mains {
 		in = 0
 	}

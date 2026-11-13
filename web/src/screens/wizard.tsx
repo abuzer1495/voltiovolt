@@ -375,6 +375,14 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
               setRes((r) => ({ ...r, port: n }));
             }, () => undefined);
           }} />
+          <p>
+            <button type="button" disabled={!elevated} onClick={() => {
+              void api.setDeviceSettings({ 'device.transport': 'demo' }).then(() => {
+                setPortName(t('device.transport.demo'));
+                setRes((r) => ({ ...r, port: t('device.transport.demo') }));
+              }, () => undefined);
+            }}>{t('device.transport.demo')}</button>
+          </p>
           {res.port || portName ? <p role="status">{t('wizard.port.selected', { port: res.port || portName })}</p> : null}
         </section>
       ) : null}

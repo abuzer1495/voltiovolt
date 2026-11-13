@@ -299,3 +299,8 @@ func RawMap(values map[string]any) (map[string]json.RawMessage, error) {
 	}
 	return m, nil
 }
+
+// DemoPowerFail starts a 60-second simulated power failure (demo mode only).
+func (c *Client) DemoPowerFail(ctx context.Context) error {
+	return c.Call(ctx, wire.MethodDemoPowerFail, nil, nil)
+}

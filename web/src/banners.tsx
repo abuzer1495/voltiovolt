@@ -45,3 +45,23 @@ export function FallbackBanner({ fallback }: { fallback: boolean }) {
     </div>
   );
 }
+
+/** DemoBanner is the yellow DEMO banner of OD-43, on all screens. */
+export function DemoBanner({ demo }: { demo: boolean }) {
+  if (!demo) return null;
+  return (
+    <div class="banner banner-demo" role="status">
+      <strong>{t('device.demo.banner')}</strong>
+    </div>
+  );
+}
+
+/** DemoShutdownBanner is the dry-run shutdown text at the end of a countdown. */
+export function DemoShutdownBanner({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <div class="banner banner-demo" role="status">
+      <strong>{t('demo.shutdown')}</strong>
+    </div>
+  );
+}

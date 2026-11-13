@@ -147,6 +147,9 @@ func (d *Daemon) Start(ctx context.Context) (err error) {
 		// beeper). The Controller gets a Link only while a UPS is connected.
 		b.UPS = d.live.ctl
 	}
+	if d.live.demo != nil {
+		b.Demo = d.live.demo
+	}
 	// VLT-IS-007 TASK 03-00-00-007: Notification Channels.
 	b.Channels = channelControl{d.live}
 	if d.cfg.Scanner != nil {

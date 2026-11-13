@@ -67,3 +67,55 @@ func (d *DryRun) Calls() []Call {
 	defer d.mu.Unlock()
 	return append([]Call(nil), d.calls...)
 }
+
+// Guarded is an Executor that is a dry run while Dry returns true.
+// The Policy Engine uses it in demo mode (VLT-IS-009 TASK 03-00-00-005,
+// SEC-092). When Dry is false it calls Real. Only this package calls
+// the real executor.
+type Guarded struct {
+	Real  Executor
+	Dry   func() bool
+	OnDry func(reason string)
+}
+
+func (g *Guarded) dry() bool { return g != nil && g.Dry != nil && g.Dry() }
+
+// Shutdown is a dry run when Dry is true; otherwise it calls Real.
+func (g *Guarded) Shutdown(ctx context.Context, reason string) error {
+	if g.dry() {
+		if g.OnDry != nil {
+			g.OnDry(reason)
+		}
+		return nil
+	}
+	if g.Real == nil {
+		return nil
+	}
+	return g.Real.Shutdown(ctx, reason)
+}
+
+// Hibernate is a dry run when Dry is true; otherwise it calls Real.
+func (g *Guarded) Hibernate(ctx context.Context, reason string) error {
+	if g.dry() {
+		if g.OnDry != nil {
+			g.OnDry(reason)
+		}
+		return nil
+	}
+	if g.Real == nil {
+		return nil
+	}
+	return g.Real.Hibernate(ctx, reason)
+}
+
+// CanShutdown is nil in a dry run. Otherwise it uses Real if Real is a
+// ShutdownChecker.
+func (g *Guarded) CanShutdown(ctx context.Context) error {
+	if g.dry() {
+		return nil
+	}
+	if c, ok := g.Real.(ShutdownChecker); ok {
+		return c.CanShutdown(ctx)
+	}
+	return nil
+}

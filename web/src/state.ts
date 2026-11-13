@@ -100,7 +100,7 @@ export function loadLanguage(): void {
 }
 
 export function refreshEvents(): void {
-  void api.events(0, LAST_EVENTS).then((p) => app.set({ events: p.events ?? [] }), () => undefined);
+  void api.events(0, LAST_EVENTS).then((p) => app.set({ events: p?.events ?? [] }), () => undefined);
 }
 
 export function refreshPolicy(): void {

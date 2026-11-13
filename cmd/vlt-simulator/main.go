@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -54,7 +55,19 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, newScreen
 	r := NewRunner()
 	ss := newSession(m, srv, r, cfg.lang, server.Path())
 	if cfg.scenario != 0 {
-		ss.applyScenario(cfg.scenario)
+		if cfg.headless && cfg.scenarioDelay > 0 {
+			go func() {
+				timer := time.NewTimer(cfg.scenarioDelay)
+				defer timer.Stop()
+				select {
+				case <-timer.C:
+					ss.applyScenario(cfg.scenario)
+				case <-ctx.Done():
+				}
+			}()
+		} else {
+			ss.applyScenario(cfg.scenario)
+		}
 	}
 	go func() { _ = srv.Serve(ctx, ln) }()
 

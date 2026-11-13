@@ -8,7 +8,7 @@ WARNING: This is a development install, not a package. Use a test computer. Sinc
 
 ### E.1 Build
 
-On a development computer with Go 1.27.3:
+On a development computer with Go 1.27.4:
 
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o vltd ./cmd/vltd
     CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o vltd.exe ./cmd/vltd
@@ -95,7 +95,7 @@ UYARI: Bu bir geliştirme kurulumudur, paket değildir. Bir test bilgisayarı ku
 
 ### T.1 Derleme
 
-Go 1.27.3 olan bir geliştirme bilgisayarında:
+Go 1.27.4 olan bir geliştirme bilgisayarında:
 
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o vltd ./cmd/vltd
     CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o vltd.exe ./cmd/vltd

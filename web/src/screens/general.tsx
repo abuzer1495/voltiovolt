@@ -7,11 +7,15 @@ import { api, errorCode, type AboutInfo } from '../api';
 import { errText } from '../components';
 import { DASH } from '../format';
 import { lang, setLang, t, type Lang } from '../i18n';
+import { SetPin } from './pin';
 import { startWizard } from './wizard';
+import { app, refreshAuth } from '../state';
+import { useStore } from '../store';
 
 export function General() {
   const [about, setAbout] = useState<AboutInfo | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const auth = useStore(app).auth;
   const [logon, setLogon] = useState(false);
   useEffect(() => {
     void api.about().then(async (a) => {
@@ -68,6 +72,14 @@ export function General() {
           <p id="logon-help">{t('general.startAtLogon.help')}</p>
         </section>
       ) : null}
+      {about?.mode === 'portable' && !auth?.pin_set ? (
+        <SetPin nested onDone={() => refreshAuth()} />
+      ) : null}
+      {about?.mode === 'portable' && auth?.pin_set ? (
+        <section class="card" aria-labelledby="pin-title">
+          <RemovePin />
+        </section>
+      ) : null}
       <section class="card" aria-labelledby="wiz-title">
         <h3 id="wiz-title">{t('wizard.title')}</h3>
         <p>{t('wizard.general.intro')}</p>
@@ -98,5 +110,39 @@ export function General() {
         </dl>
       </section>
     </div>
+  );
+}
+
+function RemovePin() {
+  const [pin, setPin] = useState('');
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function submit(e: Event) {
+    e.preventDefault();
+    setMsg(null);
+    setBusy(true);
+    try {
+      await api.removePIN(pin);
+      setPin('');
+      setMsg({ kind: 'ok', text: t('pin.remove.done') });
+      refreshAuth();
+    } catch (err) {
+      setMsg({ kind: 'error', text: errText(errorCode(err)) });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <h3 id="pin-title">{t('pin.remove.title')}</h3>
+      <p>{t('pin.remove.intro')}</p>
+      <form onSubmit={submit}>
+        <label for="rm-pin">{t('pin.label')}</label>
+        <input id="rm-pin" type="password" autoComplete="current-password" value={pin}
+          onInput={(e) => setPin((e.target as HTMLInputElement).value)} />
+        <button type="submit" disabled={busy || pin === ''}>{t('pin.remove.button')}</button>
+      </form>
+      {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
+    </>
   );
 }

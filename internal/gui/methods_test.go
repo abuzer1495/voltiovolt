@@ -32,6 +32,7 @@ func methodCases(secret []byte) map[string]methodCase {
 		"SystemStatus":           {nil, wire.MethodStatus},
 		"AuthStatus":             {nil, wire.MethodAuthStatus},
 		"SetPIN":                 {[]any{"1234"}, wire.MethodSetPIN},
+		"RemovePIN":              {[]any{"1234"}, wire.MethodRemovePIN},
 		"Login":                  {[]any{"1234"}, wire.MethodLogin},
 		"Logout":                 {nil, wire.MethodLogout},
 		"Events":                 {[]any{int64(0), 50}, wire.MethodEventsList},
@@ -65,13 +66,15 @@ func methodCases(secret []byte) map[string]methodCase {
 		"TelegramChatRemove":     {[]any{int64(100)}, wire.MethodTelegramChatsRemove},
 		"StartAtLogon":           {nil, ""},
 		"SetStartAtLogon":        {[]any{false}, ""},
+		"WizardCompleted":        {nil, ""},
+		"SetWizardCompleted":     {nil, ""},
 	}
 }
 
 // allFake answers each vltd method of the GUI.
 func allFake(t *testing.T) *fakeServer {
 	f := newFake(t)
-	for _, m := range []string{wire.MethodStatus, wire.MethodSetPIN, wire.MethodLogin, wire.MethodLogout,
+	for _, m := range []string{wire.MethodStatus, wire.MethodSetPIN, wire.MethodRemovePIN, wire.MethodLogin, wire.MethodLogout,
 		wire.MethodEventsList, wire.MethodPolicyGet, wire.MethodShutdownStatus, wire.MethodShutdownCancel,
 		wire.MethodDeviceStatus, wire.MethodDeviceSettingsSet, wire.MethodMeasurements, wire.MethodPolicySet,
 		wire.MethodPolicySimulate, wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodSecretSet,
@@ -118,6 +121,7 @@ func TestEachMethodWithFakeServer(t *testing.T) {
 	m, a, _ := start(t, f)
 	m.SetOpenURL(func(string) error { return nil })
 	m.SetAutostart(&fakeAutostart{})
+	m.SetFirstRun(&fakeFirstRun{})
 	cases := methodCases([]byte("value"))
 	for _, name := range exported(a) {
 		c, ok := cases[name]
@@ -163,6 +167,7 @@ func TestSEC096(t *testing.T) {
 	m, a, rec := start(t, f)
 	m.SetOpenURL(func(string) error { return nil })
 	m.SetAutostart(&fakeAutostart{})
+	m.SetFirstRun(&fakeFirstRun{})
 
 	buf := []byte(value)
 	if err := a.SetSecret("channel.test.token", buf); err != nil {

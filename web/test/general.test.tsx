@@ -5,6 +5,7 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLang, t } from '../src/i18n';
 import { General } from '../src/screens/general';
+import { app } from '../src/state';
 import * as fake from './fakebridge';
 
 vi.mock('../src/bridge', () => import('./fakebridge'));
@@ -69,5 +70,50 @@ describe('General data folder', () => {
     expect(root.textContent).toContain(t('general.dataDir'));
     expect(root.textContent).toContain(t('general.dataDir.help'));
     expect(root.textContent).toContain('/tmp/vv-data');
+  });
+});
+
+describe('General Set PIN and Remove PIN', () => {
+  it('shows Set PIN in portable mode when no PIN is set', async () => {
+    app.set({ auth: { pin_set: false, elevated: true } as never });
+    fake.handlers.About = () => ({ version: '1', vltd_version: '1', protocol: 1, gui_protocol: 1, license: 'AGPL', source: 'x', mode: 'portable', data_dir: '/tmp/d' });
+    await show(<General />);
+    expect(root.textContent).toContain(t('pin.set.title'));
+    expect(root.textContent).not.toContain(t('pin.remove.title'));
+  });
+
+  it('shows Remove PIN in portable mode when a PIN is set, and removes it', async () => {
+    let pinSet = true;
+    app.set({ auth: { pin_set: true, elevated: true } as never });
+    fake.handlers.About = () => ({ version: '1', vltd_version: '1', protocol: 1, gui_protocol: 1, license: 'AGPL', source: 'x', mode: 'portable', data_dir: '/tmp/d' });
+    fake.handlers.AuthStatus = () => ({ pin_set: pinSet, elevated: !pinSet });
+    fake.handlers.RemovePIN = () => { pinSet = false; };
+    await show(<General />);
+    expect(root.textContent).toContain(t('pin.remove.title'));
+    expect(root.textContent).toContain(t('pin.remove.intro'));
+    const input = root.querySelector('#rm-pin') as HTMLInputElement;
+    expect(input).toBeTruthy();
+    await act(async () => {
+      input.value = '7a3k9z';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    const btn = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === t('pin.remove.button')) as HTMLButtonElement;
+    await act(async () => {
+      btn.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(fake.calls.some((c) => c.method === 'RemovePIN' && c.args[0] === '7a3k9z')).toBe(true);
+    // After a successful remove, refreshAuth shows Set PIN again.
+    expect(root.textContent).toContain(t('pin.set.title'));
+    expect(root.textContent).not.toContain(t('pin.remove.title'));
+  });
+
+  it('hides Set PIN and Remove PIN when the mode is not portable', async () => {
+    app.set({ auth: { pin_set: false, elevated: false } as never });
+    fake.handlers.About = () => ({ version: '1', vltd_version: '1', protocol: 1, gui_protocol: 1, license: 'AGPL', source: 'x', mode: 'service' });
+    await show(<General />);
+    expect(root.textContent).not.toContain(t('pin.set.title'));
+    expect(root.textContent).not.toContain(t('pin.remove.title'));
   });
 });

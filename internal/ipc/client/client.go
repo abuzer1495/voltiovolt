@@ -201,6 +201,10 @@ func (c *Client) SetPIN(ctx context.Context, pin string) error {
 	return c.Call(ctx, wire.MethodSetPIN, wire.PINParams{PIN: pin}, nil)
 }
 
+func (c *Client) RemovePIN(ctx context.Context, pin string) error {
+	return c.Call(ctx, wire.MethodRemovePIN, wire.PINParams{PIN: pin}, nil)
+}
+
 func (c *Client) Login(ctx context.Context, pin string) error {
 	return c.Call(ctx, wire.MethodLogin, wire.PINParams{PIN: pin}, nil)
 }

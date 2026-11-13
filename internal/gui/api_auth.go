@@ -50,6 +50,16 @@ func (a *API) SetPIN(pin string) error {
 	return nil
 }
 
+// RemovePIN calls auth.remove_pin. It needs the current PIN. After a
+// success, no PIN is set (VLT-IS-008 TASK 03-00-00-003).
+func (a *API) RemovePIN(pin string) error {
+	c, cancel := ctx()
+	defer cancel()
+	err := a.m.call(c, func(cl *client.Client) error { return cl.RemovePIN(c, pin) })
+	a.m.refreshAuth(c)
+	return wrap(err)
+}
+
 // Login calls auth.login. The GUI is unlocked (elevated) after it.
 func (a *API) Login(pin string) error {
 	c, cancel := ctx()

@@ -84,6 +84,16 @@ describe('first-run wizard', () => {
     expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain(t('wizard.back'));
   });
 
+  it('makes the PIN optional in portable mode, with Skip and the exact help text', async () => {
+    await show(<Wizard first portable />);
+    expect(root.textContent).toContain(t('wizard.pin.help'));
+    expect(t('wizard.pin.help')).toBe('A PIN prevents other people at this computer from changing the shutdown settings.');
+    expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim())).toContain(t('wizard.skip'));
+    expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain(t('wizard.back'));
+    await click(byText(t('wizard.skip')));
+    expect(root.textContent).toContain(t('wizard.step.port'));
+  });
+
   it('Skip and Back move between the steps after the PIN', async () => {
     app.set({ auth: { pin_set: true, elevated: true } as never, conn: { state: 'connected', since: '' } });
     await show(<Wizard first={false} />);

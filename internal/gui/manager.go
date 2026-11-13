@@ -128,6 +128,7 @@ type Manager struct {
 	mode      string
 	autostart Autostart
 	dataDir   string
+	firstRun  FirstRun
 }
 
 // OSNotification is a desktop Notification of vltd (VLT-IS-007 TASK
@@ -202,6 +203,21 @@ func (m *Manager) DataDir() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.dataDir
+}
+
+// FirstRun records whether the first-run wizard was completed (so that
+// the wizard does not start again when no PIN is set, OD-37).
+type FirstRun interface {
+	Completed() (bool, error)
+	SetCompleted() error
+}
+
+// SetFirstRun sets the first-run helper. Nil: the methods return
+// "unavailable".
+func (m *Manager) SetFirstRun(f FirstRun) {
+	m.mu.Lock()
+	m.firstRun = f
+	m.mu.Unlock()
 }
 
 // OnTray sets the function that gets each new tray state.

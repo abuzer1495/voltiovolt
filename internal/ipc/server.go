@@ -291,6 +291,7 @@ var methodAccess = map[string]access{
 	wire.MethodStatus:       open,
 	wire.MethodAuthStatus:   open,
 	wire.MethodSetPIN:       setPINRule,
+	wire.MethodRemovePIN:    readOnly, // PIN must be set; the request has the current PIN
 	wire.MethodLogin:        readOnly,
 	wire.MethodLogout:       readOnly,
 	wire.MethodSettingsList: readOnly,
@@ -370,10 +371,15 @@ func (cn *conn) serve(b []byte) wire.Response {
 		return fail(id, wire.CodeInternal, "internal error")
 	}
 	now := cn.s.now()
+	// VLT-IS-008 TASK 03-00-00-003, OD-37: if no PIN is set, the
+	// in-process (portable) connection is elevated at all times.
 	elev := pinSet && cn.session.Elevated(now, cn.idle(ctx))
+	if !pinSet && cn.peer == PeerInProcess {
+		elev = true
+	}
 	switch {
 	case acc == open:
-	case !pinSet && acc != setPINRule:
+	case !pinSet && acc != setPINRule && cn.peer != PeerInProcess:
 		return fail(id, wire.CodePINNotSet, "set a PIN first")
 	case acc == elevated && !elev, acc == setPINRule && pinSet && !elev:
 		return fail(id, wire.CodeNotElevated, "enter the PIN first")
@@ -483,6 +489,29 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 			return nil, &wire.Error{Code: wire.CodeNotElevated, Message: "a PIN is already set; enter the PIN first"}
 		case errors.Is(err, auth.ErrPINWeak), errors.Is(err, auth.ErrPINLength), errors.Is(err, auth.ErrPINChars):
 			return nil, invalid(err.Error())
+		}
+		return nil, internal()
+
+	case wire.MethodRemovePIN:
+		var p wire.PINParams
+		if err := wire.Strict(req.Params, &p); err != nil {
+			return nil, bad(err)
+		}
+		until, err := b.Auth.RemovePIN(ctx, cn.source(), p.PIN)
+		switch {
+		case err == nil:
+			cn.session.Drop()
+			return wire.OKResult{OK: true}, nil
+		case errors.Is(err, auth.ErrNoPIN):
+			return nil, &wire.Error{Code: wire.CodePINNotSet, Message: "no PIN is set"}
+		case errors.Is(err, auth.ErrBlocked):
+			return nil, &wire.Error{Code: wire.CodeBlocked, Message: "PIN entry is blocked until " + until.UTC().Format(time.RFC3339)}
+		case errors.Is(err, auth.ErrIncorrect):
+			msg := "PIN is not correct"
+			if !until.IsZero() {
+				msg += "; PIN entry is blocked until " + until.UTC().Format(time.RFC3339)
+			}
+			return nil, &wire.Error{Code: wire.CodePINIncorrect, Message: msg}
 		}
 		return nil, internal()
 

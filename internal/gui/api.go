@@ -127,3 +127,28 @@ func (a *API) SetStartAtLogon(on bool) error {
 	}
 	return wrap(s.Set(on))
 }
+
+// WizardCompleted reports whether the first-run wizard was finished
+// (VLT-IS-008 TASK 03-00-00-003). Used so that a skip of the optional PIN
+// does not open the wizard at every start.
+func (a *API) WizardCompleted() (bool, error) {
+	a.m.mu.Lock()
+	f := a.m.firstRun
+	a.m.mu.Unlock()
+	if f == nil {
+		return false, &Error{Code: wire.CodeUnavailable}
+	}
+	on, err := f.Completed()
+	return on, wrap(err)
+}
+
+// SetWizardCompleted records that the first-run wizard was finished.
+func (a *API) SetWizardCompleted() error {
+	a.m.mu.Lock()
+	f := a.m.firstRun
+	a.m.mu.Unlock()
+	if f == nil {
+		return &Error{Code: wire.CodeUnavailable}
+	}
+	return wrap(f.SetCompleted())
+}

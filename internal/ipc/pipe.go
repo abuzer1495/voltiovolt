@@ -65,6 +65,9 @@ func (l *PipeListener) Dial() (net.Conn, error) {
 	}
 }
 
+// PeerInProcess is the peer identity of InProcessCheck (portable mode).
+const PeerInProcess = "in-process"
+
 // InProcessCheck is the PeerCheck of portable mode: the peer is the same
 // process, so the check always passes.
-func InProcessCheck(net.Conn) (string, error) { return "in-process", nil }
+func InProcessCheck(net.Conn) (string, error) { return PeerInProcess, nil }

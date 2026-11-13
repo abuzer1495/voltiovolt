@@ -101,7 +101,9 @@ type env struct {
 
 func quiet() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T) *env { return newEnvWith(t, nil) }
+
+func newEnvWith(t *testing.T, check PeerCheck) *env {
 	t.Helper()
 	ctx := context.Background()
 	st, err := store.Open(ctx, filepath.Join(t.TempDir(), store.DBFileName), store.Options{Logger: quiet()})
@@ -137,7 +139,7 @@ func newEnv(t *testing.T) *env {
 		Device: dev, Policy: pol, Hub: hub, Ports: scan})
 	ln := newPipeListener()
 	done := make(chan error, 1)
-	go func() { done <- srv.Serve(ln, nil) }()
+	go func() { done <- srv.Serve(ln, check) }()
 	t.Cleanup(func() {
 		srv.Close()
 		if err := <-done; !errors.Is(err, ErrClosed) {

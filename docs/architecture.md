@@ -445,3 +445,17 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 1. IPC methods (elevated state for all changes; list and telegram.chats.list are read-only): `channels.list`, `channels.settings.set`, `channels.test`, `telegram.pair.start`, `telegram.chats.list`, `telegram.chats.remove`. Secret values go only through `secret.set`. `channels.list` shows only the set state and the hint, never the value. The pairing code is in the result of `telegram.pair.start` only, not in `channels.list` and not in the audit log.
 2. The VLT GUI screen "Notifications": one section for each Channel (on or off, minimum severity, "Send test message"). Telegram: write-only bot token, "Pair a chat", the code and the steps, the list of paired chats with "Remove". E-mail: SMTP Settings, the preset "Gmail" (smtp.gmail.com, port 465, TLS) with the help text "Use a Google app password, not your normal password. Google account, Security, 2-Step Verification, App passwords.", write-only SMTP password.
 3. All user text is in en.json and tr.json.
+
+## 16. First-run wizard (VLT-IS-007 TASK 03-00-00-008)
+
+The wizard starts when no PIN is set. The user can also start it from the General screen (then the PIN step is omitted). Steps, in order:
+
+1. Set the PIN (no Back, no Skip).
+2. Select the UPS port (the Device screen functions, with Scan).
+3. Show the live values. The user confirms that they are correct.
+4. Shutdown Policy: show the defaults, run the Simulation, activate it.
+5. Notifications: Telegram, then e-mail (each step can be skipped).
+6. Question: "Are the modem and the router connected to the UPS?" If the answer is No, show: "During a power failure, the internet stops. Telegram and e-mail cannot send messages."
+7. Summary.
+
+Each step has "Back" and "Skip" (except step 1).

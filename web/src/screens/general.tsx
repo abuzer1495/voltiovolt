@@ -7,6 +7,7 @@ import { api, errorCode, type AboutInfo } from '../api';
 import { errText } from '../components';
 import { DASH } from '../format';
 import { lang, setLang, t, type Lang } from '../i18n';
+import { startWizard } from './wizard';
 
 export function General() {
   const [about, setAbout] = useState<AboutInfo | null>(null);
@@ -40,6 +41,11 @@ export function General() {
       <section class="card">
         <h3>{t('general.theme')}</h3>
         <p>{t('general.theme.os')}</p>
+      </section>
+      <section class="card" aria-labelledby="wiz-title">
+        <h3 id="wiz-title">{t('wizard.title')}</h3>
+        <p>{t('wizard.general.intro')}</p>
+        <button type="button" onClick={() => startWizard()}>{t('wizard.general.start')}</button>
       </section>
       <section class="card" aria-labelledby="about-title">
         <h3 id="about-title">{t('general.about')}</h3>

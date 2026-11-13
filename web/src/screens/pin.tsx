@@ -33,7 +33,7 @@ function errText(code: string): string {
 }
 
 /** SetPin is the only screen at first start. With change, it is the PIN change of the Security screen. */
-export function SetPin({ change = false, onDone }: { change?: boolean; onDone?: () => void }) {
+export function SetPin({ change = false, onDone, nested = false }: { change?: boolean; onDone?: () => void; nested?: boolean }) {
   const [pin, setPin] = useState('');
   const [again, setAgain] = useState('');
   const [msg, setMsg] = useState<{ kind: 'error' | 'ok'; text: string } | null>(null);
@@ -59,8 +59,8 @@ export function SetPin({ change = false, onDone }: { change?: boolean; onDone?: 
   }
   return (
     <section class="card pin" aria-labelledby={id + '-title'}>
-      {change ? (
-        <h3 id={id + '-title'}>{t('pin.change.title')}</h3>
+      {change || nested ? (
+        <h3 id={id + '-title'}>{t(change ? 'pin.change.title' : 'pin.set.title')}</h3>
       ) : (
         <h2 id={id + '-title'}>{t('pin.set.title')}</h2>
       )}

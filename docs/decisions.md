@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00, VLT-IS-006 01-00-00 and VLT-IS-007 01-00-00. The source texts are in `docs/instructions/`.
+This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00, VLT-IS-006 01-00-00, VLT-IS-007 01-00-00 and VLT-IS-008 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -115,3 +115,15 @@ This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00
 | CH-44 | 2026-11-13 | SEC-067: Add: "Exception: the pre-release test-latest (OD-31)." | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |
 | CH-45 | 2026-11-13 | New code: New code needs normal unit tests. New go/ast tests and fuzz targets are not necessary. | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |
 | CH-46 | 2026-11-13 | Report: The report format is shorter (05-10-00). | VLT-IS-007 Rev 00, 01-30-00 (makes VLT-IS-001 Revision 06) |
+| OD-34 | 2026-11-13 | VLT makes no change to the operating system in the default package. Refer to SEC-102. | VLT-IS-008 Rev 00, 01-10-00 |
+| OD-35 | 2026-11-13 | Default mode: portable mode. One application, monitoring only while it runs. | VLT-IS-008 Rev 00, 01-10-00 |
+| OD-36 | 2026-11-13 | Service mode stays in the code. It is not packaged. It is an optional advanced mode later (release v1.0 or later). | VLT-IS-008 Rev 00, 01-10-00 |
+| OD-37 | 2026-11-13 | PIN is optional in portable mode. If no PIN is set, all functions are available without the elevated state. Secret fields stay write-only. | VLT-IS-008 Rev 00, 01-10-00 |
+| OD-38 | 2026-11-13 | The install script copies files into the folder of the user only, with no administrator rights. A Start menu shortcut is made only when the user agrees. | VLT-IS-008 Rev 00, 01-10-00 |
+| OD-39 | 2026-11-13 | Start at logon is optional. Default: off. The user turns it on in the VLT GUI. It uses only the startup folder of the user. | VLT-IS-008 Rev 00, 01-10-00 |
+| CH-47 | 2026-11-13 | SEC-102 (new): The default package, its install script and VoltioVolt.exe MUST NOT: install a service; make or change a user, a group or a user right; ask for administrator rights; write to the registry; install a driver; add a firewall rule; write outside the folder of the application, the profile folder of the user and the temporary folder. Exception: the start-at-logon shortcut in the startup folder of the user, only when the user turns it on. | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
+| CH-48 | 2026-11-13 | SEC-020 and SEC-021 apply to the service mode only. | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
+| CH-49 | 2026-11-13 | SEC-003, portable mode on Windows: DPAPI in the scope of the current user, with the application entropy. | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
+| CH-50 | 2026-11-13 | SEC-004 and SEC-005, portable mode on Linux: if the Secret Service is available, keep the DEK there; if not, keep the DEK in a file with mode 0600 in the data folder (Vault state "reduced protection"). | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
+| CH-51 | 2026-11-13 | SEC-022 applies only when a PIN is set (OD-37). | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |
+| CH-52 | 2026-11-13 | The data folder permission check (VLT-IS-003 TASK 03-00-00-003 step 6) applies to the service mode only. | VLT-IS-008 Rev 00, 01-20-00 (makes VLT-IS-001 Revision 07) |

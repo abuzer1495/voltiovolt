@@ -217,3 +217,87 @@ func TestControllerTestEnd(t *testing.T) {
 		t.Fatalf("audit %v", a.rows)
 	}
 }
+
+// TestCancelResultWhenTestEndedBeforeCT is the TestUPSControlIntegration
+// flake (VLT-IS-009 TASK 03-00-00-006, VLT-RPT-008 section 5 item 5):
+// the test already ended (LastTest without Cancelled, inTest false)
+// before CancelTest. The old code set c.cancel = c.inTest, so LastTest
+// never had Cancelled. A longer wait does not fix that.
+func TestCancelResultWhenTestEndedBeforeCT(t *testing.T) {
+	c, _, _ := newCtl(t, func(n int) []Status {
+		if n == 1 {
+			return []Status{
+				st(func(f *dialect.Q1Flags) { f.TestInProgress = true }),
+				st(func(f *dialect.Q1Flags) {}),
+			}
+		}
+		return []Status{st(func(f *dialect.Q1Flags) {})}
+	})
+	if _, err := c.StartTest(context.Background(), ipc(t, FuncTestMinutes), FuncTestMinutes, 2); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		if lt, ok := c.LastTest(); ok && !lt.Cancelled {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("test did not end before CT")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	res, err := c.CancelTest(context.Background(), ipc(t, FuncCancelTest))
+	if err != nil || !res.Verified {
+		t.Fatalf("cancel: %+v %v", res, err)
+	}
+	lt, ok := c.LastTest()
+	if !ok || !lt.Cancelled {
+		t.Fatalf("want cancelled LastTest, got ok=%v %+v", ok, lt)
+	}
+}
+
+// TestCancelResultWhenObserveMissedStart: CancelTest runs while inTest is
+// still false (Observe has not recorded the start). CT is verified.
+// LastTest must still be Cancelled.
+func TestCancelResultWhenObserveMissedStart(t *testing.T) {
+	c, _, _ := newCtl(t, func(n int) []Status {
+		if n == 1 {
+			return []Status{st(func(f *dialect.Q1Flags) { f.TestInProgress = true })}
+		}
+		return []Status{st(func(f *dialect.Q1Flags) {})}
+	})
+	if _, err := c.StartTest(context.Background(), ipc(t, FuncTestMinutes), FuncTestMinutes, 2); err != nil {
+		t.Fatal(err)
+	}
+	c.mu.Lock()
+	c.inTest = false
+	c.test = TestResult{}
+	c.lastTest = nil
+	c.mu.Unlock()
+	res, err := c.CancelTest(context.Background(), ipc(t, FuncCancelTest))
+	if err != nil || !res.Verified {
+		t.Fatalf("cancel: %+v %v", res, err)
+	}
+	lt, ok := c.LastTest()
+	if !ok || !lt.Cancelled {
+		t.Fatalf("want cancelled LastTest, got ok=%v %+v", ok, lt)
+	}
+}
+
+// TestCancelIntentSurvivesObserveStart: CancelTest sets the intent, then
+// Observe sees TestInProgress (the old first case wiped c.cancel). The
+// end of the test must still be Cancelled.
+func TestCancelIntentSurvivesObserveStart(t *testing.T) {
+	c, _, _ := newCtl(t, nil)
+	c.mu.Lock()
+	c.testSeq = 1
+	c.cancel = true
+	c.mu.Unlock()
+	t0 := time.Date(2026, 11, 13, 22, 0, 0, 0, time.UTC)
+	c.Observe(Status{At: t0, Flags: dialect.Q1Flags{TestInProgress: true}})
+	c.Observe(Status{At: t0.Add(2 * time.Second), Flags: dialect.Q1Flags{}})
+	lt, ok := c.LastTest()
+	if !ok || !lt.Cancelled {
+		t.Fatalf("want cancelled LastTest, got ok=%v %+v", ok, lt)
+	}
+}

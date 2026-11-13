@@ -66,6 +66,8 @@ type TestResult struct {
 	// Cancelled is true if VLT sent "cancel test" during the test. The
 	// result is still TEST_PASSED or TEST_FAILED (step 7).
 	Cancelled bool `json:"cancelled,omitempty"`
+	// seq is the StartTest generation of this result (not in the JSON).
+	seq uint64
 }
 
 // Result is the result of one CONTROL request.
@@ -135,10 +137,11 @@ type Controller struct {
 	busy   sync.Mutex
 
 	inTest   bool
-	cancel   bool // "cancel test" sent during the running test
+	cancel   bool // "cancel test" sent; kept until the result is recorded
 	test     TestResult
 	lastTest *TestResult
-	dry      bool // demo mode: do not send CONTROL bytes
+	testSeq  uint64 // incremented at each StartTest
+	dry      bool   // demo mode: do not send CONTROL bytes
 }
 
 // SetDryRun enables or disables CONTROL dry runs (VLT-IS-009 OD-43).
@@ -195,24 +198,24 @@ func (c *Controller) Observe(s Status) {
 	c.mu.Lock()
 	switch {
 	case s.Flags.TestInProgress && !c.inTest:
+		// Do not clear c.cancel here: CancelTest may already have set the
+		// intent, before this status arrived (VLT-IS-009 TASK 03-00-00-006).
+		start, seq, cancel := s.At, c.testSeq, c.cancel
+		if !c.test.Start.IsZero() {
+			start = c.test.Start
+		}
+		if c.test.seq != 0 {
+			seq = c.test.seq
+		}
 		c.inTest = true
-		c.cancel = false
-		c.test = TestResult{Start: s.At}
+		c.test = TestResult{Start: start, seq: seq}
+		c.cancel = cancel
 		fallthrough
 	case s.Flags.TestInProgress:
 		c.test.UPSFailed = c.test.UPSFailed || s.Flags.UPSFailed
 		c.test.BatteryLow = c.test.BatteryLow || s.Flags.BatteryLow
 	case c.inTest:
-		c.inTest = false
-		r := c.test
-		r.End = s.At
-		r.Cancelled = c.cancel
-		r.Result = TestPassed
-		if r.UPSFailed || r.BatteryLow {
-			r.Result = TestFailed
-		}
-		c.lastTest = &r
-		ended = &r
+		ended = c.endTestLocked(s.At)
 	}
 	c.last = &s
 	c.hist = append(c.hist, s)
@@ -224,15 +227,88 @@ func (c *Controller) Observe(s Status) {
 		c.notify = nil
 	}
 	c.mu.Unlock()
-	if ended != nil {
-		c.record(context.Background(), "system", "ups_test_end", "test", ended.Result, map[string]any{
-			"start": ended.Start.UTC().Format(time.RFC3339), "end": ended.End.UTC().Format(time.RFC3339),
-			"ups_failed": ended.UPSFailed, "battery_low": ended.BatteryLow, "cancelled": ended.Cancelled,
-		})
-		if c.OnTestEnd != nil {
-			c.OnTestEnd(*ended)
-		}
+	c.publishEnd(ended)
+}
+
+// endTestLocked records the end of a test. The caller holds c.mu.
+func (c *Controller) endTestLocked(end time.Time) *TestResult {
+	r := c.test
+	r.End = end
+	r.Cancelled = c.cancel
+	r.Result = TestPassed
+	if r.UPSFailed || r.BatteryLow {
+		r.Result = TestFailed
 	}
+	if r.Start.IsZero() {
+		r.Start = end
+	}
+	if r.seq == 0 {
+		r.seq = c.testSeq
+	}
+	c.lastTest = &r
+	c.inTest = false
+	c.test = TestResult{}
+	c.cancel = false
+	return &r
+}
+
+func (c *Controller) publishEnd(ended *TestResult) {
+	if ended == nil {
+		return
+	}
+	c.record(context.Background(), "system", "ups_test_end", "test", ended.Result, map[string]any{
+		"start": ended.Start.UTC().Format(time.RFC3339), "end": ended.End.UTC().Format(time.RFC3339),
+		"ups_failed": ended.UPSFailed, "battery_low": ended.BatteryLow, "cancelled": ended.Cancelled,
+	})
+	if c.OnTestEnd != nil {
+		c.OnTestEnd(*ended)
+	}
+}
+
+// commitCancel records a cancelled LastTest after a verified CT, if
+// Observe has not already recorded it.
+//
+// The TestUPSControlIntegration flake ("the cancelled test has no result")
+// had this cause: CancelTest set c.cancel = c.inTest. If Observe had not
+// yet seen TestInProgress, or the test had already ended (a virtual-clock
+// jump in the test rig can end a 2-minute test before CT), inTest was
+// false, cancel stayed false, and LastTest never had Cancelled. A longer
+// wait does not fix that.
+func (c *Controller) commitCancel() {
+	var ended *TestResult
+	c.mu.Lock()
+	switch {
+	case c.testSeq == 0:
+		c.cancel = false
+	case c.lastTest != nil && c.lastTest.seq == c.testSeq && c.lastTest.Cancelled:
+		// Observe already recorded the cancelled result.
+	case c.lastTest != nil && c.lastTest.seq == c.testSeq:
+		r := *c.lastTest
+		r.Cancelled = true
+		c.lastTest = &r
+		c.inTest = false
+		c.cancel = false
+	case c.inTest && (c.last == nil || !c.last.Flags.TestInProgress):
+		at := time.Now()
+		if c.last != nil {
+			at = c.last.At
+		}
+		ended = c.endTestLocked(at)
+	case c.inTest:
+		// Still in progress on the last status; Observe will record.
+	default:
+		at := time.Now()
+		if c.last != nil {
+			at = c.last.At
+		}
+		c.cancel = true
+		if c.test.seq == 0 {
+			c.test.seq = c.testSeq
+		}
+		ended = c.endTestLocked(at)
+	}
+	c.mu.Unlock()
+	c.publishEnd(ended)
 }
 
 const histLen = 256
@@ -414,7 +490,29 @@ func (c *Controller) StartTest(ctx context.Context, g Grant, kind Func, minutes 
 		c.record(ctx, actorOf(g.Source()), "ups_control", string(kind), "failure", map[string]any{"func": string(kind), "error": ErrOnBattery.Error()})
 		return Result{Func: kind}, ErrOnBattery
 	}
-	return c.run(ctx, cmd, true)
+	c.mu.Lock()
+	c.testSeq++
+	c.cancel = false
+	seq := c.testSeq
+	c.mu.Unlock()
+	res, err := c.run(ctx, cmd, true)
+	if err == nil && res.Verified {
+		c.mu.Lock()
+		if !c.inTest {
+			// Observe may have started and already ended during run().
+			if c.lastTest == nil || c.lastTest.seq != seq {
+				c.inTest = true
+				if c.test.Start.IsZero() {
+					c.test.Start = time.Now()
+				}
+				c.test.seq = seq
+			}
+		} else if c.test.seq == 0 {
+			c.test.seq = seq
+		}
+		c.mu.Unlock()
+	}
+	return res, err
 }
 
 // CancelTest sends CT and verifies b2 = 0.
@@ -425,9 +523,13 @@ func (c *Controller) CancelTest(ctx context.Context, g Grant) (Result, error) {
 		return Result{Func: FuncCancelTest}, err
 	}
 	c.mu.Lock()
-	c.cancel = c.inTest
+	c.cancel = true
 	c.mu.Unlock()
-	return c.run(ctx, cmd, true)
+	res, err := c.run(ctx, cmd, true)
+	if err == nil && res.Verified {
+		c.commitCancel()
+	}
+	return res, err
 }
 
 // SetBeeper sets the wanted beeper state (step 5). It reads b0 first and

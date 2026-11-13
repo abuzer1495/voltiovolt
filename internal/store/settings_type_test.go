@@ -72,3 +72,29 @@ func TestNoSecretSetting(t *testing.T) {
 		t.Error("duplicate key: no error")
 	}
 }
+
+func TestSeriesVisibilitySetting(t *testing.T) {
+	def := DefaultSettings()
+	var found *SettingDef
+	for i := range def {
+		if def[i].Key == SettingHistorySeriesVisibility {
+			found = &def[i]
+			break
+		}
+	}
+	if found == nil || found.Check == nil {
+		t.Fatal("ui.history.series_visibility missing")
+	}
+	if err := found.Check(json.RawMessage(`{"input.voltage":false,"output.voltage":true}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := found.Check(json.RawMessage(`{}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := found.Check(json.RawMessage(`{"BAD":true}`)); err == nil {
+		t.Fatal("uppercase key accepted")
+	}
+	if err := found.Check(json.RawMessage(`{"input.voltage":"no"}`)); err == nil {
+		t.Fatal("non-boolean accepted")
+	}
+}

@@ -32,7 +32,22 @@ const (
 	// StatePermissionDenied: both a Linux USB serial port and a hidraw
 	// device fail with permission denied.
 	StatePermissionDenied = "permission denied"
+	// StateSimulatorNotFound: the test connection is selected and
+	// vlt-simulator is not listening (VLT-IS-010 TASK 03-00-00-004).
+	StateSimulatorNotFound = "simulator not found"
 )
+
+// SimulatorRetry is the fixed wait between test-connection attempts
+// when the simulator is not found (not the 1/2/5/10/30 Backoff).
+const SimulatorRetry = 5 * time.Second
+
+// RetryWait is the wait after a failed detection of the given state.
+func RetryWait(state string, attempt int) time.Duration {
+	if state == StateSimulatorNotFound {
+		return SimulatorRetry
+	}
+	return BackoffAt(attempt)
+}
 
 // Backoff is the wait list for a new detection and for a reconnect
 // (TASK 03-00-00-003 step 5): 1, 2, 5, 10 and 30 seconds, then 30 seconds
@@ -80,7 +95,7 @@ func (m *Manager) setStatus(state string, p *Profile, c *Config) {
 		m.status.Since = m.Clock.Now()
 	}
 	m.status.State = state
-	if p != nil || state == StateDetecting || state == StateNoDevice || state == StateNotConfigured || state == StatePortBusy || state == StatePortPermission || state == StateHIDPermission || state == StatePermissionDenied {
+	if p != nil || state == StateDetecting || state == StateNoDevice || state == StateNotConfigured || state == StatePortBusy || state == StatePortPermission || state == StateHIDPermission || state == StatePermissionDenied || state == StateSimulatorNotFound {
 		m.status.Profile = p
 	}
 	if c != nil {
@@ -155,6 +170,8 @@ func (m *Manager) Run(ctx context.Context) error {
 			}
 			state := StateNoDevice
 			switch {
+			case errors.Is(err, ErrSimulatorNotFound):
+				state = StateSimulatorNotFound
 			case errors.Is(err, ErrPermissionDenied):
 				state = StatePermissionDenied
 			case errors.Is(err, ErrPortPermission):
@@ -175,7 +192,7 @@ func (m *Manager) Run(ctx context.Context) error {
 				case <-wctx.Done():
 				}
 			}()
-			_ = m.Clock.Sleep(wctx, BackoffAt(attempt))
+			_ = m.Clock.Sleep(wctx, RetryWait(state, attempt))
 			cancel()
 			attempt++
 			continue

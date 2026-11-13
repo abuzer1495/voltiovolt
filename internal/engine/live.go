@@ -21,6 +21,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/notify/telegram"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/poller"
+	"github.com/abuzer1495/voltiovolt/internal/testconn"
 	"github.com/abuzer1495/voltiovolt/internal/transport"
 )
 
@@ -48,6 +49,7 @@ type live struct {
 	telegram *telegram.Bot
 	email    *email.Mailer
 	demo     *demo.Session
+	tmode    *testMode
 
 	mu       sync.Mutex
 	commLost bool
@@ -72,6 +74,8 @@ type StatusPush struct {
 	PolicyActive bool                     `json:"policy_active"`
 	Demo         bool                     `json:"demo,omitempty"`
 	DemoMessage  string                   `json:"demo_message,omitempty"`
+	Test         bool                     `json:"test,omitempty"`
+	TestMessage  string                   `json:"test_message,omitempty"`
 }
 
 // OnCycle is the Poller sink: Measurements, Events, then the Policy tick.
@@ -124,10 +128,17 @@ func (l *live) OnCycle(c poller.Cycle) {
 		obs.Add(r.Command, r.Value)
 	}
 	l.mu.Unlock()
+	origin := "real"
 	if l.demo != nil && l.demo.Active() {
+		origin = "demo"
+	} else if l.tmode != nil && l.tmode.Active() {
+		origin = "test"
+	}
+	if origin != "real" {
 		for i := range samples {
 			for j := range samples[i].Points {
-				samples[i].Points[j].Demo = true
+				samples[i].Points[j].Origin = origin
+				samples[i].Points[j].Demo = origin == "demo"
 			}
 		}
 	}
@@ -196,6 +207,15 @@ func (l *live) status() StatusPush {
 	}
 	if l.mgr != nil && l.mgr.Status().Config.Transport == device.TransportDemo {
 		s.Demo = true
+	}
+	if l.tmode != nil {
+		if l.tmode.Active() {
+			s.Test = true
+		}
+		s.TestMessage = l.tmode.Message()
+	}
+	if l.mgr != nil && l.mgr.Status().Config.Transport == device.TransportTest {
+		s.Test = true
 	}
 	return s
 }
@@ -349,11 +369,26 @@ func (d *Daemon) startLive(ctx context.Context) error {
 		return in.Config.ForceCloseApplications
 	}
 	sess := demo.New()
+	tmode := &testMode{}
 	var exec policy.Executor = &policy.DryRun{}
 	if d.cfg.MakeExecutor != nil {
 		exec = d.cfg.MakeExecutor(forceClose, d.au)
 	}
-	exec = &policy.Guarded{Real: exec, Dry: sess.Active, OnDry: func(string) { sess.SetShutdownMessage(demo.ShutdownMessageEN) }}
+	exec = &policy.Guarded{Real: exec, Dry: func() bool {
+		if sess.Active() {
+			return true
+		}
+		if tmode.Active() {
+			return !realShutdownOn(d.st)
+		}
+		return false
+	}, OnDry: func(string) {
+		if tmode.Active() {
+			tmode.SetMessage(TestShutdownMessage)
+			return
+		}
+		sess.SetShutdownMessage(demo.ShutdownMessageEN)
+	}}
 	pol, err = policy.NewService(ctx, d.st, d.au, exec, nil, d.log)
 	if err != nil {
 		return fmt.Errorf("policy: %w", err)
@@ -364,9 +399,18 @@ func (d *Daemon) startLive(ctx context.Context) error {
 		return fmt.Errorf("policy: %w", err)
 	}
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
-		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}, demo: sess}
+		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}, demo: sess, tmode: tmode}
 	l.events.SetDemo(sess.Active)
-	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log, Demo: sess.Active},
+	l.events.SetOrigin(func() string {
+		if sess.Active() {
+			return "demo"
+		}
+		if tmode.Active() {
+			return "test"
+		}
+		return "real"
+	})
+	l.router = notify.New(notify.Config{Settings: notify.StoreSettings(d.st), Language: notify.StoreLanguage(d.st), Snapshot: l.snapshot, Log: d.log, Demo: sess.Active, Test: tmode.Active},
 		desktopChannel{l.hub})
 	settings := notify.StoreSettings(d.st)
 	l.telegram = telegram.New(telegram.Config{API: d.cfg.TelegramAPI, Secrets: d.vt, Chats: d.st, Audit: d.au, Log: d.log,
@@ -383,14 +427,20 @@ func (d *Daemon) startLive(ctx context.Context) error {
 	if d.cfg.Lister != nil {
 		l.mgr = &device.Manager{
 			Config: func(ctx context.Context) (device.Config, error) { return device.ConfigFromStore(ctx, d.st) },
-			List:   device.WithDemo(d.cfg.Lister, sess.Candidates),
-			Log:    d.log,
+			List: device.WithTest(device.WithDemo(d.cfg.Lister, sess.Candidates), func() []device.Candidate {
+				return testconn.Candidates(transport.Options{Timeout: device.ResponseTimeout, MinInterval: device.MinGap})
+			}),
+			Log: d.log,
 			Poll: func(ctx context.Context, tr transport.Transport, p device.Profile, setState func(string)) error {
 				demoOn := p.Transport == device.TransportDemo
+				testOn := p.Transport == device.TransportTest
 				sess.SetActive(demoOn)
+				tmode.SetActive(testOn)
+				// OD-47: CONTROL goes to the simulator. Only demo is a dry-run.
 				l.ctl.SetDryRun(demoOn)
 				defer func() {
 					sess.SetActive(false)
+					tmode.SetActive(false)
 					l.ctl.SetDryRun(false)
 				}()
 				pl := poller.New(tr, p, stateSink{l: l, setState: setState}, poller.Options{Log: d.log})

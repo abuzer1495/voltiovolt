@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { ComponentType } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { CountdownBanner, DemoBanner, DemoShutdownBanner, FallbackBanner } from './banners';
+import { CountdownBanner, DemoBanner, DemoShutdownBanner, FallbackBanner, TestBanner, TestShutdownBanner } from './banners';
 import { ConnProblem, ConnState } from './components';
 import { api } from './api';
 import { t, useLang } from './i18n';
@@ -147,6 +147,8 @@ export function App() {
               <>
                 <DemoBanner demo={!!s.status?.demo || s.status?.device?.config?.transport === 'demo'} />
                 <DemoShutdownBanner message={s.status?.demo_message} />
+                <TestBanner test={!!s.status?.test || s.status?.device?.config?.transport === 'test'} />
+                <TestShutdownBanner message={s.status?.test_message} />
                 <FallbackBanner fallback={!!s.policy?.fallback} />
                 <CountdownBanner cd={s.countdown} elevated={elevated} lowBattery={!!s.status?.ups?.low_battery} />
                 {unlock && !elevated ? <Login portable={portable} blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} onForgot={() => { setUnlock(false); refreshAuth(); startWizard('pin'); }} /> : null}

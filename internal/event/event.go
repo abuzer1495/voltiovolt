@@ -55,6 +55,7 @@ type Event struct {
 	Severity string         `json:"severity"`
 	Data     map[string]any `json:"data"`
 	Demo     bool           `json:"demo,omitempty"`
+	Origin   string         `json:"origin,omitempty"`
 }
 
 // Thresholds are the threshold Settings (step 3).
@@ -191,6 +192,7 @@ type Engine struct {
 	subs   map[int]func(Event)
 	nextID int
 	demo   func() bool
+	origin func() string
 }
 
 // SetDemo sets a function that reports whether the Event is from the
@@ -199,6 +201,30 @@ func (e *Engine) SetDemo(f func() bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.demo = f
+}
+
+// SetOrigin sets a function that reports the origin of a new Event
+// ("real", "demo" or "test", OD-48). When set, it takes precedence over
+// SetDemo.
+func (e *Engine) SetOrigin(f func() string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.origin = f
+}
+
+func (e *Engine) currentOrigin() string {
+	e.mu.Lock()
+	f, demo := e.origin, e.demo
+	e.mu.Unlock()
+	if f != nil {
+		if s := f(); s != "" {
+			return s
+		}
+	}
+	if demo != nil && demo() {
+		return "demo"
+	}
+	return "real"
 }
 
 // New returns an Engine that stores Events in db (the events table).
@@ -405,14 +431,16 @@ func (e *Engine) CommState(ctx context.Context, t time.Time, lost bool) []Event 
 
 func (e *Engine) publish(ctx context.Context, evs []Event) {
 	for _, ev := range evs {
-		e.mu.Lock()
-		demo := e.demo != nil && e.demo()
-		e.mu.Unlock()
-		if demo {
-			ev.Demo = true
-			if ev.Data == nil {
-				ev.Data = map[string]any{}
-			}
+		origin := e.currentOrigin()
+		ev.Origin = origin
+		ev.Demo = origin == "demo"
+		if ev.Data == nil {
+			ev.Data = map[string]any{}
+		}
+		if origin != "real" {
+			ev.Data["origin"] = origin
+		}
+		if ev.Demo {
 			ev.Data["demo"] = true
 		}
 		if err := e.store(ctx, ev); err != nil {
@@ -447,8 +475,16 @@ func (e *Engine) store(ctx context.Context, ev Event) error {
 	if ev.Demo {
 		demo = 1
 	}
-	_, err = e.db.ExecContext(ctx, "INSERT INTO events (ts, type, severity, data, demo) VALUES (?, ?, ?, ?, ?)",
-		ev.Time.UnixMilli(), ev.Type, ev.Severity, string(b), demo)
+	origin := ev.Origin
+	if origin == "" {
+		if ev.Demo {
+			origin = "demo"
+		} else {
+			origin = "real"
+		}
+	}
+	_, err = e.db.ExecContext(ctx, "INSERT INTO events (ts, type, severity, data, demo, origin) VALUES (?, ?, ?, ?, ?, ?)",
+		ev.Time.UnixMilli(), ev.Type, ev.Severity, string(b), demo, origin)
 	return err
 }
 
@@ -467,18 +503,36 @@ func List(ctx context.Context, db *sql.DB, before int64, limit int) ([]Stored, e
 	return ListFilter(ctx, db, before, limit, false)
 }
 
-// ListFilter is List with an option to include demo Events. The default
-// (includeDemo false) hides them (VLT-IS-009 TASK 03-00-00-005).
+// ListFilter is List with an option to include Events of other origins.
+// The default (includeDemo false) shows only the "real" origin.
 func ListFilter(ctx context.Context, db *sql.DB, before int64, limit int, includeDemo bool) ([]Stored, error) {
+	return ListByOrigin(ctx, db, before, limit, OriginFilter{Current: "real", IncludeOthers: includeDemo})
+}
+
+// OriginFilter selects Events by origin (OD-48). The default shows the
+// current source; IncludeOthers shows every origin.
+type OriginFilter struct {
+	Current       string
+	IncludeOthers bool
+}
+
+// ListByOrigin is List with an origin filter (VLT-IS-010 OD-48).
+func ListByOrigin(ctx context.Context, db *sql.DB, before int64, limit int, f OriginFilter) ([]Stored, error) {
 	if limit < 1 || limit > MaxPage {
 		return nil, fmt.Errorf("event: limit must be 1 to %d", MaxPage)
 	}
-	q := "SELECT rowid, ts, type, severity, data, demo FROM events WHERE (? = 0 OR rowid < ?)"
-	if !includeDemo {
-		q += " AND demo = 0"
+	if f.Current == "" {
+		f.Current = "real"
+	}
+	q := "SELECT rowid, ts, type, severity, data, demo, origin FROM events WHERE (? = 0 OR rowid < ?)"
+	args := []any{before, before}
+	if !f.IncludeOthers {
+		q += " AND origin = ?"
+		args = append(args, f.Current)
 	}
 	q += " ORDER BY rowid DESC LIMIT ?"
-	rows, err := db.QueryContext(ctx, q, before, before, limit)
+	args = append(args, limit)
+	rows, err := db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -489,11 +543,18 @@ func ListFilter(ctx context.Context, db *sql.DB, before int64, limit int, includ
 		var ts int64
 		var data string
 		var demo int
-		if err := rows.Scan(&s.ID, &ts, &s.Type, &s.Severity, &data, &demo); err != nil {
+		if err := rows.Scan(&s.ID, &ts, &s.Type, &s.Severity, &data, &demo, &s.Origin); err != nil {
 			return nil, err
 		}
 		s.Time = time.UnixMilli(ts).UTC()
 		s.Demo = demo != 0
+		if s.Origin == "" {
+			if s.Demo {
+				s.Origin = "demo"
+			} else {
+				s.Origin = "real"
+			}
+		}
 		if err := json.Unmarshal([]byte(data), &s.Data); err != nil {
 			return nil, err
 		}

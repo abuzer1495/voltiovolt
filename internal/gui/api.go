@@ -75,12 +75,13 @@ type AboutInfo struct {
 	License     string `json:"license"`
 	Source      string `json:"source"`
 	Mode        string `json:"mode"`
+	DataDir     string `json:"data_dir,omitempty"`
 }
 
 // About returns the versions, the license and the source link.
 func (a *API) About() AboutInfo {
 	ci := a.Connection()
-	return AboutInfo{Version: Version, VltdVersion: ci.Version, Protocol: ci.Protocol, GUIProtocol: wire.Version, License: License, Source: SourceURL, Mode: a.m.Mode()}
+	return AboutInfo{Version: Version, VltdVersion: ci.Version, Protocol: ci.Protocol, GUIProtocol: wire.Version, License: License, Source: SourceURL, Mode: a.m.Mode(), DataDir: a.m.DataDir()}
 }
 
 // Last returns the last push messages ("status", "event", "countdown") for

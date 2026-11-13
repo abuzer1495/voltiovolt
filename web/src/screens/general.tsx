@@ -73,6 +73,13 @@ export function General() {
         <p>{t('wizard.general.intro')}</p>
         <button type="button" onClick={() => startWizard()}>{t('wizard.general.start')}</button>
       </section>
+      {about?.data_dir ? (
+        <section class="card" aria-labelledby="data-dir-title">
+          <h3 id="data-dir-title">{t('general.dataDir')}</h3>
+          <p><code>{about.data_dir}</code></p>
+          <p id="data-dir-help">{t('general.dataDir.help')}</p>
+        </section>
+      ) : null}
       <section class="card" aria-labelledby="about-title">
         <h3 id="about-title">{t('general.about')}</h3>
         <dl class="kv">

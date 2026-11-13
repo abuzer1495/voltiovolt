@@ -147,6 +147,8 @@
   "events.more": "Daha eski Olayları yükle",
   "fallback.banner": "Kasa kilitli. VLT Yedek Politikayı kullanıyor.",
   "general.about": "Hakkında",
+  "general.dataDir": "Veri klasörü",
+  "general.dataDir.help": "VoltioVolt dosyalarını bu klasörde tutar.",
   "general.lang": "Dil",
   "general.lang.notsaved": "Dil bu oturum için değiştirildi. Kaydetmek için bir PIN belirleyin.",
   "general.lang.saved": "Dil kaydedildi.",

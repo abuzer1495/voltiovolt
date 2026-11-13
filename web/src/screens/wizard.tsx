@@ -5,6 +5,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { api, errorCode, type PolicyInfo, type SimResult } from '../api';
 import { Confirm, errText } from '../components';
 import { DASH } from '../format';
+import { HELP_LINKS, HelpLine } from '../help';
 import { t } from '../i18n';
 import { canActivate, FIELDS } from '../policyform';
 import { app, refreshAuth, refreshPolicy } from '../state';
@@ -204,10 +205,13 @@ function TelegramStep({ elevated }: { elevated: boolean; onDone?: () => void }) 
       <form class="form" onSubmit={saveToken}>
         <label for="wiz-tg-token">{t('notify.telegram.token')}</label>
         <input id="wiz-tg-token" type="password" autoComplete="new-password" disabled={!elevated} value={token}
+          placeholder={t('help.telegram.token.example')}
           onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
+        <HelpLine text={t('help.telegram.token')} more={t('help.telegram.token.more')} href={HELP_LINKS.telegram} />
         <button type="submit" disabled={!elevated || !token}>{t('common.save')}</button>
       </form>
       <p>{t('notify.telegram.steps')}</p>
+      <HelpLine text={t('help.telegram.pair')} more={t('help.telegram.pair.more')} />
       <button type="button" disabled={!elevated} onClick={() => void pair()}>{t('notify.telegram.pair.button')}</button>
       {active && code ? <p role="status" class="banner banner-info">{t('notify.telegram.code', { code, until: expires })}</p> : null}
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
@@ -254,25 +258,32 @@ function EmailStep({ elevated }: { elevated: boolean; onDone?: () => void }) {
       {!elevated ? <p class="note">{t('locked.need')}</p> : null}
       <button type="button" disabled={!elevated} onClick={gmailPreset}>{t('notify.email.preset.gmail')}</button>
       {gmail ? <p class="note" role="note">{t('notify.email.gmail.help')}</p> : null}
+      {gmail ? (
+        <HelpLine text={t('help.email.gmail')} more={t('help.email.gmail.more')} href={HELP_LINKS.gmail} />
+      ) : (
+        <HelpLine text={t('help.email.server')} more={t('help.email.server.more')} />
+      )}
       <form class="form" onSubmit={save}>
         <label for="wiz-em-server">{t('notify.email.server')}</label>
-        <input id="wiz-em-server" disabled={!elevated} value={server} autoComplete="off" onInput={(e) => setServer((e.target as HTMLInputElement).value)} />
+        <input id="wiz-em-server" disabled={!elevated} value={server} autoComplete="off" placeholder={t('help.email.server.example')} onInput={(e) => setServer((e.target as HTMLInputElement).value)} />
         <label for="wiz-em-port">{t('notify.email.port')}</label>
-        <input id="wiz-em-port" type="number" disabled={!elevated} value={port} onInput={(e) => setPort((e.target as HTMLInputElement).value)} />
+        <input id="wiz-em-port" type="number" disabled={!elevated} value={port} placeholder="465" onInput={(e) => setPort((e.target as HTMLInputElement).value)} />
         <label for="wiz-em-sec">{t('notify.email.security')}</label>
         <select id="wiz-em-sec" disabled={!elevated} value={security} onChange={(e) => setSecurity((e.target as HTMLSelectElement).value)}>
           <option value="tls">{t('notify.email.security.tls')}</option>
           <option value="starttls">{t('notify.email.security.starttls')}</option>
         </select>
         <label for="wiz-em-user">{t('notify.email.user')}</label>
-        <input id="wiz-em-user" disabled={!elevated} value={user} autoComplete="username" onInput={(e) => setUser((e.target as HTMLInputElement).value)} />
+        <input id="wiz-em-user" disabled={!elevated} value={user} autoComplete="username" placeholder={t('help.email.user.example')} onInput={(e) => setUser((e.target as HTMLInputElement).value)} />
         <label for="wiz-em-from">{t('notify.email.from')}</label>
         <input id="wiz-em-from" disabled={!elevated} value={from} autoComplete="off" onInput={(e) => setFrom((e.target as HTMLInputElement).value)} />
         <label for="wiz-em-to">{t('notify.email.to')}</label>
         <textarea id="wiz-em-to" rows={3} disabled={!elevated} value={to} onInput={(e) => setTo((e.target as HTMLTextAreaElement).value)} />
         <label for="wiz-em-pw">{t('notify.email.password')}</label>
         <input id="wiz-em-pw" type="password" autoComplete="new-password" disabled={!elevated} value={password}
+          placeholder={t('help.email.password.example')}
           onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
+        {gmail ? <HelpLine text={t('help.email.gmail')} more={t('help.email.gmail.more')} href={HELP_LINKS.gmail} /> : null}
         <button type="submit" disabled={!elevated}>{t('common.save')}</button>
       </form>
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}

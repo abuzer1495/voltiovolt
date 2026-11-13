@@ -503,3 +503,18 @@ jobs:
             cmd/voltiovolt/dist/VoltioVolt.exe.sha256
           retention-days: 14
           if-no-files-found: error
+
+  # VLT-IS-009 TASK 03-00-00-004: check official help links. The script
+  # always exits 0, so a down official site cannot block the merge.
+  link-check:
+    name: link-check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Official help links (results only; this job always passes)
+        run: bash tools/check-help-links.sh

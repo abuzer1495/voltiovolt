@@ -46,6 +46,14 @@ func (a *API) SetLanguage(lang string) error {
 	return wrap(err)
 }
 
+// SetSetting stores one Setting. vltd checks the key, the type and the range.
+func (a *API) SetSetting(key string, value any) error {
+	c, cancel := ctx()
+	defer cancel()
+	err := a.m.call(c, func(cl *client.Client) error { _, err := cl.SetSetting(c, key, value); return err })
+	return wrap(err)
+}
+
 // OpenSource opens the link to the source code in the web browser of the
 // OS. The VLT GUI window never loads remote content (SEC-095).
 func (a *API) OpenSource() error {

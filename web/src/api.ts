@@ -338,7 +338,9 @@ export const api = {
   audit: (after: number, limit: number) => call<{ rows: AuditRow[]; next: number }>('Audit', after, limit),
   settings: () => call<{ settings: Setting[] }>('Settings'),
   setLanguage: (l: string) => call<void>('SetLanguage', l),
+  setSetting: (key: string, value: unknown) => call<void>('SetSetting', key, value),
   openSource: () => call<void>('OpenSource'),
+  openHelp: (url: string) => call<void>('OpenHelp', url),
   // Notification Channels (VLT-IS-007 TASK 03-00-00-007).
   channels: () => call<ChannelsList>('Channels'),
   setChannel: (channel: string, enabled: boolean, minSeverity: string, settings: Record<string, unknown>) =>

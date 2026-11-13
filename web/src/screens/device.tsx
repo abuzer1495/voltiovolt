@@ -4,7 +4,8 @@
 // scan, "Use this port", Device settings.
 import { useEffect, useState } from 'preact/hooks';
 import { api, errorCode, type DeviceStatus, type Line, type ScanResult, type SerialPort } from '../api';
-import { Confirm, errText } from '../components';
+import { Confirm, errText, isWindows } from '../components';
+import { HelpLine } from '../help';
 import { DASH, time } from '../format';
 import { t } from '../i18n';
 import { app } from '../state';
@@ -85,11 +86,16 @@ export function DeviceSettings({ cfg, elevated, onSaved }: { cfg: Cfg; elevated:
           <option value="serial">{t('device.transport.serial')}</option>
         </select>
         <label for="dev-port">{t('device.serial_port')}</label>
-        <input id="dev-port" disabled={!elevated} value={v.serial_port} onInput={(e) => setV({ ...v, serial_port: (e.target as HTMLInputElement).value })} />
+        <input id="dev-port" disabled={!elevated} value={v.serial_port}
+          placeholder={isWindows() ? t('help.serial.example') : t('help.serial.example.linux')}
+          onInput={(e) => setV({ ...v, serial_port: (e.target as HTMLInputElement).value })} />
+        <HelpLine text={t('help.serial')} more={t('help.serial.more')} />
         <label for="dev-allowed">{t('device.allowed_ports')}</label>
         <input id="dev-allowed" disabled={!elevated} value={allowed} onInput={(e) => setAllowed((e.target as HTMLInputElement).value)} />
         {line('dev-dtr', 'device.dtr', v.serial_dtr ?? 'unchanged', (l) => setV({ ...v, serial_dtr: l }))}
+        <HelpLine text={t('help.dtr')} />
         {line('dev-rts', 'device.rts', v.serial_rts ?? 'unchanged', (l) => setV({ ...v, serial_rts: l }))}
+        <HelpLine text={t('help.dtr')} />
         <button type="submit" class="primary" disabled={!elevated}>{t('common.save')}</button>
       </form>
       {ask ? <Confirm text={t('device.confirm')} confirmLabel={t('device.confirm.button')} onConfirm={() => void save()} onCancel={() => setAsk(false)} /> : null}
@@ -151,6 +157,7 @@ export function Ports({ elevated, onUsed }: { elevated: boolean; onUsed: () => v
   return (
     <section class="card" aria-labelledby="ports-title">
       <h3 id="ports-title">{t('device.ports')}</h3>
+      <HelpLine text={t('help.serial')} more={t('device.busy.help') + ' ' + t('help.serial.more')} />
       {!elevated ? <p class="note">{t('locked.need')}</p> : null}
       {ports && ports.length === 0 ? <p>{t('device.ports.none')}</p> : null}
       {ports && ports.length > 0 ? (
@@ -234,8 +241,63 @@ export function Device() {
       </section>
       <Ports elevated={elevated} onUsed={() => void load()} />
       <section class="card"><h3>{t('device.nominal')}</h3><KV obj={p?.nominal} /></section>
+      <BatteryEstimate elevated={elevated} />
       <section class="card"><h3>{t('device.model')}</h3><KV obj={p?.info} /><KV obj={p?.model_data} /><KV obj={p?.firmware} /></section>
       {d ? <DeviceSettings cfg={{ ...DEFAULT_CFG, ...(d.config ?? {}) }} elevated={elevated} onSaved={() => void load()} /> : null}
     </div>
+  );
+}
+
+const BATTERY_FIELDS: { key: string; help: string; def: string }[] = [
+  { key: 'battery.cell_empty_v', help: 'help.battery.cell_empty', def: '1.667' },
+  { key: 'battery.cell_full_v', help: 'help.battery.cell_full', def: '2.267' },
+  { key: 'battery.block_empty_v', help: 'help.battery.block_empty', def: '10.0' },
+  { key: 'battery.block_full_v', help: 'help.battery.block_full', def: '13.6' },
+];
+
+function BatteryEstimate({ elevated }: { elevated: boolean }) {
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  useEffect(() => {
+    void api.settings().then((r) => {
+      const next: Record<string, string> = {};
+      const list = r?.settings ?? [];
+      for (const f of BATTERY_FIELDS) {
+        const s = list.find((x) => x.key === f.key);
+        next[f.key] = s && s.value !== undefined && s.value !== null ? String(s.value) : f.def;
+      }
+      setVals(next);
+    }, () => undefined);
+  }, []);
+  async function save(e: Event) {
+    e.preventDefault();
+    setMsg(null);
+    try {
+      for (const f of BATTERY_FIELDS) {
+        const n = Number(vals[f.key]);
+        if (!Number.isFinite(n)) throw new Error('invalid');
+        await api.setSetting(f.key, n);
+      }
+      setMsg({ kind: 'ok', text: t('device.saved') });
+    } catch (err) {
+      setMsg({ kind: 'error', text: errText(errorCode(err)) });
+    }
+  }
+  return (
+    <section class="card" aria-labelledby="batt-est-title">
+      <h3 id="batt-est-title">{t('help.battery.title')}</h3>
+      <HelpLine text={t('help.battery')} />
+      <form class="form form-2col" onSubmit={save}>
+        {BATTERY_FIELDS.map((f) => (
+          <>
+            <label for={'be-' + f.key}>{t(f.help)}</label>
+            <input id={'be-' + f.key} inputMode="decimal" disabled={!elevated} value={vals[f.key] ?? ''}
+              placeholder={f.def} onInput={(e) => setVals({ ...vals, [f.key]: (e.target as HTMLInputElement).value })} />
+          </>
+        ))}
+        <button type="submit" class="primary" disabled={!elevated}>{t('common.save')}</button>
+      </form>
+      {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
+    </section>
   );
 }

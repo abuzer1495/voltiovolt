@@ -353,7 +353,7 @@ func (d *Daemon) startLive(ctx context.Context) error {
 	if d.cfg.MakeExecutor != nil {
 		exec = d.cfg.MakeExecutor(forceClose, d.au)
 	}
-	exec = &demo.Executor{Real: exec, Sess: sess}
+	exec = &policy.Guarded{Real: exec, Dry: sess.Active, OnDry: func(string) { sess.SetShutdownMessage(demo.ShutdownMessageEN) }}
 	pol, err = policy.NewService(ctx, d.st, d.au, exec, nil, d.log)
 	if err != nil {
 		return fmt.Errorf("policy: %w", err)

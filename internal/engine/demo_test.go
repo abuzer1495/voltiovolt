@@ -74,8 +74,8 @@ func TestDemoModeNoControlAndNoShutdown(t *testing.T) {
 			t.Fatalf("non-READ command in demo: %q", cmd)
 		}
 	}
-	// Direct call through the demo executor path used by the Policy Engine.
-	wrap := &demo.Executor{Real: ex, Sess: sess}
+	// Direct call through the guarded executor path used by the Policy Engine.
+	wrap := &policy.Guarded{Real: ex, Dry: sess.Active, OnDry: func(string) { sess.SetShutdownMessage(demo.ShutdownMessageEN) }}
 	if err := wrap.Shutdown(ctx, "test"); err != nil {
 		t.Fatal(err)
 	}

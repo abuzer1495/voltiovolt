@@ -34,7 +34,7 @@ func TestPowerFailRestoresMains(t *testing.T) {
 func TestExecutorIsDryRunWhenActive(t *testing.T) {
 	real := &policy.DryRun{}
 	s := New()
-	e := &Executor{Real: real, Sess: s}
+	e := &policy.Guarded{Real: real, Dry: s.Active, OnDry: func(string) { s.SetShutdownMessage(ShutdownMessageEN) }}
 	if err := e.Shutdown(context.Background(), "x"); err != nil {
 		t.Fatal(err)
 	}

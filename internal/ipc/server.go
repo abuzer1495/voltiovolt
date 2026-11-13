@@ -92,6 +92,14 @@ func NewServer(b Backend) *Server {
 		rate: RequestsPerSec, conns: map[net.Conn]struct{}{}}
 }
 
+// SetClock sets the clock of the server. Tests use it to move the session
+// idle time without a long wait.
+func (s *Server) SetClock(now func() time.Time) {
+	if now != nil {
+		s.now = now
+	}
+}
+
 // ErrClosed is returned by Serve after Close.
 var ErrClosed = errors.New("ipc: server closed")
 

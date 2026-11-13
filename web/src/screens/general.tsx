@@ -7,7 +7,7 @@ import { api, errorCode, type AboutInfo } from '../api';
 import { errText } from '../components';
 import { DASH } from '../format';
 import { lang, setLang, t, type Lang } from '../i18n';
-import { SetPin } from './pin';
+import { SetPin, fieldValue } from './pin';
 import { startWizard } from './wizard';
 import { app, refreshAuth } from '../state';
 import { useStore } from '../store';
@@ -119,10 +119,12 @@ function RemovePin() {
   const [busy, setBusy] = useState(false);
   async function submit(e: Event) {
     e.preventDefault();
+    const value = fieldValue(e, 'rm-pin');
+    setPin(value);
     setMsg(null);
     setBusy(true);
     try {
-      await api.removePIN(pin);
+      await api.removePIN(value);
       setPin('');
       setMsg({ kind: 'ok', text: t('pin.remove.done') });
       refreshAuth();
@@ -138,9 +140,10 @@ function RemovePin() {
       <p>{t('pin.remove.intro')}</p>
       <form onSubmit={submit}>
         <label for="rm-pin">{t('pin.label')}</label>
-        <input id="rm-pin" type="password" autoComplete="current-password" value={pin}
-          onInput={(e) => setPin((e.target as HTMLInputElement).value)} />
-        <button type="submit" disabled={busy || pin === ''}>{t('pin.remove.button')}</button>
+        <input id="rm-pin" name="pin" type="password" autoComplete="current-password" value={pin}
+          onInput={(e) => setPin((e.target as HTMLInputElement).value)}
+          onChange={(e) => setPin((e.target as HTMLInputElement).value)} />
+        <button type="submit" disabled={busy}>{t('pin.remove.button')}</button>
       </form>
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
     </>

@@ -15,6 +15,23 @@ export function pinProblem(pin: string): string | null {
   return null;
 }
 
+/**
+ * fieldValue reads the live DOM value of an input in the submitted form.
+ * Autofill, a password manager and some IME paths write the field without
+ * an "input" event, so the Preact state can be empty (VLT-IS-009 R-02,
+ * web/src/screens/pin.tsx).
+ */
+export function fieldValue(e: Event, id: string): string {
+  const form = e.currentTarget as HTMLFormElement | null;
+  if (!form || typeof form.querySelector !== 'function') return '';
+  const el = form.querySelector('#' + id) as HTMLInputElement | null;
+  return el?.value ?? '';
+}
+
+function onPINInput(set: (v: string) => void) {
+  return (e: Event) => set((e.target as HTMLInputElement).value);
+}
+
 export function PinRules() {
   return (
     <ul class="rules" aria-label={t('pin.rules.title')}>
@@ -41,12 +58,16 @@ export function SetPin({ change = false, onDone, nested = false }: { change?: bo
   const id = change ? 'chg' : 'set';
   async function submit(e: Event) {
     e.preventDefault();
-    const p = pinProblem(pin);
+    const value = fieldValue(e, id + '-pin');
+    const againVal = fieldValue(e, id + '-again');
+    setPin(value);
+    setAgain(againVal);
+    const p = pinProblem(value);
     if (p) return setMsg({ kind: 'error', text: t(p) });
-    if (pin !== again) return setMsg({ kind: 'error', text: t('pin.err.mismatch') });
+    if (value !== againVal) return setMsg({ kind: 'error', text: t('pin.err.mismatch') });
     setBusy(true);
     try {
-      await api.setPIN(pin);
+      await api.setPIN(value);
       setPin('');
       setAgain('');
       setMsg({ kind: 'ok', text: t(change ? 'pin.changed' : 'pin.set.done') });
@@ -68,11 +89,11 @@ export function SetPin({ change = false, onDone, nested = false }: { change?: bo
       <PinRules />
       <form onSubmit={submit}>
         <label for={id + '-pin'}>{t(change ? 'pin.new' : 'pin.label')}</label>
-        <input id={id + '-pin'} type="password" autoComplete="new-password" value={pin} maxLength={PIN_MAX}
-          onInput={(e) => setPin((e.target as HTMLInputElement).value)} />
+        <input id={id + '-pin'} name="pin" type="password" autoComplete="new-password" value={pin} maxLength={PIN_MAX}
+          onInput={onPINInput(setPin)} onChange={onPINInput(setPin)} />
         <label for={id + '-again'}>{t('pin.again')}</label>
-        <input id={id + '-again'} type="password" autoComplete="new-password" value={again} maxLength={PIN_MAX}
-          onInput={(e) => setAgain((e.target as HTMLInputElement).value)} />
+        <input id={id + '-again'} name="pin-again" type="password" autoComplete="new-password" value={again} maxLength={PIN_MAX}
+          onInput={onPINInput(setAgain)} onChange={onPINInput(setAgain)} />
         <button type="submit" disabled={busy}>{t(change ? 'pin.change.button' : 'pin.set.button')}</button>
       </form>
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
@@ -103,9 +124,15 @@ export function Login({ blockUntil, onDone }: { blockUntil?: string; onDone?: ()
   }, [left > 0]);
   async function submit(e: Event) {
     e.preventDefault();
+    const value = fieldValue(e, 'login-pin');
+    setPin(value);
     setMsg(null);
+    if (value === '') {
+      setMsg(t('pin.err.length'));
+      return;
+    }
     try {
-      await api.login(pin);
+      await api.login(value);
       setPin('');
       onDone?.();
     } catch (err) {
@@ -125,9 +152,11 @@ export function Login({ blockUntil, onDone }: { blockUntil?: string; onDone?: ()
       <h2 id="login-title">{t('login.title')}</h2>
       <form onSubmit={submit}>
         <label for="login-pin">{t('pin.label')}</label>
-        <input id="login-pin" type="password" autoComplete="current-password" value={pin} maxLength={PIN_MAX}
-          disabled={left > 0} onInput={(e) => setPin((e.target as HTMLInputElement).value)} />
-        <button type="submit" disabled={left > 0 || pin === ''}>{t('login.button')}</button>
+        <input id="login-pin" name="pin" type="password" autoComplete="current-password" value={pin} maxLength={PIN_MAX}
+          disabled={left > 0} onInput={onPINInput(setPin)} onChange={onPINInput(setPin)} />
+        {/* Do not disable on an empty Preact state: autofill can fill the
+            field without an input event (VLT-IS-009 R-02). */}
+        <button type="submit" disabled={left > 0}>{t('login.button')}</button>
       </form>
       {left > 0 ? <p role="status" class="msg msg-error">{t('login.blocked', { seconds: left })}</p> : null}
       {msg ? <p role="alert" class="msg msg-error">{msg}</p> : null}

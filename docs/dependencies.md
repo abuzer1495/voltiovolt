@@ -33,7 +33,7 @@ Note on go-winio (VLT-IS-003 TASK 03-00-00-007 step 3.4). Choice: github.com/Mic
 
 ## Go modules in the VLT GUI (cmd/vlt-gui, separate module; VLT-IS-005)
 
-cmd/vlt-gui is a separate Go module (cmd/vlt-gui/go.mod) with `replace github.com/abuzer1495/voltiovolt => ../..`. So Wails and its cgo code are not in the root module, and `CGO_ENABLED=0 go build ./...` of the root module does not build them. VLT-IS-007 TASK 03-00-00-002: Wails v3.1.0 (SEC-094 is suspended, VLT-IS-007 01-30-00; v3.1.0 is the latest stable version on 2026-11-11). The other modules that Wails v3.1.0 lists in its go.mod (for example github.com/ebitengine/purego v0.11.1 and golang.org/x/term v0.46.0, both indirect in go.mod) are not linked into vlt-gui (go list -deps, linux and windows, tag production).
+cmd/vlt-gui is a separate Go module (cmd/vlt-gui/go.mod) with `replace github.com/abuzer1495/voltiovolt => ../..`. So Wails and its cgo code are not in the root module, and `CGO_ENABLED=0 go build ./...` of the root module does not build them. VLT-IS-007 TASK 03-00-00-002: Wails v3.1.0 (SEC-094 is suspended, VLT-IS-007 01-30-00; v3.1.0 is the latest stable version on 2026-11-11). The other modules that Wails v3.1.0 lists in its go.mod (for example github.com/ebitengine/purego v0.11.1 and golang.org/x/term v0.46.0) are not linked into vlt-gui (go list -deps, linux and windows, tag production). cmd/vlt-gui/go.mod has golang.org/x/term v0.47.0 as indirect, selected by the root module (tcell, VLT-IS-010 TASK 03-00-00-003).
 
 | Name | Version | Published (proxy.golang.org) | License | Reason | Used by |
 |------|---------|------------------------------|---------|--------|---------|

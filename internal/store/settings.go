@@ -48,6 +48,9 @@ type Setting struct {
 const (
 	SettingSessionIdleMinutes = "auth.session_idle_minutes"
 	SettingLanguage           = "ui.language"
+	// SettingHistorySeriesVisibility is the user choice of which History
+	// chart series are visible (VLT-IS-010 TASK 03-00-00-001, OD-49).
+	SettingHistorySeriesVisibility = "ui.history.series_visibility"
 
 	// Notification Router (VLT-IS-007 TASK 03-00-00-003 step 2): for each
 	// Channel, on or off and the minimum severity (default WARNING).
@@ -290,12 +293,32 @@ func strictJSON(v json.RawMessage, out any) error {
 
 // Go types of Setting values.
 var (
-	TypeInt     = reflect.TypeOf(0)
-	TypeString  = reflect.TypeOf("")
-	TypeBool    = reflect.TypeOf(false)
-	TypeFloat   = reflect.TypeOf(0.0)
-	TypeStrings = reflect.TypeOf([]string(nil))
+	TypeInt       = reflect.TypeOf(0)
+	TypeString    = reflect.TypeOf("")
+	TypeBool      = reflect.TypeOf(false)
+	TypeFloat     = reflect.TypeOf(0.0)
+	TypeStrings   = reflect.TypeOf([]string(nil))
+	TypeSeriesVis = reflect.TypeOf(map[string]bool(nil))
 )
+
+// seriesVisibility accepts an object of series name -> visible (OD-49).
+func seriesVisibility(v json.RawMessage) error {
+	var m map[string]bool
+	if err := strictJSON(v, &m); err != nil {
+		return fmt.Errorf("value must be an object of booleans: %w", err)
+	}
+	if len(m) > 32 {
+		return errors.New("too many series")
+	}
+	for k := range m {
+		if !seriesVisName.MatchString(k) {
+			return fmt.Errorf("invalid series name %q", k)
+		}
+	}
+	return nil
+}
+
+var seriesVisName = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
 
 // ErrSecretSetting is returned for a Setting with the Secret type.
 var ErrSecretSetting = errors.New("store: a Setting must not have the Secret type (VLT-IS-004 QI-6)")
@@ -366,6 +389,7 @@ func DefaultSettings() []SettingDef {
 		// VLT-IS-003 TASK 03-00-00-005 step 7.2: 10 minutes without a request.
 		{Key: SettingSessionIdleMinutes, Type: TypeInt, Default: json.RawMessage(`10`), Check: intRange(1, 120)},
 		{Key: SettingLanguage, Type: TypeString, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
+		{Key: SettingHistorySeriesVisibility, Type: TypeSeriesVis, Default: json.RawMessage(`{}`), Check: seriesVisibility},
 		// VLT-IS-007 TASK 03-00-00-003 step 2. The desktop Channel is on by
 		// default; Telegram and e-mail need their settings first.
 		{Key: SettingNotifyDesktopEnabled, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},

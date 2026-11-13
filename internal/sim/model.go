@@ -250,6 +250,13 @@ func (m *Model) liveTickLocked() {
 	m.liveAt = now
 }
 
+// Supports reports whether the current profile answers cmd.
+func (m *Model) Supports(cmd string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.supports(cmd)
+}
+
 func (m *Model) supports(cmd string) bool {
 	switch m.Profile {
 	case ProfileQ1:

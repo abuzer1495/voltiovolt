@@ -56,6 +56,18 @@ var ErrNoDevice = errors.New("device: no UPS found")
 // serial port could not open because another program uses it.
 var ErrPortBusy = fmt.Errorf("device: %w", transport.ErrPortBusy)
 
+// ErrPortPermission is returned when the open of /dev/ttyUSB* or
+// /dev/ttyACM* fails with permission denied (VLT-IS-008 TASK 03-00-00-005).
+var ErrPortPermission = errors.New("device: port permission denied")
+
+// ErrHIDPermission is returned when the open of a hidraw device fails
+// with permission denied.
+var ErrHIDPermission = errors.New("device: HID permission denied")
+
+// ErrPermissionDenied is returned when both a Linux USB serial port and
+// a hidraw device fail with permission denied.
+var ErrPermissionDenied = errors.New("device: permission denied")
+
 // Config is the Device Settings.
 type Config struct {
 	Transport    string         `json:"transport"`
@@ -302,12 +314,23 @@ func Detect(ctx context.Context, c Config, list Lister, clock Clock, log *slog.L
 		return Profile{}, nil, err
 	}
 	busy := false
+	serialPerm, hidPerm := false, false
 	for _, cand := range cands {
 		tr := cand.New()
 		if err := tr.Open(ctx); err != nil {
 			log.Info("device: cannot open", "transport", cand.Transport, "port", cand.Port, "err", err)
 			if errors.Is(err, transport.ErrPortBusy) {
 				busy = true
+			}
+			if transport.IsPermission(err) {
+				switch {
+				case cand.Transport == TransportHID || transport.IsLinuxHID(cand.Port):
+					hidPerm = true
+				case cand.Transport == TransportSerial && transport.IsLinuxUSBSerial(cand.Port):
+					serialPerm = true
+				case transport.IsLinuxUSBSerial(cand.Port):
+					serialPerm = true
+				}
 			}
 			continue
 		}
@@ -326,6 +349,15 @@ func Detect(ctx context.Context, c Config, list Lister, clock Clock, log *slog.L
 		p := makeProfile(cand, vals, supported, d)
 		log.Info("device: UPS found", "transport", p.Transport, "port", p.Port, "dialect", string(p.Dialect), "supported", p.Supported)
 		return p, tr, nil
+	}
+	if serialPerm && hidPerm {
+		return Profile{}, nil, ErrPermissionDenied
+	}
+	if serialPerm {
+		return Profile{}, nil, ErrPortPermission
+	}
+	if hidPerm {
+		return Profile{}, nil, ErrHIDPermission
 	}
 	if busy {
 		return Profile{}, nil, ErrPortBusy

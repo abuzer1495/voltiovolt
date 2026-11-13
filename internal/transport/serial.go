@@ -105,6 +105,18 @@ func isBusy(err error) bool {
 	return errors.As(err, &pe) && pe.Code() == serial.PortBusy
 }
 
+// wrapSerialOpenError maps a serial open error to ErrPortBusy or, for a
+// Linux USB serial port with permission denied, to ErrPermissionDenied.
+func wrapSerialOpenError(name string, err error) error {
+	if isBusy(err) {
+		return fmt.Errorf("%w: %s: %v", ErrPortBusy, name, err)
+	}
+	if IsPermission(err) && IsLinuxUSBSerial(name) {
+		return fmt.Errorf("%w: %s: %v", ErrPermissionDenied, name, err)
+	}
+	return err
+}
+
 type serialPort struct{ p serial.Port }
 
 func (s *serialPort) Write(b []byte) (int, error) { return s.p.Write(b) }
@@ -136,10 +148,7 @@ func NewSerial(name string, so SerialOptions, opts Options) *Stream {
 		mode.InitialStatusBits = initialBits(runtime.GOOS, so)
 		p, err := serial.Open(name, mode)
 		if err != nil {
-			if isBusy(err) {
-				return nil, fmt.Errorf("%w: %s: %v", ErrPortBusy, name, err)
-			}
-			return nil, err
+			return nil, wrapSerialOpenError(name, err)
 		}
 		// A line with "unchanged" is never set. With one line "unchanged"
 		// and one line set, only the set line changes after open.

@@ -24,6 +24,14 @@ const (
 	StateNotConfigured = "not configured"
 	// StatePortBusy: another program uses the serial port (step 2.1).
 	StatePortBusy = "port busy"
+	// StatePortPermission: the user cannot open /dev/ttyUSB* or /dev/ttyACM*
+	// (VLT-IS-008 TASK 03-00-00-005).
+	StatePortPermission = "port permission denied"
+	// StateHIDPermission: the user cannot open a hidraw device.
+	StateHIDPermission = "hid permission denied"
+	// StatePermissionDenied: both a Linux USB serial port and a hidraw
+	// device fail with permission denied.
+	StatePermissionDenied = "permission denied"
 )
 
 // Backoff is the wait list for a new detection and for a reconnect
@@ -72,7 +80,7 @@ func (m *Manager) setStatus(state string, p *Profile, c *Config) {
 		m.status.Since = m.Clock.Now()
 	}
 	m.status.State = state
-	if p != nil || state == StateDetecting || state == StateNoDevice || state == StateNotConfigured || state == StatePortBusy {
+	if p != nil || state == StateDetecting || state == StateNoDevice || state == StateNotConfigured || state == StatePortBusy || state == StatePortPermission || state == StateHIDPermission || state == StatePermissionDenied {
 		m.status.Profile = p
 	}
 	if c != nil {
@@ -147,6 +155,12 @@ func (m *Manager) Run(ctx context.Context) error {
 			}
 			state := StateNoDevice
 			switch {
+			case errors.Is(err, ErrPermissionDenied):
+				state = StatePermissionDenied
+			case errors.Is(err, ErrPortPermission):
+				state = StatePortPermission
+			case errors.Is(err, ErrHIDPermission):
+				state = StateHIDPermission
 			case errors.Is(err, ErrPortBusy):
 				state = StatePortBusy
 			case !errors.Is(err, ErrNoDevice):

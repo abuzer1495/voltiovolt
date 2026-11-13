@@ -254,6 +254,26 @@ describe('Device screen ports', () => {
     expect(root.textContent).toContain('VLT sends the text Q1 to each marked port. Mark only ports with a UPS.');
     expect(root.textContent).toContain('USB Serial 1a86:7523');
   });
+  it('shows the exact Linux serial permission help and does not run a command', async () => {
+    expect(t('device.port.permission.help')).toBe('Your user cannot open this port. Run this command one time, then log out and log in: sudo usermod -aG dialout <user name>');
+    setupDevice('port permission denied');
+    await showDevice();
+    expect(root.textContent).toContain(t('device.port.permission.help'));
+    expect(root.textContent).not.toContain(t('device.hid.permission.help'));
+  });
+  it('shows the HID permission help with a udev rule as an example', async () => {
+    setupDevice('hid permission denied');
+    await showDevice();
+    expect(root.textContent).toContain(t('device.hid.permission.help'));
+    expect(t('device.hid.permission.help')).toContain('KERNEL=="hidraw*"');
+    expect(root.textContent).not.toContain(t('device.port.permission.help'));
+  });
+  it('shows both permission help texts when both opens fail', async () => {
+    setupDevice('permission denied');
+    await showDevice();
+    expect(root.textContent).toContain(t('device.port.permission.help'));
+    expect(root.textContent).toContain(t('device.hid.permission.help'));
+  });
   it('scans only the marked ports after the confirmation text', async () => {
     setupDevice('not configured');
     await showDevice();

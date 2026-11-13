@@ -225,8 +225,13 @@ func TestSecondClientGetsNoConnection(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s := New(sim.NewModel(sim.ProfileQ1))
+	var mu sync.Mutex
 	var statuses []string
-	s.OnStatus = func(m string) { statuses = append(statuses, m) }
+	s.OnStatus = func(m string) {
+		mu.Lock()
+		statuses = append(statuses, m)
+		mu.Unlock()
+	}
 	done := make(chan error, 1)
 	go func() { done <- s.Serve(ctx, ln) }()
 	t.Cleanup(func() { cancel(); _ = ln.Close(); <-done })
@@ -267,8 +272,11 @@ func TestSecondClientGetsNoConnection(t *testing.T) {
 	if _, err := Exchange(context.Background(), c1, "F", 2*time.Second); err != nil {
 		t.Fatalf("first client lost: %v", err)
 	}
-	if len(statuses) == 0 || statuses[0] != MsgConnected {
-		t.Fatalf("status %v", statuses)
+	mu.Lock()
+	got := append([]string(nil), statuses...)
+	mu.Unlock()
+	if len(got) == 0 || got[0] != MsgConnected {
+		t.Fatalf("status %v", got)
 	}
 }
 

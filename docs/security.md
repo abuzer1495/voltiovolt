@@ -1,6 +1,6 @@
 # Security
 
-This file is a summary of the security requirements of VLT-IS-001 Revision 00 (section 02-00-00), with the changes of VLT-IS-002 01-30-00 (VLT-IS-001 Revision 01) VLT-IS-003 01-30-00 (VLT-IS-001 Revision 02), VLT-IS-004 01-30-00 (VLT-IS-001 Revision 03) and VLT-IS-005 01-30-00 (VLT-IS-001 Revision 04). It also has the GitHub rules of VLT-IS-002 02-00-00. The full source text is in `docs/instructions/`. If this file and the instructions do not agree, the instructions apply.
+This file is a summary of the security requirements of VLT-IS-001 Revision 00 (section 02-00-00), with the changes of VLT-IS-002 01-30-00 (VLT-IS-001 Revision 01), VLT-IS-003 01-30-00 (Revision 02), VLT-IS-004 01-30-00 (Revision 03), VLT-IS-005 01-30-00 (Revision 04), VLT-IS-006 01-30-00 (Revision 05), VLT-IS-007 01-30-00 (Revision 06) and VLT-IS-008 01-20-00 (Revision 07). It also has the GitHub rules of VLT-IS-002 02-00-00. The full source text is in `docs/instructions/`. If this file and the instructions do not agree, the instructions apply.
 
 ## 1. Priority
 
@@ -33,9 +33,9 @@ This file is a summary of the security requirements of VLT-IS-001 Revision 00 (s
 |----|-------------|--------|
 | SEC-001 | Encrypt each Secret with AES-256-GCM and the DEK. Use a new random nonce for each encryption. |  |
 | SEC-002 | Do not write the DEK to disk in plain form. |  |
-| SEC-003 | Windows: wrap the DEK with DPAPI in the user scope of the vltd service account. Add application-specific entropy. Do not use the LocalMachine scope. |  |
-| SEC-004 | Linux: the installer (root) creates and wraps the DEK with systemd-creds (TPM2 plus the host key when a TPM2 chip is available). vltd reads the DEK through LoadCredentialEncrypted=. vltd does not start systemd-creds. | VLT-IS-002 01-30-00 (SEC-004), QA-02 |
-| SEC-005 | Linux without TPM2: systemd-creds uses the host key only. Show a "reduced protection" notice in the VLT GUI. |  |
+| SEC-003 | Windows: wrap the DEK with DPAPI in the user scope of the vltd service account. Add application-specific entropy. Do not use the LocalMachine scope. | Portable mode (VLT-IS-008 01-20-00): DPAPI in the scope of the current user, with the application entropy. Service mode: no change. |
+| SEC-004 | Linux: the installer (root) creates and wraps the DEK with systemd-creds (TPM2 plus the host key when a TPM2 chip is available). vltd reads the DEK through LoadCredentialEncrypted=. vltd does not start systemd-creds. | VLT-IS-002 01-30-00 (SEC-004), QA-02. Portable mode (VLT-IS-008 01-20-00): if the Secret Service (D-Bus org.freedesktop.secrets) is available, keep the DEK there; if not, keep the DEK in a file with mode 0600 in the data folder (Vault state "reduced protection"). Service mode: no change. |
+| SEC-005 | Linux without TPM2: systemd-creds uses the host key only. Show a "reduced protection" notice in the VLT GUI. | Portable mode (VLT-IS-008 01-20-00): the "reduced protection" notice applies when the DEK is in the 0600 file (TASK 03-00-00-002 step 3). Service mode: no change. |
 | SEC-006 | A copy of the database on a different host MUST NOT decrypt. Write a test for this. |  |
 | SEC-007 | Keep the PIN only as an Argon2id hash. The TOTP key (S-11) is a Secret in the Vault. | VLT-IS-003 01-30-00 (answer QA-1 to VLT-RPT-002) |
 
@@ -55,9 +55,9 @@ This file is a summary of the security requirements of VLT-IS-001 Revision 00 (s
 
 | ID | Requirement | Change |
 |----|-------------|--------|
-| SEC-020 | vltd runs as a dedicated service account. Give it only the rights for UPS access and system shutdown. |  |
-| SEC-021 | IPC access: Windows: Administrators and the local group "VLT Operators". Linux: root and the group "vlt". |  |
-| SEC-022 | The VLT GUI asks for the PIN before these actions: Settings change, Secret entry, CONTROL command, CONFIG command, Shutdown Policy activation. |  |
+| SEC-020 | vltd runs as a dedicated service account. Give it only the rights for UPS access and system shutdown. | Applies to the service mode only (VLT-IS-008 01-20-00). |
+| SEC-021 | IPC access: Windows: Administrators and the local group "VLT Operators". Linux: root and the group "vlt". | Applies to the service mode only (VLT-IS-008 01-20-00). In portable mode the IPC is in-process (net.Pipe). |
+| SEC-022 | The VLT GUI asks for the PIN before these actions: Settings change, Secret entry, CONTROL command, CONFIG command, Shutdown Policy activation. | Applies only when a PIN is set (OD-37, VLT-IS-008 01-20-00). If no PIN is set in portable mode, all functions are available without the elevated state. Secret fields stay write-only. |
 | SEC-023 | The VLT GUI locks after 10 minutes without input. The Owner can change this value. |  |
 | SEC-024 | Count incorrect PIN entries per source (actor and peer identity). Block that source only. | Changed: VLT-IS-004 01-30-00. Old text: "After 5 incorrect PIN entries, block PIN entry for 5 minutes. Double the block time after each new failure." The numbers of the old text stay (section 7). |
 | SEC-025 | Write an audit entry for each Settings change, each CONTROL or CONFIG command, each incorrect PIN and each rejected remote request. |  |
@@ -169,12 +169,24 @@ WARNING: CONTROL commands and CONFIG commands can stop power to the protected eq
 | SEC-099 | vltd does not send a byte to a serial port that the user did not select or confirm in the VLT GUI. | New: VLT-IS-006 01-30-00 |
 | SEC-100 | VLT never sends "S.0". The permitted shutdown delays are 0.2 to 0.9 minutes (12 to 54 seconds, steps of 6 seconds) and 1 to 10 minutes. | New: VLT-IS-006 01-30-00 |
 | SEC-101 | Do not commit a file or a folder of the Owner analysis. A CI check fails if the repository contains the path "ANALIZ/" or a Ghidra project file. | New: VLT-IS-006 01-30-00 |
+| SEC-102 | The default package, its install script and VoltioVolt.exe MUST NOT: install a service; make or change a user, a group or a user right; ask for administrator rights; write to the registry; install a driver; add a firewall rule; write outside the folder of the application, the profile folder of the user and the temporary folder. Exception: the start-at-logon shortcut in the startup folder of the user, only when the user turns it on. | New: VLT-IS-008 01-20-00 (makes VLT-IS-001 Revision 07) |
 
 Other VLT-IS-006 01-30-00 changes: SEC-060 add "VLT-REF-001 is an accepted source." (OD-24). VLT-IS-001 03-20-00: "C" (cancel shutdown) is in the CONTROL class, UNVERIFIED; VLT does not send it automatically. Dialect names: megatec, voltronic-qs, voltronic. VLT-IS-001 01-00-04: the Reference UPS path is serial Megatec on a virtual COM port; 0665:5161 is not its path.
 
 Term (VLT-IS-001 00-10-00, VLT-IS-005 01-30-00): **Fallback Policy**: a fixed Shutdown Policy in the code. vltd uses it only when the Vault state is "locked" (docs/architecture.md section 10.5).
 
 NOTE: VLT-IS-001 has no SEC-008, SEC-009, SEC-017 to SEC-019, SEC-026 to SEC-029, SEC-039, SEC-052 to SEC-054, SEC-059 and SEC-069.
+
+### Portable mode (VLT-IS-008 01-20-00)
+
+These changes make VLT-IS-001 Revision 07.
+
+1. SEC-102 (new): the default package, its install script and VoltioVolt.exe MUST NOT: install a service; make or change a user, a group or a user right; ask for administrator rights; write to the registry; install a driver; add a firewall rule; write outside the folder of the application, the profile folder of the user and the temporary folder. Exception: the start-at-logon shortcut in the startup folder of the user, only when the user turns it on. Acceptance test: `TestPortableModeNoSystemChange` (package `internal/portable`). The CI job test-build-windows also has the steps "Check the install scripts" and "Start test of VoltioVolt.exe with the simulator".
+2. SEC-020 and SEC-021 apply to the service mode only.
+3. SEC-003, portable mode on Windows: DPAPI in the scope of the current user, with the application entropy ("VoltioVolt-DEK-v1" and the install ID). No CRYPTPROTECT_LOCAL_MACHINE.
+4. SEC-004 and SEC-005, portable mode on Linux: if the Secret Service (D-Bus org.freedesktop.secrets) is available, the DEK is there (key mode `secret-service`); if not, the DEK is in a file with mode 0600 in the data folder (key mode `file`, Vault state "reduced protection").
+5. SEC-022 applies only when a PIN is set (OD-37). If no PIN is set in portable mode, all functions are available without the elevated state. Secret fields stay write-only.
+6. The data folder permission check (VLT-IS-003 TASK 03-00-00-003 step 6) applies to the service mode only. Portable mode does not check or change the ACL of the data folder.
 
 ## 4. Threat model summary
 
@@ -217,7 +229,7 @@ WARNING: An error in the Vault can expose all user Secrets.
 1. DEK: 32 bytes from crypto/rand.
 2. Encryption: AES-256-GCM. A new 96-bit random nonce for each encryption. Additional data: "vlt-secret-v1|" + Secret ID + "|" + version. A ciphertext moved to a different Secret ID or version does not decrypt.
 3. Linux host binding: systemd decrypts the credential `vlt-dek` (LoadCredentialEncrypted=) before vltd starts. vltd reads `$CREDENTIALS_DIRECTORY/vlt-dek` (exactly 32 bytes). vltd never starts systemd-creds. vltd reads the key mode from `/etc/vltd/key-mode` (root-owned, not writable by group or others): host, tpm2 or host+tpm2. "host" gives the state "reduced protection" (SEC-005). A missing or bad key mode file also gives "reduced protection" (reason "key mode unknown").
-4. Windows host binding: at the first start, vltd makes the DEK and wraps it with CryptProtectData (user scope of NT SERVICE\vltd, not CRYPTPROTECT_LOCAL_MACHINE, flag CRYPTPROTECT_UI_FORBIDDEN, no prompt structure). Entropy: "VoltioVolt-DEK-v1" + the install ID (meta table). File: `vault.dek` in the data directory.
+4. Windows host binding: at the first start, vltd makes the DEK and wraps it with CryptProtectData (user scope of NT SERVICE\vltd, not CRYPTPROTECT_LOCAL_MACHINE, flag CRYPTPROTECT_UI_FORBIDDEN, no prompt structure). Entropy: "VoltioVolt-DEK-v1" + the install ID (meta table). File: `vault.dek` in the data directory. Portable mode uses the same algorithm in the scope of the current user (SEC-003, VLT-IS-008 01-20-00). The service mode keeps this code without changes.
 5. Canary: when the Vault is made, vltd stores the Secret `vlt.canary` with a known value. At each start, vltd decrypts it. If this fails, the state is "locked" (reason "host binding failed"); vltd writes an audit entry and a log entry, without the canary value.
 6. States: available, reduced protection, locked, not configured. In "locked" and "not configured", Set, Delete, Use and settings writes return an error; vltd continues (SEC-090). Secret status (set or not set, hint, updated_at) works in all states.
 7. Functions: Set (version + 1), Delete, Status (never the value), Use (buffer cleared after the function returns), Reset (confirmation text "RESET VAULT"; deletes all Secrets; Windows: new DEK; Linux: same DEK, new canary; valid settings get a new MAC).

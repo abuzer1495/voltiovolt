@@ -1,15 +1,19 @@
-# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009)
+# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009, VLT-IS-008 TASK 03-00-00-007)
 
 English first. Turkish: section T below.
 
 ## E. English
 
-### How to get the test package
+### Preparation
 
 1. Open the Releases page of the repository: https://github.com/abuzer1495/voltiovolt/releases
 2. Open the pre-release "Test build" (the tag is test-latest).
 3. Download VoltioVolt-test-windows-amd64.zip or VoltioVolt-test-linux-amd64.tar.gz.
 4. Check the SHA-256 values in SHA256SUMS.txt (docs/user/probe.md section 1).
+5. Stop UPSilon 2000 and the RupsMon service before you start VoltioVolt. Start them again after the tests if you need them.
+6. Windows: extract the zip and start VoltioVolt.exe from the extracted folder. No administrator rights are necessary. The Microsoft Edge WebView2 Runtime is necessary (Windows 10 and 11 have it). Method 2: run install.cmd (it copies the files to %LOCALAPPDATA%\Programs\VoltioVolt and asks before it makes a Start menu shortcut).
+7. Linux: extract the tar.gz and start ./voltiovolt. Run-time packages: libgtk-4-1 and libwebkitgtk-6.0-4 (for example on Debian and Ubuntu: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Method 2: run install.sh (it copies the files to ~/.local/opt/voltiovolt and asks before it makes a desktop shortcut). Do not use sudo for the install script.
+8. If the VLT-IS-007 test was installed: run remove-old-test-service.cmd one time (this script asks for administrator rights).
 
 Each test has: purpose, preconditions, steps, expected result, and what to send to the Instruction Author. Do the tests in order. Send the results of each test as soon as it is complete. Do not send a Secret, a PIN, a DEK, a QID value or a serial number. Check each file before you send it.
 
@@ -17,14 +21,14 @@ General preconditions for all tests:
 
 - A test computer, not a production computer. Save all work before each test.
 - The Reference UPS and its USB or serial cable.
-- The test package of the latest pre-release "Test build" (tag test-latest). See "How to get the test package" above.
-- For T-08 to T-13: the VLT GUI from the test package (`vlt-gui` on Linux, `vlt-gui.exe` on Windows) with the SHA-256 check. Linux: the GTK 4 and WebKitGTK 6.0 libraries (for example on Debian and Ubuntu: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: the Microsoft Edge WebView2 Runtime (Windows 10 and 11 have it).
-- Do the tests in this order: T-01 to T-09, then T-10 (OD-23), then T-11 and T-12 (VLT-IS-006), then T-13 (VLT-IS-007).
+- The test package of the latest pre-release "Test build" (tag test-latest). See "Preparation" above.
+- PIN is optional in portable mode. If no PIN is set, all functions are available. Secret fields stay write-only.
+- Do the tests in this order: T-01 first, then T-08 to T-13. The tests T-02, T-03, T-05, T-07 and the service parts of T-04 and T-06 are in the section "Service mode (later)".
 
 ### T-01 vlt-probe Capture on the Reference UPS
 
 - Purpose: find the Dialect and the real responses of the Reference UPS (VLT-IS-002 TASK 03-00-00-008).
-- Preconditions: vlt-probe from the CI artifact. The UPS is connected with USB. Use Linux if possible, because Windows has no raw report descriptor. The UPS battery is fully charged.
+- Preconditions: vlt-probe from the extracted test package (Windows: vlt-probe.exe, Linux: vlt-probe). The UPS is connected with USB. Use Linux if possible, because Windows has no raw report descriptor. The UPS battery is fully charged.
 - Preconditions (VLT-IS-006):
     - Stop UPSilon 2000 and the RupsMon service before the test. Start them again after the test.
     - The Reference UPS uses serial Megatec (Q1, F, I) on a virtual COM port (OD-26). Use "--transport serial --port COM3" on Windows. On Linux, find the port with "vlt-probe scan" (/dev/ttyUSB* or /dev/ttyACM*).
@@ -35,6 +39,112 @@ General preconditions for all tests:
     3. If the UPS has a serial port: do step 1 again with `--transport serial --port <port>`.
 - Expected result: one Capture file for each run. The probe Capture has a response for Q1 or QS. The watch Capture shows status bit 7 = 1 while the input power is off.
 - Send: the Capture files, the two times, the OS name and version, and the USB vendor and product IDs from `scan`.
+
+### T-08 Policy Simulation
+
+- Purpose: check the Simulation of the default policy and of a changed policy (VLT-IS-004 TASK 03-00-00-006) with VoltioVolt. Also check the Simulation step "OS shutdown" (VLT-IS-008 TASK 03-00-00-004).
+- Preconditions: The test package is prepared as in "Preparation". No UPS is necessary. Do not connect a UPS for this test: the Simulation does not turn off the computer, but an active policy can turn it off when a UPS reports a power failure. No group membership and no administrator rights are necessary.
+- Steps:
+    1. Start VoltioVolt from the extracted folder (Windows: VoltioVolt.exe, Linux: ./voltiovolt). If the first-run wizard starts, the PIN step is optional: it has a "Skip" button. The text is: "A PIN prevents other people at this computer from changing the shutdown settings." You can click "Skip", or set a PIN. If a PIN is set, unlock with the PIN. If no PIN is set, all functions are available.
+    2. Open "Shutdown Policy". Write down the version and the state (active or inactive). If the screen shows the error "This user cannot shut down the computer.", write it down. You cannot activate the policy in that case.
+    3. Click "Run the Simulation". Write down the result of each scenario (passed or failed, and the time of the shutdown request or the cancel). Write down the result of the step "OS shutdown" (pass, or the same error as in step 2).
+    4. If the Simulation passed (including "OS shutdown"), click "Activate". Read the confirmation text, then confirm. The state is "active".
+    5. Click "Edit". Change "countdown_seconds" to 90. Click "Save".
+    6. Check the text "The policy is now inactive. Run the Simulation to activate it." and the state "inactive". "Activate" is off.
+    7. Click "Run the Simulation" again. Then "Activate" is on. Do not activate. Click "Edit", set "countdown_seconds" to 60 again and click "Save".
+- Expected result: step 3: all scenarios "passed", and the step "OS shutdown" passed. Default policy: power_fail_long gives a shutdown request at 370 s, power_fail_short gives a cancel, low_battery gives a refused cancel and a request at 90 s, comm_lost_on_battery gives a request before its limit. Step 6: the policy is inactive after the change. Step 7: "Activate" is on only after the new Simulation passed. If "OS shutdown" failed, the error is exactly "This user cannot shut down the computer." and you cannot activate the policy.
+- Send: the results of steps 2, 3, 6 and 7 (screenshots are permitted; check that no Secret is in them), the version of VoltioVolt (General, About) and the OS.
+
+### T-09 Real shutdown with the Reference UPS
+
+WARNING: This test turns off the computer. Save all work. Close all applications. Make sure that the UPS battery is fully charged. Set trigger.on_battery_seconds to 30. Disconnect the UPS input power. Connect the input power again after the computer is off.
+
+- Purpose: check the full chain on real hardware: UPS, Device Manager, Event Engine, Policy Engine, OS shutdown executor (TASK 03-00-00-006 and 007).
+- Preconditions: T-01 and T-08 are complete. The computer is powered by the Reference UPS, and the UPS is connected to the computer with USB or serial. VoltioVolt runs (started from the extracted folder, as in T-08). No other person uses the computer.
+- Steps (all in VoltioVolt):
+    1. If a PIN is set, unlock with the PIN. Open "Shutdown Policy", click "Edit", set "trigger.on_battery_seconds" to 30 (keep the other defaults: countdown 60 s, action shutdown) and click "Save".
+    2. Click "Run the Simulation". The result must be "passed", including the step "OS shutdown". Then click "Activate" and confirm.
+    3. Open "Device": the state must be "connected". If Linux shows "port permission denied" or "HID permission denied", follow the help text (run the command one time, then log out and log in). VoltioVolt does not run that command and does not install a udev rule.
+    4. Open "Dashboard". The mode is "Mains power". Write down the time.
+    5. Disconnect the UPS input power. Write down the time.
+    6. Watch the Dashboard: the mode changes to "On battery", the Event ON_BATTERY is at the top of the Events, after 30 seconds the countdown banner starts with 60 seconds.
+    7. The computer turns off. Write down the time.
+    8. Connect the UPS input power again. Start the computer.
+    9. Start VoltioVolt again. Windows: open the log file in the data folder (General, "Data folder"): logs\vltd.log, and Event Viewer, System log, source User32, event ID 1074. Linux: open "Security" and read the audit log; if you started VoltioVolt from a terminal, also keep the standard error output. Do not use `journalctl -u vltd`.
+    10. If a PIN is set, unlock. Open "Security" and read the audit log (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Then set "trigger.on_battery_seconds" back to 300 on "Shutdown Policy".
+- Expected result: the computer turns off about 90 seconds after step 5, without a dialog. The audit log has the three entries. Windows: event 1074 shows the reason code 0x6000c ("Power Failure: Environment"; the exact event text is UNVERIFIED).
+- Abort: to stop the countdown, connect the input power again before the end (cancel_when_mains_returns is on), or click "Cancel" in the countdown banner (not possible with LOW_BATTERY).
+- Send: the times of steps 4, 5 and 7, the log lines, the audit entries (no Secret is in them), and the Windows event 1074 text.
+
+### T-10 VLT GUI test
+
+- Purpose: check the VLT GUI in VoltioVolt (VLT-IS-005) on the Owner computer, and review all Turkish text (VLT-IS-005 TASK 03-00-00-008 step 1.4). Also check the portable functions of VLT-IS-008: the data folder, start at logon, the tray, and the optional PIN.
+- Preconditions: T-01 and T-08 are complete (OD-23, portable order). VoltioVolt is from the test package with the SHA-256 check. For a new first start: a new data folder, with or without a PIN (optional).
+- Steps:
+    1. Start VoltioVolt from the extracted folder. The engine and the VLT GUI run in one process. Close the window: the window hides and the monitoring continues. The first time, the text is: "VoltioVolt continues to monitor the UPS in the tray." Open the window from the tray. Then use the tray menu "Quit": the confirmation is "If you quit, VoltioVolt stops the monitoring and the automatic shutdown." Confirm. The application stops. Start it again.
+    2. Set PIN (optional): on a new first start, the wizard PIN step has "Skip" and the text "A PIN prevents other people at this computer from changing the shutdown settings." Try a PIN with 5 characters (refused), then set a correct PIN, or click "Skip". The General screen has "Set PIN" when no PIN is set, and "Remove PIN" when a PIN is set (Remove needs the current PIN).
+    3. Login (only if a PIN is set): click "Unlock" and enter a wrong PIN until the GUI shows the block time. Wait, then unlock with the correct PIN.
+    4. Lock (only if a PIN is set): click "Lock". The GUI shows "Locked" and still shows the Dashboard. Unlock again. Then wait for the idle time (auth.session_idle_minutes) without a click: the GUI locks itself.
+    5. Dashboard values: compare the values (input and output voltage, frequency, load, battery charge and voltage, runtime, temperature) with the UPS display or the UPS documentation.
+    6. Device screen: the state "connected", the Transport, the Dialect, the model data. The serial number is not shown in a report.
+    7. History charts: open each range (1 hour to 1 year) and each chart. Open the table view of one chart.
+    8. Events: load older Events, filter by severity and by type.
+    9. Policy edit: change one value outside its range (for example countdown_seconds 5): the GUI refuses it before it sends it. Change it to a correct value and save.
+    10. Simulation: run it and check that each scenario shows its steps (including "OS shutdown"), its virtual times and "passed" or "failed".
+    11. Activation: "Activate" is on only after a passed Simulation (including "OS shutdown"). Activate, then deactivate with the confirmation.
+    12. Language and General: open "General". The screen shows the data folder path. The switch "Start at logon" is off by default. Turn it on, then off: VoltioVolt uses only the startup folder of the user. Select "Türkçe", then "English". Close and start VoltioVolt again: the language stays.
+    13. Review of all Turkish text: select "Türkçe" and open each screen and each message that you can see. Check the Turkish characters (ç, ğ, ı, İ, ö, ş, ü), the words and the grammar.
+    14. Keyboard: use only the Tab, Shift+Tab, Enter and Space keys on one screen. The focus is always visible.
+    15. Theme: change the OS theme between light and dark. The GUI follows it.
+- Expected result: all steps work as written. No text in the GUI is in the wrong language or has wrong Turkish characters.
+- Send: the result of each step (OK or the problem), a list of the Turkish text that must change (the screen, the current text and the correct text), the OS, the data folder path, and the version of VoltioVolt (General, About). Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
+
+### T-11 UPS Control (VLT-IS-006)
+
+- Purpose: check the UPS Control screen and the CONTROL commands test and beeper on the Reference UPS (VLT-IS-006 TASK 03-00-00-005, 007 and 008).
+- Preconditions: T-01, T-08 and T-10 are complete. VoltioVolt runs with `device.transport` serial and the port of T-01 (screen "Device"). The device state is "connected". Mains power is present. The UPS battery is fully charged.
+- Steps (all in VoltioVolt):
+    1. If a PIN is set, unlock with the PIN. Open "UPS Control". The buttons are on.
+    2. Click "Beeper off". Write down the time. Disconnect the UPS input power for 10 seconds: the UPS makes no sound. Connect the input power again.
+    3. Click "Beeper on". Disconnect the UPS input power for 10 seconds: the UPS makes a sound. Connect the input power again.
+    4. Click "Test 10 seconds", then confirm with "Start the test". Write down the time. The Event TEST_STARTED shows. After the test, the screen shows the last test result (TEST_PASSED or TEST_FAILED) with its time.
+    5. Open "Events": TEST_STARTED and its clear.
+    6. Open "Security" and read the audit log: ups_beeper_set, ups_control, ups_control_verify, ups_test_start and ups_test_end.
+- Expected result: each command is "verified". The test result is TEST_PASSED. The audit log has the entries of step 6 with the bytes (Q, T).
+- Send: the times, the test result, the audit entries (no Secret is in them) and the Events.
+
+### T-12 UPS output off and restore (VLT-IS-006)
+
+WARNING: The UPS turns off its output during this test. All equipment on the UPS loses power. Connect only the test computer to the UPS. Save all work. Make sure that the battery is fully charged.
+
+- Purpose: check the UPS output off step of the Shutdown Policy (VLT-IS-006 TASK 03-00-00-006, OD-28).
+- Preconditions: T-09 and T-11 are complete. Only the test computer is connected to the UPS output. VoltioVolt runs with the port of T-01.
+- Steps (all in VoltioVolt):
+    1. If a PIN is set, unlock with the PIN. Open "Shutdown Policy", click "Edit", set ups_off.enabled on, ups_off.delay_minutes 2, ups_off.restore_minutes 1 (keep trigger.on_battery_seconds 30 of T-09) and click "Save".
+    2. Run the Simulation. The result must be "passed" (including "OS shutdown") and each scenario shows the step "UPS output off command (dry run, not sent)". Activate the policy.
+    3. Disconnect the UPS input power. Write down the time.
+    4. Record the times of the OS shutdown, the UPS output off and the UPS output on.
+    5. Run 1: connect the input power again before the restore time (before the UPS output is on again).
+    6. Run 2: do steps 3 and 4 again, and do not connect the input power. Write down what the UPS does. Then connect the input power.
+    7. Start the computer. Start VoltioVolt. Open "Security" and read the audit log: policy_countdown_start, policy_ups_off, policy_shutdown_request, os_shutdown_request.
+    8. Set ups_off.enabled off again (the default, OD-28), run the Simulation and activate the policy.
+- Expected result: the OS shuts down before the UPS output turns off (2 minutes after the shutdown starts). Run 1: the UPS output turns on 1 minute after it turned off. Run 2: the behavior without input power is UNVERIFIED (VLT-REF-001 5.1 item 4); write it down.
+- Send: the times of steps 3 and 4 for both runs, the audit entries and the log lines (Windows: the log file in the data folder, logs\vltd.log).
+
+### T-13 Notifications (VLT-IS-007)
+
+- Purpose: check the desktop, Telegram and e-mail Channels (VLT-IS-007 TASK 03-00-00-004, 005 and 006).
+- Preconditions: T-09 is complete. VoltioVolt from the test package is running. A Telegram bot token and a Gmail app password (the Owner's). Do not send the token or the password.
+- Steps (all in VoltioVolt, screen "Notifications", unless a step says otherwise):
+    1. Desktop: start VoltioVolt. Disconnect the UPS input power. A desktop notification appears. Connect the input power. Write down the time.
+    2. Telegram: enter the bot token (write-only). Click "Pair a chat". Send `/start <code>` to the bot from Telegram. Send `/durum`. Disconnect the UPS input power. A Telegram Notification arrives. Connect the input power. Write down the time.
+    3. E-mail: select the preset "Gmail". Enter the Gmail address and the app password (help text: "Use a Google app password, not your normal password. Google account, Security, 2-Step Verification, App passwords."). Click "Send test message". Disconnect the UPS input power. An e-mail Notification arrives. Connect the input power. Write down the time.
+- Expected result: a desktop notification, a Telegram message (including a reply to `/durum` with the UPS status) and an e-mail, each during the power failure. The test e-mail arrives.
+- Send: the times and a confirmation that each Channel worked. Do not send the token, the password or the message text (it can contain status data).
+
+### Service mode (later)
+
+These tests need the service mode (vltd, vlt-setup, a local group and a user right). The service mode stays in the source code. It is not in the default package (OD-36). Do not run these tests with the VLT-IS-008 portable package. The text of T-02, T-03, T-04, T-05, T-06 and T-07 is kept here for a later release.
 
 ### T-02 vltd development install on Linux
 
@@ -109,116 +219,19 @@ General preconditions for all tests:
 - Expected result: step 1 gives `s "yes"`. Step 2 gives `s "yes"` if hibernation is configured, else `"na"` or `"no"` (then vltd uses PowerOff for the hibernate action).
 - Send: the output of steps 1 to 3, the distribution and the systemd version.
 
-### T-08 Policy Simulation
-
-- Purpose: check the Simulation of the default policy and of a changed policy (VLT-IS-004 TASK 03-00-00-006) with the VLT GUI.
-- Preconditions: T-02 or T-03 is complete, vltd runs, and your user is in the group vlt (Linux) or "VLT Operators" (Windows). The VLT GUI artifact with the SHA-256 check. No UPS is necessary. Do not connect a UPS for this test: the Simulation does not turn off the computer, but an active policy can turn it off when a UPS reports a power failure.
-- Steps:
-    1. Start the VLT GUI. If no PIN is set, set a PIN. Unlock with the PIN.
-    2. Open "Shutdown Policy". Write down the version and the state (active or inactive).
-    3. Click "Run the Simulation". Write down the result of each scenario (passed or failed, and the time of the shutdown request or the cancel).
-    4. Click "Activate". Read the confirmation text, then confirm. The state is "active".
-    5. Click "Edit". Change "countdown_seconds" to 90. Click "Save".
-    6. Check the text "The policy is now inactive. Run the Simulation to activate it." and the state "inactive". "Activate" is off.
-    7. Click "Run the Simulation" again. Then "Activate" is on. Do not activate. Click "Edit", set "countdown_seconds" to 60 again and click "Save".
-- Expected result: step 3: all scenarios "passed". Default policy: power_fail_long gives a shutdown request at 370 s, power_fail_short gives a cancel, low_battery gives a refused cancel and a request at 90 s, comm_lost_on_battery gives a request before its limit. Step 6: the policy is inactive after the change. Step 7: "Activate" is on only after the new Simulation passed.
-- Send: the results of steps 2, 3, 6 and 7 (screenshots are permitted; check that no Secret is in them), the version of the VLT GUI (General, About) and the OS.
-
-### T-09 Real shutdown with the Reference UPS
-
-WARNING: This test turns off the computer. Save all work. Close all applications. Make sure that the UPS battery is fully charged. Set trigger.on_battery_seconds to 30. Disconnect the UPS input power. Connect the input power again after the computer is off.
-
-- Purpose: check the full chain on real hardware: UPS, Device Manager, Event Engine, Policy Engine, OS shutdown executor (TASK 03-00-00-006 and 007).
-- Preconditions: T-01 to T-03, T-07 and T-08 are complete. The computer is powered by the Reference UPS, and the UPS is connected to the computer with USB or serial. vltd runs (T-02 or T-03). The VLT GUI is the IPC client (OD-22). No other person uses the computer.
-- Steps (all in the VLT GUI):
-    1. Unlock with the PIN. Open "Shutdown Policy", click "Edit", set "trigger.on_battery_seconds" to 30 (keep the other defaults: countdown 60 s, action shutdown) and click "Save".
-    2. Click "Run the Simulation". The result must be "passed". Then click "Activate" and confirm.
-    3. Open "Device": the state must be "connected".
-    4. Open "Dashboard". The mode is "Mains power". Write down the time.
-    5. Disconnect the UPS input power. Write down the time.
-    6. Watch the Dashboard: the mode changes to "On battery", the Event ON_BATTERY is at the top of the Events, after 30 seconds the countdown banner starts with 60 seconds.
-    7. The computer turns off. Write down the time.
-    8. Connect the UPS input power again. Start the computer.
-    9. Linux: `journalctl -u vltd -b -1 --no-pager | tail -100`. Windows: vltd.log, and Event Viewer, System log, source User32, event ID 1074.
-    10. Start the VLT GUI, unlock, open "Security" and read the audit log (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Then set "trigger.on_battery_seconds" back to 300 on "Shutdown Policy".
-- Expected result: the computer turns off about 90 seconds after step 5, without a dialog. The audit log has the three entries. Linux: os_shutdown_request has the inhibitor list. Windows: event 1074 shows the reason code 0x6000c ("Power Failure: Environment"; the exact event text is UNVERIFIED).
-- Abort: to stop the countdown, connect the input power again before the end (cancel_when_mains_returns is on), or click "Cancel" in the countdown banner (not possible with LOW_BATTERY).
-- Send: the times of steps 4, 5 and 7, the log lines, the audit entries (no Secret is in them), and the Windows event 1074 text.
-
-### T-10 VLT GUI test
-
-- Purpose: check the VLT GUI (VLT-IS-005) on the Owner computer, and review all Turkish text (VLT-IS-005 TASK 03-00-00-008 step 1.4).
-- Preconditions: T-01 to T-09 are complete (OD-23). vltd runs, and your user is in the group vlt (Linux) or "VLT Operators" (Windows). The VLT GUI artifact with the SHA-256 check. For a new first start: a new vltd data directory without a PIN (optional).
-- Steps:
-    1. Connect: start the VLT GUI. The top bar shows "Connected to vltd". Stop vltd for 20 seconds, then start it again: the GUI shows "No connection to vltd" with the reason, and connects again in 5 seconds or less after vltd runs.
-    2. Set PIN (only on a new data directory): the GUI shows only "Set PIN" with the PIN rules. Try a PIN with 5 characters (refused), then set a correct PIN.
-    3. Login: click "Unlock" and enter a wrong PIN until the GUI shows the block time. Wait, then unlock with the correct PIN.
-    4. Lock: click "Lock". The GUI shows "Locked" and still shows the Dashboard. Unlock again. Then wait for the idle time (auth.session_idle_minutes) without a click: the GUI locks itself.
-    5. Dashboard values: compare the values (input and output voltage, frequency, load, battery charge and voltage, runtime, temperature) with the UPS display or the UPS documentation.
-    6. Device screen: the state "connected", the Transport, the Dialect, the model data. The serial number is not shown in a report.
-    7. History charts: open each range (1 hour to 1 year) and each chart. Open the table view of one chart.
-    8. Events: load older Events, filter by severity and by type.
-    9. Policy edit: change one value outside its range (for example countdown_seconds 5): the GUI refuses it before it sends it. Change it to a correct value and save.
-    10. Simulation: run it and check that each scenario shows its steps, its virtual times and "passed" or "failed".
-    11. Activation: "Activate" is on only after a passed Simulation. Activate, then deactivate with the confirmation.
-    12. Language change: open "General", select "Türkçe", then "English". Close and start the VLT GUI again: the language stays.
-    13. Review of all Turkish text: select "Türkçe" and open each screen and each message that you can see. Check the Turkish characters (ç, ğ, ı, İ, ö, ş, ü), the words and the grammar.
-    14. Keyboard: use only the Tab, Shift+Tab, Enter and Space keys on one screen. The focus is always visible.
-    15. Theme: change the OS theme between light and dark. The GUI follows it.
-- Expected result: all steps work as written. No text in the GUI is in the wrong language or has wrong Turkish characters.
-- Send: the result of each step (OK or the problem), a list of the Turkish text that must change (the screen, the current text and the correct text), the OS, and the version of the VLT GUI (General, About). Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
-
-### T-11 UPS Control (VLT-IS-006)
-
-- Purpose: check the UPS Control screen and the CONTROL commands test and beeper on the Reference UPS (VLT-IS-006 TASK 03-00-00-005, 007 and 008).
-- Preconditions: T-01 to T-10 are complete. vltd runs with `device.transport` serial and the port of T-01 (screen "Device"). The device state is "connected". Mains power is present. The UPS battery is fully charged.
-- Steps (all in the VLT GUI):
-    1. Unlock with the PIN. Open "UPS Control". The buttons are on.
-    2. Click "Beeper off". Write down the time. Disconnect the UPS input power for 10 seconds: the UPS makes no sound. Connect the input power again.
-    3. Click "Beeper on". Disconnect the UPS input power for 10 seconds: the UPS makes a sound. Connect the input power again.
-    4. Click "Test 10 seconds", then confirm with "Start the test". Write down the time. The Event TEST_STARTED shows. After the test, the screen shows the last test result (TEST_PASSED or TEST_FAILED) with its time.
-    5. Open "Events": TEST_STARTED and its clear.
-    6. Open "Security" and read the audit log: ups_beeper_set, ups_control, ups_control_verify, ups_test_start and ups_test_end.
-- Expected result: each command is "verified". The test result is TEST_PASSED. The audit log has the entries of step 6 with the bytes (Q, T).
-- Send: the times, the test result, the audit entries (no Secret is in them) and the Events.
-
-### T-12 UPS output off and restore (VLT-IS-006)
-
-WARNING: The UPS turns off its output during this test. All equipment on the UPS loses power. Connect only the test computer to the UPS. Save all work. Make sure that the battery is fully charged.
-
-- Purpose: check the UPS output off step of the Shutdown Policy (VLT-IS-006 TASK 03-00-00-006, OD-28).
-- Preconditions: T-09 and T-11 are complete. Only the test computer is connected to the UPS output. vltd runs with the port of T-01.
-- Steps (all in the VLT GUI):
-    1. Unlock with the PIN. Open "Shutdown Policy", click "Edit", set ups_off.enabled on, ups_off.delay_minutes 2, ups_off.restore_minutes 1 (keep trigger.on_battery_seconds 30 of T-09) and click "Save".
-    2. Run the Simulation. The result must be "passed" and each scenario shows the step "UPS output off command (dry run, not sent)". Activate the policy.
-    3. Disconnect the UPS input power. Write down the time.
-    4. Record the times of the OS shutdown, the UPS output off and the UPS output on.
-    5. Run 1: connect the input power again before the restore time (before the UPS output is on again).
-    6. Run 2: do steps 3 and 4 again, and do not connect the input power. Write down what the UPS does. Then connect the input power.
-    7. Start the computer. Open "Security" and read the audit log: policy_countdown_start, policy_ups_off, policy_shutdown_request, os_shutdown_request.
-    8. Set ups_off.enabled off again (the default, OD-28), run the Simulation and activate the policy.
-- Expected result: the OS shuts down before the UPS output turns off (2 minutes after the shutdown starts). Run 1: the UPS output turns on 1 minute after it turned off. Run 2: the behavior without input power is UNVERIFIED (VLT-REF-001 5.1 item 4); write it down.
-- Send: the times of steps 3 and 4 for both runs, the audit entries and the vltd log lines.
-
-### T-13 Notifications (VLT-IS-007)
-
-- Purpose: check the desktop, Telegram and e-mail Channels (VLT-IS-007 TASK 03-00-00-004, 005 and 006).
-- Preconditions: T-09 is complete. The VLT GUI from the test package is running. A Telegram bot token and a Gmail app password (the Owner's). Do not send the token or the password.
-- Steps (all in the VLT GUI, screen "Notifications", unless a step says otherwise):
-    1. Desktop: start the VLT GUI. Disconnect the UPS input power. A desktop notification appears. Connect the input power. Write down the time.
-    2. Telegram: enter the bot token (write-only). Click "Pair a chat". Send `/start <code>` to the bot from Telegram. Send `/durum`. Disconnect the UPS input power. A Telegram Notification arrives. Connect the input power. Write down the time.
-    3. E-mail: select the preset "Gmail". Enter the Gmail address and the app password (help text: "Use a Google app password, not your normal password. Google account, Security, 2-Step Verification, App passwords."). Click "Send test message". Disconnect the UPS input power. An e-mail Notification arrives. Connect the input power. Write down the time.
-- Expected result: a desktop notification, a Telegram message (including a reply to `/durum` with the UPS status) and an e-mail, each during the power failure. The test e-mail arrives.
-- Send: the times and a confirmation that each Channel worked. Do not send the token, the password or the message text (it can contain status data).
 
 ## T. Türkçe
 
-### Test paketini alma
+### Hazırlık
 
 1. Depo Releases sayfasını açın: https://github.com/abuzer1495/voltiovolt/releases
 2. "Test build" adlı ön sürümü açın (etiket: test-latest).
 3. VoltioVolt-test-windows-amd64.zip veya VoltioVolt-test-linux-amd64.tar.gz dosyasını indirin.
 4. SHA-256 değerlerini SHA256SUMS.txt dosyasından kontrol edin (docs/user/probe.md bölüm 1).
+5. VoltioVolt'u başlatmadan önce UPSilon 2000'i ve RupsMon hizmetini durdurun. Testlerden sonra gerekiyorsa yeniden başlatın.
+6. Windows: zip dosyasını çıkarın ve çıkarılmış klasörden VoltioVolt.exe dosyasını başlatın. Yönetici hakları gerekmez. Microsoft Edge WebView2 Runtime gerekir (Windows 10 ve 11'de vardır). Yöntem 2: install.cmd dosyasını çalıştırın (dosyaları %LOCALAPPDATA%\Programs\VoltioVolt klasörüne kopyalar ve bir Başlat menüsü kısayolu yapmadan önce sorar).
+7. Linux: tar.gz dosyasını çıkarın ve ./voltiovolt dosyasını başlatın. Çalışma zamanı paketleri: libgtk-4-1 ve libwebkitgtk-6.0-4 (örneğin Debian ve Ubuntu'da: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Yöntem 2: install.sh dosyasını çalıştırın (dosyaları ~/.local/opt/voltiovolt klasörüne kopyalar ve bir masaüstü kısayolu yapmadan önce sorar). Kurulum betiği için sudo kullanmayın.
+8. VLT-IS-007 testi kurulmuşsa: remove-old-test-service.cmd dosyasını bir kez çalıştırın (bu betik yönetici hakları ister).
 
 Her testte şunlar vardır: amaç, ön koşullar, adımlar, beklenen sonuç ve Instruction Author'a gönderilecekler. Testleri sırayla yapın. Her testin sonuçlarını test biter bitmez gönderin. Secret, PIN, DEK, QID değeri veya seri numarası göndermeyin. Göndermeden önce her dosyayı kontrol edin.
 
@@ -226,14 +239,14 @@ Tüm testler için genel ön koşullar:
 
 - Üretim bilgisayarı değil, bir test bilgisayarı. Her testten önce tüm çalışmalarınızı kaydedin.
 - Referans UPS ve USB veya seri kablosu.
-- En son "Test build" ön sürümünün (etiket: test-latest) test paketi. Yukarıdaki "Test paketini alma" bölümüne bakın.
-- T-08 ile T-13 için: test paketindeki VLT GUI (`vlt-gui` Linux'ta, `vlt-gui.exe` Windows'ta) ve SHA-256 kontrolü. Linux: GTK 4 ve WebKitGTK 6.0 kitaplıkları (örneğin Debian ve Ubuntu'da: `sudo apt install libgtk-4-1 libwebkitgtk-6.0-4`). Windows: Microsoft Edge WebView2 Runtime (Windows 10 ve 11'de vardır).
-- Testleri şu sırayla yapın: T-01 ile T-09, sonra T-10 (OD-23), sonra T-11 ve T-12 (VLT-IS-006), sonra T-13 (VLT-IS-007).
+- En son "Test build" ön sürümünün (etiket: test-latest) test paketi. Yukarıdaki "Hazırlık" bölümüne bakın.
+- Taşınabilir kipte PIN isteğe bağlıdır. PIN belirlenmemişse tüm işlevler kullanılabilir. Secret alanları yalnızca yazılır.
+- Testleri şu sırayla yapın: önce T-01, sonra T-08 ile T-13. T-02, T-03, T-05, T-07 ve T-04 ile T-06'nın hizmet kısımları "Hizmet kipi (daha sonra)" bölümündedir.
 
 ### T-01 Referans UPS ile vlt-probe Capture
 
 - Amaç: Referans UPS'in Dialect'ini ve gerçek yanıtlarını bulmak (VLT-IS-002 TASK 03-00-00-008).
-- Ön koşullar: CI artifact dosyasından vlt-probe. UPS, USB ile bağlıdır. Mümkünse Linux kullanın, çünkü Windows'ta ham rapor tanımlayıcısı (raw report descriptor) yoktur. UPS bataryası tam doludur.
+- Ön koşullar: çıkarılmış test paketindeki vlt-probe (Windows: vlt-probe.exe, Linux: vlt-probe). UPS, USB ile bağlıdır. Mümkünse Linux kullanın, çünkü Windows'ta ham rapor tanımlayıcısı (raw report descriptor) yoktur. UPS bataryası tam doludur.
 - Ön koşullar (VLT-IS-006):
     - Testten önce UPSilon 2000'i ve RupsMon hizmetini durdurun. Testten sonra yeniden başlatın.
     - Referans UPS, sanal bir COM portunda seri Megatec (Q1, F, I) kullanır (OD-26). Windows'ta "--transport serial --port COM3" kullanın. Linux'ta portu "vlt-probe scan" ile bulun (/dev/ttyUSB* veya /dev/ttyACM*).
@@ -244,6 +257,112 @@ Tüm testler için genel ön koşullar:
     3. UPS'in seri portu varsa: 1. adımı `--transport serial --port <port>` ile tekrarlayın.
 - Beklenen sonuç: her çalıştırma için bir Capture dosyası. probe Capture dosyasında Q1 veya QS için bir yanıt vardır. watch Capture dosyası, giriş gücü kapalıyken durum biti 7 = 1 gösterir.
 - Gönderin: Capture dosyaları, iki zaman, işletim sistemi adı ve sürümü, `scan` çıktısındaki USB vendor ve product ID değerleri.
+
+### T-08 Politika Simülasyonu
+
+- Amaç: varsayılan politikanın ve değiştirilmiş bir politikanın Simülasyonunu (VLT-IS-004 TASK 03-00-00-006) VoltioVolt ile kontrol etmek. Ayrıca Simülasyon adımı "İşletim sistemi kapatması"nı kontrol etmek (VLT-IS-008 TASK 03-00-00-004).
+- Ön koşullar: Test paketi "Hazırlık" bölümündeki gibi hazırlanmıştır. UPS gerekmez. Bu test için UPS bağlamayın: Simülasyon bilgisayarı kapatmaz, ancak etkin bir politika, UPS bir elektrik kesintisi bildirdiğinde bilgisayarı kapatabilir. Grup üyeliği ve yönetici hakları gerekmez.
+- Adımlar:
+    1. VoltioVolt'u çıkarılmış klasörden başlatın (Windows: VoltioVolt.exe, Linux: ./voltiovolt). İlk çalıştırma sihirbazı başlarsa, PIN adımı isteğe bağlıdır: bir "Atla" düğmesi vardır. Metin şudur: "Bir PIN, bu bilgisayardaki diğer kişilerin kapatma ayarlarını değiştirmesini önler." "Atla" düğmesine tıklayabilir veya bir PIN belirleyebilirsiniz. PIN belirlenmişse PIN ile kilidi açın. PIN belirlenmemişse tüm işlevler kullanılabilir.
+    2. "Kapatma Politikası" ekranını açın. Sürümü ve durumu (etkin veya etkin değil) not edin. Ekran "Bu kullanıcı bilgisayarı kapatamaz." hatasını gösteriyorsa bunu not edin. Bu durumda politikayı etkinleştiremezsiniz.
+    3. "Simülasyonu çalıştır" düğmesine tıklayın. Her senaryonun sonucunu not edin (başarılı veya başarısız ve kapatma isteğinin veya iptalin zamanı). "İşletim sistemi kapatması" adımının sonucunu not edin (başarılı, veya 2. adımdaki aynı hata).
+    4. Simülasyon başarılıysa ("İşletim sistemi kapatması" dahil), "Etkinleştir" düğmesine tıklayın. Onay metnini okuyun ve onaylayın. Durum "etkin" olur.
+    5. "Düzenle" düğmesine tıklayın. "countdown_seconds" değerini 90 yapın. "Kaydet" düğmesine tıklayın.
+    6. "Politika artık etkin değil. Etkinleştirmek için Simülasyonu çalıştırın." metnini ve "etkin değil" durumunu kontrol edin. "Etkinleştir" kapalıdır.
+    7. "Simülasyonu çalıştır" düğmesine yeniden tıklayın. Sonra "Etkinleştir" açık olur. Etkinleştirmeyin. "Düzenle" düğmesine tıklayın, "countdown_seconds" değerini yeniden 60 yapın ve "Kaydet" düğmesine tıklayın.
+- Beklenen sonuç: 3. adım: tüm senaryolar "başarılı" ve "İşletim sistemi kapatması" adımı başarılı. Varsayılan politika: power_fail_long 370 s'de bir kapatma isteği verir, power_fail_short bir iptal verir, low_battery reddedilen bir iptal ve 90 s'de bir istek verir, comm_lost_on_battery sınırından önce bir istek verir. 6. adım: değişiklikten sonra politika etkin değildir. 7. adım: "Etkinleştir" yalnızca yeni Simülasyon başarılı olduktan sonra açıktır. "İşletim sistemi kapatması" başarısızsa hata tam olarak "Bu kullanıcı bilgisayarı kapatamaz." olur ve politikayı etkinleştiremezsiniz.
+- Gönderin: 2, 3, 6 ve 7. adımların sonuçları (ekran görüntülerine izin vardır; içlerinde Secret olmadığını kontrol edin), VoltioVolt sürümü (Genel, Hakkında) ve işletim sistemi.
+
+### T-09 Referans UPS ile gerçek kapatma
+
+UYARI: Bu test bilgisayarı kapatır. Tüm çalışmalarınızı kaydedin. Tüm uygulamaları kapatın. UPS bataryasının tam dolu olduğundan emin olun. trigger.on_battery_seconds değerini 30 yapın. UPS giriş gücünü kesin. Bilgisayar kapandıktan sonra giriş gücünü yeniden bağlayın.
+
+- Amaç: gerçek donanımda tam zinciri kontrol etmek: UPS, Aygıt Yöneticisi, Olay Motoru, Politika Motoru, işletim sistemi kapatma yürütücüsü (TASK 03-00-00-006 ve 007).
+- Ön koşullar: T-01 ve T-08 tamamlanmıştır. Bilgisayar, Referans UPS tarafından beslenir ve UPS bilgisayara USB veya seri ile bağlıdır. VoltioVolt çalışır (T-08'deki gibi çıkarılmış klasörden başlatılmıştır). Bilgisayarı başka bir kişi kullanmaz.
+- Adımlar (tümü VoltioVolt'ta):
+    1. PIN belirlenmişse PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, "trigger.on_battery_seconds" değerini 30 yapın (diğer varsayılanlar kalsın: geri sayım 60 s, eylem kapatma) ve "Kaydet" düğmesine tıklayın.
+    2. "Simülasyonu çalıştır" düğmesine tıklayın. Sonuç, "İşletim sistemi kapatması" adımı dahil, "başarılı" olmalıdır. Sonra "Etkinleştir" düğmesine tıklayın ve onaylayın.
+    3. "Aygıt" ekranını açın: durum "bağlı" olmalıdır. Linux "port izni yok" veya "HID izni yok" gösteriyorsa yardım metnini izleyin (komutu bir kez çalıştırın, sonra oturumu kapatıp yeniden açın). VoltioVolt bu komutu çalıştırmaz ve bir udev kuralı kurmaz.
+    4. "Gösterge paneli" ekranını açın. Kip "Şebeke elektriği"dir. Zamanı not edin.
+    5. UPS giriş gücünü kesin. Zamanı not edin.
+    6. Gösterge panelini izleyin: kip "Aküde" olur, ON_BATTERY Olayı Olayların en üstündedir, 30 saniye sonra 60 saniyelik geri sayım bandı başlar.
+    7. Bilgisayar kapanır. Zamanı not edin.
+    8. UPS giriş gücünü yeniden bağlayın. Bilgisayarı başlatın.
+    9. VoltioVolt'u yeniden başlatın. Windows: veri klasöründeki (Genel, "Veri klasörü") günlük dosyasını açın: logs\vltd.log, ve Olay Görüntüleyicisi, Sistem günlüğü, kaynak User32, olay kimliği 1074. Linux: "Güvenlik" ekranını açın ve denetim kaydını okuyun; VoltioVolt'u bir uçbirimden başlattıysanız standart hata çıktısını da saklayın. `journalctl -u vltd` kullanmayın.
+    10. PIN belirlenmişse kilidi açın. "Güvenlik" ekranını açın ve denetim kaydını okuyun (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Sonra "Kapatma Politikası"nda "trigger.on_battery_seconds" değerini yeniden 300 yapın.
+- Beklenen sonuç: bilgisayar, 5. adımdan yaklaşık 90 saniye sonra, bir iletişim kutusu olmadan kapanır. Denetim kaydında üç girdi vardır. Windows: olay 1074, 0x6000c neden kodunu gösterir ("Power Failure: Environment"; tam olay metni UNVERIFIED'dir).
+- İptal: geri sayımı durdurmak için, bitmeden önce giriş gücünü yeniden bağlayın (cancel_when_mains_returns açıktır), veya geri sayım bandındaki "İptal" düğmesine tıklayın (LOW_BATTERY ile mümkün değildir).
+- Gönderin: 4, 5 ve 7. adımların zamanları, günlük satırları, denetim girdileri (içlerinde Secret yoktur) ve Windows olay 1074 metni.
+
+### T-10 VLT GUI testi
+
+- Amaç: Owner bilgisayarında VoltioVolt içindeki VLT GUI'yi kontrol etmek (VLT-IS-005) ve tüm Türkçe metni gözden geçirmek (VLT-IS-005 TASK 03-00-00-008 adım 1.4). Ayrıca VLT-IS-008'in taşınabilir işlevlerini kontrol etmek: veri klasörü, oturum açılışında başlatma, tepsi ve isteğe bağlı PIN.
+- Ön koşullar: T-01 ve T-08 tamamlanmıştır (OD-23, taşınabilir sıra). VoltioVolt, SHA-256 kontrolü yapılmış test paketindendir. Yeni bir ilk başlatma için: yeni bir veri klasörü, PIN ile veya PIN olmadan (isteğe bağlı).
+- Adımlar:
+    1. VoltioVolt'u çıkarılmış klasörden başlatın. Motor ve VLT GUI tek süreçte çalışır. Pencereyi kapatın: pencere gizlenir ve izleme devam eder. İlk kez şu metin görünür: "VoltioVolt, UPS izlemeye tepside devam eder." Pencereyi tepside açın. Sonra tepsi menüsündeki "Çık"ı kullanın: onay metni "Çıkarsanız VoltioVolt izlemeyi ve otomatik kapatmayı durdurur." Onaylayın. Uygulama durur. Yeniden başlatın.
+    2. PIN belirleme (isteğe bağlı): yeni bir ilk başlatmada sihirbazın PIN adımında "Atla" vardır ve metin "Bir PIN, bu bilgisayardaki diğer kişilerin kapatma ayarlarını değiştirmesini önler." 5 karakterli bir PIN deneyin (reddedilir), sonra doğru bir PIN belirleyin veya "Atla" düğmesine tıklayın. Genel ekranında, PIN yoksa "PIN belirle", PIN varsa "PIN kaldır" vardır (Kaldır için geçerli PIN gerekir).
+    3. Giriş (yalnızca PIN belirlenmişse): "Kilidi aç" düğmesine tıklayın ve GUI blok süresini gösterene kadar yanlış PIN girin. Bekleyin, sonra doğru PIN ile kilidi açın.
+    4. Kilitleme (yalnızca PIN belirlenmişse): "Kilitle" düğmesine tıklayın. GUI "Kilitli" gösterir ve Gösterge panelini göstermeye devam eder. Kilidi yeniden açın. Sonra tıklamadan boşta kalma süresini (auth.session_idle_minutes) bekleyin: GUI kendisini kilitler.
+    5. Gösterge paneli değerleri: değerleri (giriş ve çıkış gerilimi, frekans, yük, batarya şarjı ve gerilimi, çalışma süresi, sıcaklık) UPS göstergesi veya UPS belgelendirmesi ile karşılaştırın.
+    6. Aygıt ekranı: durum "bağlı", Transport, Dialect, model verileri. Seri numarası bir raporda gösterilmez.
+    7. Geçmiş grafikleri: her aralığı (1 saat ile 1 yıl) ve her grafiği açın. Bir grafiğin tablo görünümünü açın.
+    8. Olaylar: daha eski Olayları yükleyin, şiddet ve türe göre süzün.
+    9. Politika düzenleme: aralık dışında bir değer değiştirin (örneğin countdown_seconds 5): GUI, göndermeden önce bunu reddeder. Doğru bir değer yapın ve kaydedin.
+    10. Simülasyon: çalıştırın ve her senaryonun adımlarını ("İşletim sistemi kapatması" dahil), sanal zamanlarını ve "başarılı" veya "başarısız" sonucunu kontrol edin.
+    11. Etkinleştirme: "Etkinleştir" yalnızca başarılı bir Simülasyondan sonra açıktır ("İşletim sistemi kapatması" dahil). Etkinleştirin, sonra onay ile devre dışı bırakın.
+    12. Dil ve Genel: "Genel" ekranını açın. Ekran veri klasörü yolunu gösterir. "Oturum açılışında başlat" anahtarı varsayılan olarak kapalıdır. Açın, sonra kapatın: VoltioVolt yalnızca kullanıcının başlangıç klasörünü kullanır. "Türkçe", sonra "English" seçin. VoltioVolt'u kapatın ve yeniden başlatın: dil kalır.
+    13. Tüm Türkçe metnin gözden geçirilmesi: "Türkçe" seçin ve görebildiğiniz her ekranı ve her iletiyi açın. Türkçe karakterleri (ç, ğ, ı, İ, ö, ş, ü), sözcükleri ve dilbilgisini kontrol edin.
+    14. Klavye: bir ekranda yalnızca Tab, Shift+Tab, Enter ve Space tuşlarını kullanın. Odak her zaman görünürdür.
+    15. Tema: işletim sistemi temasını açık ve koyu arasında değiştirin. GUI onu izler.
+- Beklenen sonuç: tüm adımlar yazıldığı gibi çalışır. GUI'deki hiçbir metin yanlış dilde değildir ve yanlış Türkçe karakter içermez.
+- Gönderin: her adımın sonucu (tamam veya sorun), değiştirilmesi gereken Türkçe metinlerin listesi (ekran, mevcut metin ve doğru metin), işletim sistemi, veri klasörü yolu ve VoltioVolt sürümü (Genel, Hakkında). Ekran görüntülerine izin vardır; içlerinde Secret, PIN ve seri numarası olmadığını kontrol edin.
+
+### T-11 UPS Kontrolü (VLT-IS-006)
+
+- Amaç: UPS Kontrolü ekranını ve Referans UPS'te CONTROL komutları test ve sesli uyarıyı kontrol etmek (VLT-IS-006 TASK 03-00-00-005, 007 ve 008).
+- Ön koşullar: T-01, T-08 ve T-10 tamamlanmıştır. VoltioVolt, `device.transport` seri ve T-01'deki port ile çalışır ("Aygıt" ekranı). Aygıt durumu "bağlı"dır. Şebeke elektriği vardır. UPS bataryası tam doludur.
+- Adımlar (tümü VoltioVolt'ta):
+    1. PIN belirlenmişse PIN ile kilidi açın. "UPS Kontrolü" ekranını açın. Düğmeler açıktır.
+    2. "Sesli uyarı kapalı" düğmesine tıklayın. Zamanı not edin. UPS giriş gücünü 10 saniye kesin: UPS ses çıkarmaz. Giriş gücünü yeniden bağlayın.
+    3. "Sesli uyarı açık" düğmesine tıklayın. UPS giriş gücünü 10 saniye kesin: UPS ses çıkarır. Giriş gücünü yeniden bağlayın.
+    4. "10 saniye test" düğmesine tıklayın, sonra "Testi başlat" ile onaylayın. Zamanı not edin. TEST_STARTED Olayı görünür. Testten sonra ekran, son test sonucunu (TEST_PASSED veya TEST_FAILED) zamanı ile gösterir.
+    5. "Olaylar" ekranını açın: TEST_STARTED ve onun temizlenmesi.
+    6. "Güvenlik" ekranını açın ve denetim kaydını okuyun: ups_beeper_set, ups_control, ups_control_verify, ups_test_start ve ups_test_end.
+- Beklenen sonuç: her komut "doğrulandı"dır. Test sonucu TEST_PASSED'dir. Denetim kaydında 6. adımın girdileri, baytlarla (Q, T) birlikte vardır.
+- Gönderin: zamanlar, test sonucu, denetim girdileri (içlerinde Secret yoktur) ve Olaylar.
+
+### T-12 UPS çıkışını kapatma ve yeniden açma (VLT-IS-006)
+
+UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihazların gücü kesilir. UPS'e yalnızca test bilgisayarını bağlayın. Tüm çalışmalarınızı kaydedin. Bataryanın tam dolu olduğundan emin olun.
+
+- Amaç: Kapatma Politikasının UPS çıkışını kapatma adımını kontrol etmek (VLT-IS-006 TASK 03-00-00-006, OD-28).
+- Ön koşullar: T-09 ve T-11 tamamlanmıştır. UPS çıkışına yalnızca test bilgisayarı bağlıdır. VoltioVolt, T-01'deki port ile çalışır.
+- Adımlar (tümü VoltioVolt'ta):
+    1. PIN belirlenmişse PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, ups_off.enabled açık, ups_off.delay_minutes 2, ups_off.restore_minutes 1 yapın (T-09'daki trigger.on_battery_seconds 30 kalsın) ve "Kaydet" düğmesine tıklayın.
+    2. Simülasyonu çalıştırın. Sonuç "başarılı" olmalıdır ("İşletim sistemi kapatması" dahil) ve her senaryo "UPS çıkışını kapatma komutu (deneme, gönderilmedi)" adımını gösterir. Politikayı etkinleştirin.
+    3. UPS giriş gücünü kesin. Zamanı not edin.
+    4. İşletim sisteminin kapanma, UPS çıkışının kapanma ve UPS çıkışının açılma zamanlarını kaydedin.
+    5. 1. çalıştırma: giriş gücünü yeniden açma süresinden önce (UPS çıkışı yeniden açılmadan önce) bağlayın.
+    6. 2. çalıştırma: 3. ve 4. adımları tekrarlayın ve giriş gücünü bağlamayın. UPS'in ne yaptığını not edin. Sonra giriş gücünü bağlayın.
+    7. Bilgisayarı başlatın. VoltioVolt'u başlatın. "Güvenlik" ekranını açın ve denetim kaydını okuyun: policy_countdown_start, policy_ups_off, policy_shutdown_request, os_shutdown_request.
+    8. ups_off.enabled ayarını yeniden kapatın (varsayılan, OD-28), Simülasyonu çalıştırın ve politikayı etkinleştirin.
+- Beklenen sonuç: işletim sistemi, UPS çıkışı kapanmadan önce kapanır (kapatma başladıktan 2 dakika sonra). 1. çalıştırma: UPS çıkışı kapandıktan 1 dakika sonra açılır. 2. çalıştırma: giriş gücü olmadan davranış UNVERIFIED'dir (VLT-REF-001 5.1 madde 4); bunu not edin.
+- Gönderin: her iki çalıştırma için 3. ve 4. adımların zamanları, denetim girdileri ve günlük satırları (Windows: veri klasöründeki günlük dosyası, logs\vltd.log).
+
+### T-13 Bildirimler (VLT-IS-007)
+
+- Amaç: masaüstü, Telegram ve e-posta Kanallarını kontrol etmek (VLT-IS-007 TASK 03-00-00-004, 005 ve 006).
+- Ön koşullar: T-09 tamamlanmıştır. Test paketindeki VoltioVolt çalışır. Bir Telegram bot belirteci ve bir Gmail uygulama parolası (Owner'ın). Belirteci veya parolayı göndermeyin.
+- Adımlar (tümü VoltioVolt'ta, "Bildirimler" ekranı, aksi belirtilmedikçe):
+    1. Masaüstü: VoltioVolt'u başlatın. UPS giriş gücünü kesin. Bir masaüstü bildirimi görünür. Giriş gücünü bağlayın. Zamanı not edin.
+    2. Telegram: bot belirtecini girin (yalnızca yazma). "Sohbet eşleştir" düğmesine tıklayın. Telegram'dan bota `/start <kod>` gönderin. `/durum` gönderin. UPS giriş gücünü kesin. Bir Telegram Bildirimi gelir. Giriş gücünü bağlayın. Zamanı not edin.
+    3. E-posta: "Gmail" hazır ayarını seçin. Gmail adresini ve uygulama parolasını girin (yardım metni: "Normal parolanızı değil, bir Google uygulama parolası kullanın. Google hesabı, Güvenlik, 2 Adımlı Doğrulama, Uygulama parolaları."). "Test mesajı gönder" düğmesine tıklayın. UPS giriş gücünü kesin. Bir e-posta Bildirimi gelir. Giriş gücünü bağlayın. Zamanı not edin.
+- Beklenen sonuç: bir masaüstü bildirimi, bir Telegram iletisi (`/durum` yanıtı UPS durumunu içerir) ve bir e-posta, her biri güç kesintisi sırasında. Test e-postası gelir.
+- Gönderin: zamanlar ve her Kanalın çalıştığına dair onay. Belirteci, parolayı veya ileti metnini göndermeyin (durum verisi içerebilir).
+
+### Hizmet kipi (daha sonra)
+
+Bu testler hizmet kipini (vltd, vlt-setup, yerel bir grup ve bir kullanıcı hakkı) gerektirir. Hizmet kipi kaynak kodunda kalır. Varsayılan pakette yoktur (OD-36). Bu testleri VLT-IS-008 taşınabilir paketi ile çalıştırmayın. T-02, T-03, T-04, T-05, T-06 ve T-07 metinleri daha sonraki bir sürüm için burada tutulur.
 
 ### T-02 Linux'ta vltd geliştirme kurulumu
 
@@ -317,107 +436,3 @@ Tüm testler için genel ön koşullar:
     4. Bu testte PowerOff veya Hibernate çağırmayın.
 - Beklenen sonuç: 1. adım `s "yes"` verir. 2. adım, hazırda bekletme yapılandırılmışsa `s "yes"`, değilse `"na"` veya `"no"` verir (o zaman vltd, hibernate eylemi için PowerOff kullanır).
 - Gönderin: 1 ile 3. adımların çıktısı, dağıtım ve systemd sürümü.
-
-### T-08 Politika Simülasyonu
-
-- Amaç: varsayılan politikanın ve değiştirilmiş bir politikanın Simülasyonunu (VLT-IS-004 TASK 03-00-00-006) VLT GUI ile kontrol etmek.
-- Ön koşullar: T-02 veya T-03 tamamlanmıştır, vltd çalışır ve kullanıcınız vlt (Linux) veya "VLT Operators" (Windows) grubundadır. SHA-256 kontrolü yapılmış VLT GUI artifact dosyası. UPS gerekmez. Bu test için UPS bağlamayın: Simülasyon bilgisayarı kapatmaz, ancak etkin bir politika, UPS bir elektrik kesintisi bildirdiğinde bilgisayarı kapatabilir.
-- Adımlar:
-    1. VLT GUI'yi başlatın. PIN belirlenmemişse bir PIN belirleyin. PIN ile kilidi açın.
-    2. "Kapatma Politikası" ekranını açın. Sürümü ve durumu (etkin veya etkin değil) not edin.
-    3. "Simülasyonu çalıştır" düğmesine tıklayın. Her senaryonun sonucunu not edin (başarılı veya başarısız ve kapatma isteğinin veya iptalin zamanı).
-    4. "Etkinleştir" düğmesine tıklayın. Onay metnini okuyun ve onaylayın. Durum "etkin" olur.
-    5. "Düzenle" düğmesine tıklayın. "countdown_seconds" değerini 90 yapın. "Kaydet" düğmesine tıklayın.
-    6. "Politika artık etkin değil. Etkinleştirmek için Simülasyonu çalıştırın." metnini ve "etkin değil" durumunu kontrol edin. "Etkinleştir" kapalıdır.
-    7. Yeniden "Simülasyonu çalıştır" düğmesine tıklayın. Sonra "Etkinleştir" açıktır. Etkinleştirmeyin. "Düzenle" düğmesine tıklayın, "countdown_seconds" değerini yeniden 60 yapın ve "Kaydet" düğmesine tıklayın.
-- Beklenen sonuç: 3. adım: tüm senaryolar "başarılı". Varsayılan politika: power_fail_long 370. saniyede bir kapatma isteği verir, power_fail_short bir iptal verir, low_battery reddedilen bir iptal ve 90. saniyede bir istek verir, comm_lost_on_battery sınırından önce bir istek verir. 6. adım: değişiklikten sonra politika etkin değildir. 7. adım: "Etkinleştir" yalnızca yeni Simülasyon başarılı olduktan sonra açıktır.
-- Gönderin: 2, 3, 6 ve 7. adımların sonuçları (ekran görüntüsü gönderilebilir; içlerinde Secret olmadığını kontrol edin), VLT GUI sürümü (Genel, Hakkında) ve işletim sistemi.
-
-### T-09 Referans UPS ile gerçek kapatma
-
-UYARI: Bu test bilgisayarı kapatır. Tüm çalışmalarınızı kaydedin. Tüm uygulamaları kapatın. UPS bataryasının tam dolu olduğundan emin olun. trigger.on_battery_seconds değerini 30 yapın. UPS giriş gücünü kesin. Bilgisayar kapandıktan sonra giriş gücünü yeniden bağlayın.
-
-(English, verbatim: "WARNING: This test turns off the computer. Save all work. Close all applications. Make sure that the UPS battery is fully charged. Set trigger.on_battery_seconds to 30. Disconnect the UPS input power. Connect the input power again after the computer is off.")
-
-- Amaç: tüm zinciri gerçek donanımda kontrol etmek: UPS, Device Manager, Event Engine, Policy Engine, işletim sistemi kapatma yürütücüsü (TASK 03-00-00-006 ve 007).
-- Ön koşullar: T-01 ile T-03, T-07 ve T-08 tamamlanmıştır. Bilgisayar Referans UPS'ten beslenir ve UPS bilgisayara USB veya seri kablo ile bağlıdır. vltd çalışır (T-02 veya T-03). IPC istemcisi VLT GUI'dir (OD-22). Bilgisayarı başka kimse kullanmaz.
-- Adımlar (tümü VLT GUI'de):
-    1. PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, "trigger.on_battery_seconds" değerini 30 yapın (diğer varsayılanları koruyun: geri sayım 60 sn, eylem kapatma) ve "Kaydet" düğmesine tıklayın.
-    2. "Simülasyonu çalıştır" düğmesine tıklayın. Sonuç "başarılı" olmalıdır. Sonra "Etkinleştir" düğmesine tıklayın ve onaylayın.
-    3. "Cihaz" ekranını açın: durum "bağlı" olmalıdır.
-    4. "Gösterge paneli" ekranını açın. Mod "Şebeke elektriği" olur. Zamanı not edin.
-    5. UPS giriş gücünü kesin. Zamanı not edin.
-    6. Gösterge panelini izleyin: mod "Aküde" olur, ON_BATTERY Olayı Olayların en üstündedir, 30 saniye sonra 60 saniyelik geri sayım şeridi başlar.
-    7. Bilgisayar kapanır. Zamanı not edin.
-    8. UPS giriş gücünü yeniden bağlayın. Bilgisayarı başlatın.
-    9. Linux: `journalctl -u vltd -b -1 --no-pager | tail -100`. Windows: vltd.log ve Olay Görüntüleyicisi, Sistem günlüğü, kaynak User32, olay kimliği 1074.
-    10. VLT GUI'yi başlatın, kilidi açın, "Güvenlik" ekranını açın ve denetim kaydını okuyun (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Sonra "Kapatma Politikası" ekranında "trigger.on_battery_seconds" değerini yeniden 300 yapın.
-- Beklenen sonuç: bilgisayar 5. adımdan yaklaşık 90 saniye sonra, bir iletişim kutusu olmadan kapanır. Denetim günlüğünde üç kayıt vardır. Linux: os_shutdown_request kaydında engelleyici (inhibitor) listesi vardır. Windows: 1074 olayı 0x6000c neden kodunu gösterir ("Power Failure: Environment"; olay metninin tam hali UNVERIFIED).
-- Durdurma: geri sayımı durdurmak için, süre bitmeden giriş gücünü yeniden bağlayın (cancel_when_mains_returns açıktır) veya geri sayım şeridindeki "İptal" düğmesine tıklayın (LOW_BATTERY etkinken mümkün değildir).
-- Gönderin: 4, 5 ve 7. adımların zamanları, günlük satırları, denetim kayıtları (içlerinde Secret yoktur) ve Windows 1074 olay metni.
-
-### T-10 VLT GUI testi
-
-- Amaç: VLT GUI'yi (VLT-IS-005) Owner bilgisayarında kontrol etmek ve tüm Türkçe metinleri gözden geçirmek (VLT-IS-005 TASK 03-00-00-008 adım 1.4).
-- Ön koşullar: T-01 ile T-09 tamamlanmıştır (OD-23). vltd çalışır ve kullanıcınız vlt (Linux) veya "VLT Operators" (Windows) grubundadır. SHA-256 kontrolü yapılmış VLT GUI artifact dosyası. Yeni bir ilk başlatma için: PIN'i olmayan yeni bir vltd veri klasörü (isteğe bağlı).
-- Adımlar:
-    1. Bağlanma: VLT GUI'yi başlatın. Üst çubukta "vltd'ye bağlı" yazar. vltd'yi 20 saniye durdurun, sonra yeniden başlatın: GUI nedeniyle birlikte "vltd ile bağlantı yok" gösterir ve vltd çalıştıktan sonra en geç 5 saniye içinde yeniden bağlanır.
-    2. PIN belirleme (yalnızca yeni bir veri klasöründe): GUI yalnızca PIN kurallarıyla birlikte "PIN belirle" ekranını gösterir. 5 karakterli bir PIN deneyin (reddedilir), sonra doğru bir PIN belirleyin.
-    3. Giriş: "Kilidi aç" düğmesine tıklayın ve GUI bekleme süresini gösterene kadar yanlış PIN girin. Bekleyin, sonra doğru PIN ile kilidi açın.
-    4. Kilitleme: "Kilitle" düğmesine tıklayın. GUI "Kilitli" gösterir ve Gösterge panelini göstermeye devam eder. Kilidi yeniden açın. Sonra hiçbir yere tıklamadan boşta kalma süresini (auth.session_idle_minutes) bekleyin: GUI kendini kilitler.
-    5. Gösterge paneli değerleri: değerleri (giriş ve çıkış gerilimi, frekans, yük, akü doluluğu ve gerilimi, çalışma süresi, sıcaklık) UPS ekranıyla veya UPS belgeleriyle karşılaştırın.
-    6. Cihaz ekranı: "bağlı" durumu, bağlantı türü, Diyalekt, model bilgileri. Seri numarasını raporda göndermeyin.
-    7. Geçmiş grafikleri: her aralığı (1 saatten 1 yıla) ve her grafiği açın. Bir grafiğin tablo görünümünü açın.
-    8. Olaylar: daha eski Olayları yükleyin, önem derecesine ve türe göre filtreleyin.
-    9. Politika düzenleme: bir değeri izin verilen aralığın dışına çıkarın (örneğin countdown_seconds 5): GUI bunu göndermeden önce reddeder. Doğru bir değer girin ve kaydedin.
-    10. Simülasyon: çalıştırın ve her senaryonun adımlarını, sanal zamanlarını ve "başarılı" veya "başarısız" sonucunu gösterdiğini kontrol edin.
-    11. Etkinleştirme: "Etkinleştir" yalnızca başarılı bir Simülasyondan sonra açıktır. Etkinleştirin, sonra onay ile devre dışı bırakın.
-    12. Dil değişikliği: "Genel" ekranını açın, "English" seçin, sonra "Türkçe" seçin. VLT GUI'yi kapatıp yeniden başlatın: dil korunur.
-    13. Tüm Türkçe metinlerin gözden geçirilmesi: "Türkçe" seçin ve her ekranı ve görebildiğiniz her mesajı açın. Türkçe karakterleri (ç, ğ, ı, İ, ö, ş, ü), sözcükleri ve dil bilgisini kontrol edin.
-    14. Klavye: bir ekranda yalnızca Tab, Shift+Tab, Enter ve Boşluk tuşlarını kullanın. Odak her zaman görünür.
-    15. Tema: işletim sisteminin temasını açık ve koyu arasında değiştirin. GUI temayı izler.
-- Beklenen sonuç: tüm adımlar yazıldığı gibi çalışır. GUI'deki hiçbir metin yanlış dilde değildir veya yanlış Türkçe karakter içermez.
-- Gönderin: her adımın sonucu (Tamam veya sorun), değişmesi gereken Türkçe metinlerin listesi (ekran, geçerli metin ve doğru metin), işletim sistemi ve VLT GUI sürümü (Genel, Hakkında). Ekran görüntüsü gönderilebilir; içlerinde Secret, PIN ve seri numarası olmadığını kontrol edin.
-
-### T-11 UPS Kontrolü (VLT-IS-006)
-
-- Amaç: UPS Kontrolü ekranını ve Referans UPS üzerinde test ve sesli uyarı CONTROL komutlarını kontrol etmek (VLT-IS-006 TASK 03-00-00-005, 007 ve 008).
-- Ön koşullar: T-01 ile T-10 tamamlanmıştır. vltd, `device.transport` serial ve T-01'deki port ile çalışır ("Cihaz" ekranı). Cihaz durumu "bağlı"dır. Şebeke gücü vardır. UPS bataryası tam doludur.
-- Adımlar (tümü VLT GUI'de):
-    1. PIN ile kilidi açın. "UPS Kontrolü" ekranını açın. Düğmeler açıktır.
-    2. "Sesli uyarı kapalı" düğmesine tıklayın. Zamanı not edin. UPS giriş gücünü 10 saniye kesin: UPS ses çıkarmaz. Giriş gücünü yeniden bağlayın.
-    3. "Sesli uyarı açık" düğmesine tıklayın. UPS giriş gücünü 10 saniye kesin: UPS ses çıkarır. Giriş gücünü yeniden bağlayın.
-    4. "10 saniye test" düğmesine tıklayın, sonra "Testi başlat" ile onaylayın. Zamanı not edin. TEST_STARTED Olayı görünür. Testten sonra ekran son test sonucunu (TEST_PASSED veya TEST_FAILED) zamanıyla gösterir.
-    5. "Olaylar" ekranını açın: TEST_STARTED ve bitişi.
-    6. "Güvenlik" ekranını açın ve denetim kaydını okuyun: ups_beeper_set, ups_control, ups_control_verify, ups_test_start ve ups_test_end.
-- Beklenen sonuç: her komut "doğrulandı" durumundadır. Test sonucu TEST_PASSED'dır. Denetim kaydında 6. adımdaki girdiler baytlarıyla (Q, T) vardır.
-- Gönderin: zamanlar, test sonucu, denetim girdileri (içlerinde Secret yoktur) ve Olaylar.
-
-### T-12 UPS çıkışını kapatma ve yeniden açma (VLT-IS-006)
-
-UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihazların gücü kesilir. UPS'e yalnızca test bilgisayarını bağlayın. Tüm çalışmalarınızı kaydedin. Bataryanın tam dolu olduğundan emin olun.
-
-- Amaç: Kapatma Politikasının UPS çıkışını kapatma adımını kontrol etmek (VLT-IS-006 TASK 03-00-00-006, OD-28).
-- Ön koşullar: T-09 ve T-11 tamamlanmıştır. UPS çıkışına yalnızca test bilgisayarı bağlıdır. vltd, T-01'deki port ile çalışır.
-- Adımlar (tümü VLT GUI'de):
-    1. PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, ups_off.enabled açık, ups_off.delay_minutes 2, ups_off.restore_minutes 1 yapın (T-09'daki trigger.on_battery_seconds 30 kalsın) ve "Kaydet" düğmesine tıklayın.
-    2. Simülasyonu çalıştırın. Sonuç "başarılı" olmalıdır ve her senaryo "UPS çıkışını kapatma komutu (deneme, gönderilmedi)" adımını gösterir. Politikayı etkinleştirin.
-    3. UPS giriş gücünü kesin. Zamanı not edin.
-    4. İşletim sisteminin kapanma, UPS çıkışının kapanma ve UPS çıkışının açılma zamanlarını kaydedin.
-    5. 1. çalıştırma: giriş gücünü yeniden açma süresinden önce (UPS çıkışı yeniden açılmadan önce) bağlayın.
-    6. 2. çalıştırma: 3. ve 4. adımları tekrarlayın ve giriş gücünü bağlamayın. UPS'in ne yaptığını not edin. Sonra giriş gücünü bağlayın.
-    7. Bilgisayarı başlatın. "Güvenlik" ekranını açın ve denetim kaydını okuyun: policy_countdown_start, policy_ups_off, policy_shutdown_request, os_shutdown_request.
-    8. ups_off.enabled ayarını yeniden kapatın (varsayılan, OD-28), Simülasyonu çalıştırın ve politikayı etkinleştirin.
-- Beklenen sonuç: işletim sistemi, UPS çıkışı kapanmadan önce (kapatma başladıktan 2 dakika sonra) kapanır. 1. çalıştırma: UPS çıkışı kapandıktan 1 dakika sonra açılır. 2. çalıştırma: giriş gücü olmadan davranış UNVERIFIED'dır (VLT-REF-001 5.1 madde 4); not edin.
-- Gönderin: her iki çalıştırma için 3. ve 4. adımların zamanları, denetim girdileri ve vltd günlük satırları.
-
-### T-13 Bildirimler (VLT-IS-007)
-
-- Amaç: masaüstü, Telegram ve e-posta Kanallarını kontrol etmek (VLT-IS-007 TASK 03-00-00-004, 005 ve 006).
-- Ön koşullar: T-09 tamamlanmıştır. Test paketindeki VLT GUI çalışır. Bir Telegram bot belirteci ve bir Gmail uygulama parolası (Owner'ın). Belirteci veya parolayı göndermeyin.
-- Adımlar (tümü VLT GUI'de, "Bildirimler" ekranı, aksi belirtilmedikçe):
-    1. Masaüstü: VLT GUI'yi başlatın. UPS giriş gücünü kesin. Bir masaüstü bildirimi görünür. Giriş gücünü bağlayın. Zamanı not edin.
-    2. Telegram: bot belirtecini girin (yalnızca yazma). "Sohbet eşleştir" düğmesine tıklayın. Telegram'dan bota `/start <kod>` gönderin. `/durum` gönderin. UPS giriş gücünü kesin. Bir Telegram Bildirimi gelir. Giriş gücünü bağlayın. Zamanı not edin.
-    3. E-posta: "Gmail" hazır ayarını seçin. Gmail adresini ve uygulama parolasını girin (yardım metni: "Normal parolanızı değil, bir Google uygulama parolası kullanın. Google hesabı, Güvenlik, 2 Adımlı Doğrulama, Uygulama parolaları."). "Test mesajı gönder" düğmesine tıklayın. UPS giriş gücünü kesin. Bir e-posta Bildirimi gelir. Giriş gücünü bağlayın. Zamanı not edin.
-- Beklenen sonuç: bir masaüstü bildirimi, bir Telegram iletisi (`/durum` yanıtı UPS durumunu içerir) ve bir e-posta, her biri güç kesintisi sırasında. Test e-postası gelir.
-- Gönderin: zamanlar ve her Kanalın çalıştığına dair onay. Belirteci, parolayı veya ileti metnini göndermeyin (durum verisi içerebilir).

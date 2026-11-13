@@ -1,6 +1,6 @@
 # Architecture
 
-This file gives the component model of VLT-IS-001 03-10-00 (text only). Status: pre-alpha. Most components do not exist yet.
+This file gives the component model of VLT-IS-001 03-10-00 (text only), with the portable mode of VLT-IS-008. Portable mode is the default mode (OD-35). Service mode stays in the code and is not in the default package (OD-36). Section 17 describes portable mode.
 
 ## 1. Processes
 
@@ -10,6 +10,9 @@ This file gives the component model of VLT-IS-001 03-10-00 (text only). Status: 
 | VLT GUI | The desktop user interface. It shows data. It changes Settings only through vltd. It connects to vltd through local IPC only (named pipe on Windows, Unix domain socket on Linux). |
 | VLT Agent | A small client on another computer. It receives shutdown signals from vltd. Release v2.0. |
 | vlt-probe, vlt-sim | Diagnostic tools, not vltd (VLT-IS-002 01-30-00). vlt-probe is a READ-only capture tool. vlt-sim is the UPS simulator. |
+| VoltioVolt (portable, default) | One application: VoltioVolt.exe (Windows) and voltiovolt (Linux). It contains the VLT GUI and the monitoring engine in one process (section 17, VLT-IS-008). |
+
+The default package contains VoltioVolt and vlt-probe only. The processes vltd and VLT GUI stay in the repository and in CI. They are not in the default package.
 
 ## 2. Components
 
@@ -43,9 +46,9 @@ UPS -> Transport -> Dialect parser -> Measurement -> Measurement Store and Event
 
 ## 4. Rules
 
-1. Only vltd talks to the UPS. vlt-probe is used only by the Owner for Captures; vltd and vlt-probe do not run at the same time on one port.
-2. In the MVP, vltd has no network listener.
-3. The VLT GUI has no Secret and no UPS access. It uses IPC (JSON frames with a 4-byte length prefix, maximum 1 MiB, unknown fields rejected, protocol version field; QA-07). Section 5 gives the IPC.
+1. Only the monitoring engine talks to the UPS (vltd in service mode; the engine inside VoltioVolt in portable mode). vlt-probe is used only by the Owner for Captures; the engine and vlt-probe do not run at the same time on one port.
+2. In the MVP, the engine has no network listener. Portable mode does not open a named pipe or a Unix socket (section 17).
+3. The VLT GUI has no Secret and no UPS access. It uses IPC (JSON frames with a 4-byte length prefix, maximum 1 MiB, unknown fields rejected, protocol version field; QA-07). Section 5 gives the IPC. In portable mode the same IPC runs over an in-process connection (net.Pipe).
 
 ## 5. IPC (VLT-IS-003 TASK 03-00-00-007)
 
@@ -63,6 +66,7 @@ UPS -> Transport -> Dialect parser -> Measurement -> Measurement Store and Event
 |----------|----------|--------|
 | Linux | Unix socket /run/vltd/vltd.sock, mode 0660, owner vltd, group vlt. Directory /run/vltd, mode 0750, group vlt. | SO_PEERCRED: uid 0, or a member of the group vlt (primary or supplementary group). |
 | Windows | Named pipe \\.\pipe\vltd (github.com/Microsoft/go-winio). | Protected DACL (VLT-IS-004 QI-4): SYSTEM and NT SERVICE\vltd GA; Administrators and the local group "VLT Operators" (if it exists) GRGW. Peer identity: the user SID of the client process token. Remote clients are rejected (PIPE_REJECT_REMOTE_CLIENTS). |
+| Portable (default) | In-process: `ipc.PipeListener` and `net.Pipe`. Address: "in-process". No named pipe and no Unix socket. | `ipc.InProcessCheck`: the peer is the same process (`PeerInProcess`). No group and no DACL check. |
 
 ### 5.3 Limits
 
@@ -72,7 +76,7 @@ UPS -> Transport -> Dialect parser -> Measurement -> Measurement Store and Event
 
 ### 5.4 Methods, protocol version 1
 
-Before a PIN is set, only system.hello, system.status, auth.status and auth.set_pin are permitted. Other methods give "pin_not_set". The elevated state is for one connection only (no token). It ends after `auth.session_idle_minutes` without a request, after 8 hours, at auth.logout, at a PIN change and when the connection closes.
+Before a PIN is set, only system.hello, system.status, auth.status and auth.set_pin are permitted. Other methods give "pin_not_set". The elevated state is for one connection only (no token). It ends after `auth.session_idle_minutes` without a request, after 8 hours, at auth.logout, at a PIN change and when the connection closes. In portable mode, if no PIN is set, the engine gives the elevated state to the in-process connection at all times (OD-37). Secret fields stay write-only.
 
 | Method | Elevated state needed | Params | Result |
 |--------|------------------------|--------|--------|
@@ -118,7 +122,7 @@ No method returns a Secret value. The test TestAllMethodsNoSecretInResponses cal
 ### 6.1 Start sequence
 
 1. Logging (Linux: standard error to the journal; Windows: %ProgramData%\VoltioVolt\logs\vltd.log, 10 MiB, 5 files). All records go through the redaction handler.
-2. Data directory and permission check (Linux /var/lib/vltd, Windows %ProgramData%\VoltioVolt). If the check fails, vltd stops and writes the reason to the log.
+2. Data directory and permission check (Linux /var/lib/vltd, Windows %ProgramData%\VoltioVolt). If the check fails, vltd stops and writes the reason to the log. This permission check applies to the service mode only (VLT-IS-008 01-20-00). Portable mode does not check or change the ACL of the data folder (section 17.2).
 3. Store (SQLite, migrations). Then the permission check of the database files.
 4. Vault. If the host binding fails, vltd continues (SEC-090). The Vault state is then "locked" or "not configured".
 5. Audit chain verification. A broken chain gives the audit entry "audit_chain_broken". vltd continues.
@@ -133,8 +137,8 @@ The reverse order, 10 seconds maximum: Linux STOPPING=1 or Windows "stop pending
 
 | State | Cause | Secrets | Settings |
 |-------|-------|---------|----------|
-| available | DEK loaded, canary correct, key mode host+tpm2 or tpm2 (Linux) or dpapi (Windows) | read and write | read and write (MAC checked) |
-| reduced protection | as "available", but the key mode is host, or /etc/vltd/key-mode is missing or not valid (SEC-005) | read and write | read and write |
+| available | DEK loaded, canary correct, key mode host+tpm2 or tpm2 (Linux service), dpapi (Windows, service or portable) or secret-service (Linux portable) | read and write | read and write (MAC checked) |
+| reduced protection | as "available", but the key mode is host, or /etc/vltd/key-mode is missing or not valid (SEC-005, service mode), or the key mode is file (Linux portable: the DEK is in a 0600 file because the Secret Service is not available) | read and write | read and write |
 | locked | DEK cannot be loaded or the canary is not correct (for example a data directory copied to another computer, SEC-006) | no access | default values, no writes |
 | not configured | no DEK (Linux: no credential; Windows: never, vltd makes the DEK) | no access | default values, no writes |
 
@@ -306,7 +310,8 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 
 | Part | Directory | Notes |
 |------|-----------|-------|
-| Wails application | cmd/vlt-gui | Separate Go module (cmd/vlt-gui/go.mod) with Wails v3.1.0 (VLT-IS-007). Linux: cgo, GTK 4 and WebKitGTK 6.0. Windows: WebView2, no cgo. Build tag `production` (no dev server, no devtools). Embeds the built front end (cmd/vlt-gui/frontend/dist). |
+| Wails application | cmd/vlt-gui | Separate Go module (cmd/vlt-gui/go.mod) with Wails v3.1.0 (VLT-IS-007). Linux: cgo, GTK 4 and WebKitGTK 6.0. Windows: WebView2, no cgo. Build tag `production` (no dev server, no devtools). Embeds the built front end (cmd/vlt-gui/frontend/dist). Service mode only. Not in the default package. |
+| Portable application | cmd/voltiovolt | Separate Go module. The same Wails front end (copied to cmd/voltiovolt/frontend/dist). It starts the monitoring engine in the same process and connects through net.Pipe (section 17). |
 | Go side | internal/gui | Root module, CGO_ENABLED=0. Imports internal/ipc/client and internal/ipc/wire only (no Store, Vault, SQLite or policy package; TestNoStoreImports). Manager: connection, reconnect every 5 s, push messages, lock timer, tray state. API: the bound methods. |
 | Front end | web/ | TypeScript, Vite, Preact, uPlot. No other runtime npm package. |
 
@@ -315,7 +320,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 1. The front end calls `internal/gui.API` methods with the Wails runtime (`Call.ByName("github.com/abuzer1495/voltiovolt/internal/gui.API.<Method>")`). The runtime is served by the VLT GUI at /wails/runtime.js. The front end has no IPC access.
 2. A method error is a code (for example `not_elevated`, `vault_locked`, `not_connected`). The front end shows the text of the code from the i18n files.
 3. vltd push messages go to the front end as Wails events: `vlt:status`, `vlt:event`, `vlt:countdown`. GUI state events: `vlt:conn`, `vlt:auth`, `vlt:tray`.
-4. A close of the VLT GUI (window close or tray Quit) closes the IPC connection only. vltd continues.
+4. Service mode: a close of the VLT GUI (window close or tray Quit) closes the IPC connection only. vltd continues. Portable mode: a close of the window hides it and the engine continues. The first time, the text is: "VoltioVolt continues to monitor the UPS in the tray." The tray menu "Quit" stops the engine after the confirmation: "If you quit, VoltioVolt stops the monitoring and the automatic shutdown."
 5. Each bound method has a test on a fake IPC server (internal/gui/methods_test.go, TestEachMethodWithFakeServer). The test fails if a new method has no test case.
 
 | Method (internal/gui.API) | vltd method | Elevated |
@@ -448,14 +453,59 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 
 ## 16. First-run wizard (VLT-IS-007 TASK 03-00-00-008)
 
-The wizard starts when no PIN is set. The user can also start it from the General screen (then the PIN step is omitted). Steps, in order:
+The wizard starts when no PIN is set. In portable mode it also starts when the wizard-completed marker is not there (the user can Skip the PIN). The user can also start it from the General screen (then the PIN step is omitted). Steps, in order:
 
-1. Set the PIN (no Back, no Skip).
+1. Set the PIN. Service mode: no Back, no Skip. Portable mode (OD-37): the step is optional, with a "Skip" button. The text is: "A PIN prevents other people at this computer from changing the shutdown settings."
 2. Select the UPS port (the Device screen functions, with Scan).
 3. Show the live values. The user confirms that they are correct.
-4. Shutdown Policy: show the defaults, run the Simulation, activate it.
+4. Shutdown Policy: show the defaults, run the Simulation, activate it. The Simulation includes the step "OS shutdown". If that step fails, the error is "This user cannot shut down the computer." and the policy cannot be activated (section 17.4).
 5. Notifications: Telegram, then e-mail (each step can be skipped).
 6. Question: "Are the modem and the router connected to the UPS?" If the answer is No, show: "During a power failure, the internet stops. Telegram and e-mail cannot send messages."
 7. Summary.
 
-Each step has "Back" and "Skip" (except step 1).
+Each step has "Back" and "Skip" (except step 1 in service mode).
+
+## 17. Portable mode (VLT-IS-008)
+
+Portable mode is the default mode (OD-35). One application, VoltioVolt, contains the VLT GUI and the monitoring engine. The default package and its install scripts make no change to the operating system (SEC-102, OD-34, OD-38). Service mode (vltd, vlt-setup, vlt-gui) stays in the source code. It is not in the default package. It becomes an optional advanced mode in a later release (OD-36).
+
+### 17.1 Process and in-process connection
+
+1. Binary: VoltioVolt.exe (Windows) and voltiovolt (Linux). Directory: `cmd/voltiovolt`.
+2. The engine runs the same packages as vltd: Device Manager, Poller, Measurements, Event Engine, Policy Engine, Notification Router, Channels, Store, Vault, audit.
+3. The VLT GUI connects to the engine through an in-process connection: `ipc.PipeListener` makes a `net.Pipe` for each dial (`internal/ipc/pipe.go`). The peer check is `ipc.InProcessCheck` (peer identity `in-process`). Portable mode does not open a named pipe or a Unix socket.
+4. Single instance: only one VoltioVolt process for each user. A second start shows the window of the first process and stops.
+5. Start at logon (OD-39): a switch on the General screen. On: make a shortcut in the startup folder of the user (Windows: shell:startup; Linux: ~/.config/autostart/voltiovolt.desktop). Off: delete it. Default: off. This is the only exception in SEC-102.
+
+### 17.2 Data folder
+
+1. Default: the folder "data" next to the binary, if it is writable.
+2. If that folder is not writable, the profile folder of the user: Windows %LOCALAPPDATA%\VoltioVolt, Linux ~/.local/share/voltiovolt.
+3. The General screen shows the data folder path.
+4. Portable mode does not check or change the ACL of the folder. The data folder permission check of VLT-IS-003 TASK 03-00-00-003 step 6 applies to the service mode only.
+
+### 17.3 Vault in portable mode
+
+1. Windows: DPAPI, current user scope (no CRYPTPROTECT_LOCAL_MACHINE), entropy "VoltioVolt-DEK-v1" and the install ID. The canary and the Vault states stay. The key mode is `dpapi`. `NewPortableProvider` uses the same algorithm as `NewHostProvider`. The process runs as the current user, not as NT SERVICE\vltd (SEC-003, VLT-IS-008 01-20-00).
+2. Linux (SEC-004 and SEC-005, VLT-IS-008 01-20-00, TASK 03-00-00-002 step 3):
+    1. If the Secret Service (D-Bus org.freedesktop.secrets) is available, the DEK is there. The key mode is `secret-service`.
+    2. If not, the DEK is in the file `vault.dek` with mode 0600 in the data folder. The Vault state is "reduced protection". The key mode is `file`.
+    3. The code talks to the Secret Service with github.com/godbus/dbus/v5 (already a dependency).
+3. The service mode keeps its old Vault code without changes.
+
+### 17.4 Access and OS shutdown
+
+1. PIN optional (OD-37): if no PIN is set, the engine gives the elevated state to the in-process connection at all times. Secret fields stay write-only. If a PIN is set, the rules of VLT-IS-003 TASK 03-00-00-005 apply. The General screen has "Set PIN" and "Remove PIN" (Remove needs the current PIN). SEC-022 applies only when a PIN is set.
+2. Windows shutdown: the process enables SeShutdownPrivilege in its token with AdjustTokenPrivileges. A normal user has this right on Windows 10 and 11 by default. Portable mode does not ask for administrator rights. If the privilege is not available, the Simulation step "OS shutdown" shows the error "This user cannot shut down the computer." The policy cannot be activated.
+3. Linux shutdown: the process calls logind `CanPowerOff` and `PowerOff` or `Hibernate` on the system D-Bus as the user. The default polkit rules permit this for the active local session. Portable mode does not install a polkit rule. If logind refuses, the same error as step 2 is shown.
+4. The Simulation and the first-run wizard (step "Shutdown Policy") include this check.
+
+### 17.5 Port access (no change to the system)
+
+1. Windows: if the COM port is busy, the existing "port busy" help text is shown (UPSilon 2000 and RupsMon).
+2. Linux: if the open of /dev/ttyUSB* or /dev/ttyACM* fails with "permission denied", the GUI shows: "Your user cannot open this port. Run this command one time, then log out and log in: sudo usermod -aG dialout <user name>". The application does not run the command.
+3. Linux HID (hidraw) with "permission denied": a similar text with a udev rule as an example. The application does not install the rule.
+
+### 17.6 Default packages
+
+The pre-release test-latest has VoltioVolt-test-windows-amd64.zip (VoltioVolt.exe, vlt-probe.exe, install.cmd, uninstall.cmd, remove-old-test-service.cmd, OKUBENI-README.txt) and VoltioVolt-test-linux-amd64.tar.gz (voltiovolt, vlt-probe, install.sh, uninstall.sh, OKUBENI-README.txt). The install scripts copy files into the folder of the user only, with no administrator rights. A Start menu or desktop shortcut is made only when the user agrees (OD-38). The script remove-old-test-service.cmd is only for computers with the VLT-IS-007 test installation. The binaries vltd, vlt-gui and vlt-setup are not in the default package.

@@ -55,6 +55,9 @@ func main() {
 	fs.SetOutput(os.Stderr)
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	selfTest := fs.Bool("self-test", false, "start with the simulator, run a short check and stop")
+	testConn := fs.Bool("test-connection", false, "with --self-test: use the test connection (vlt-simulator on the local stream)")
+	expectDialect := fs.String("expect-dialect", "megatec", "with --self-test --test-connection: megatec or voltronic")
+	expectEvent := fs.String("expect-event", "", "with --self-test --test-connection: wait for this Event (for example ON_BATTERY)")
 	dataDirFlag := fs.String("data-dir", "", "data folder (default: the portable data folder)")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		os.Exit(2)
@@ -72,8 +75,18 @@ func main() {
 			os.Exit(1)
 		}
 	}
+	if *testConn && !*selfTest {
+		fmt.Fprintln(os.Stderr, "VoltioVolt: --test-connection needs --self-test")
+		os.Exit(2)
+	}
 	if *selfTest {
-		if err := SelfTest(dir); err != nil {
+		var err error
+		if *testConn {
+			err = SelfTestConnection(dir, SelfTestOpts{ExpectDialect: *expectDialect, ExpectEvent: *expectEvent})
+		} else {
+			err = SelfTest(dir)
+		}
+		if err != nil {
 			fmt.Fprintln(os.Stderr, "VoltioVolt self-test:", err)
 			os.Exit(1)
 		}

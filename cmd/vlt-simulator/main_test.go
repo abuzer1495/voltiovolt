@@ -25,11 +25,18 @@ func TestParseArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.lang.Code != "tr" || !cfg.headless || cfg.scenario != 1 || cfg.dialect != sim.ProfileQ1 {
+	if cfg.lang.Code != "tr" || !cfg.headless || cfg.scenario != 1 || cfg.dialect != sim.ProfileQ1 || cfg.scenarioDelay != 0 {
 		t.Fatalf("%+v", cfg)
 	}
 	if cfg.lang.AlreadyRuns != "Simülatör zaten çalışıyor" {
 		t.Fatalf("turkish already-runs %q", cfg.lang.AlreadyRuns)
+	}
+	cfgDelay, err := parseArgs([]string{"--headless", "--scenario", "1", "--scenario-delay", "5s"}, &bytes.Buffer{})
+	if err != nil || cfgDelay.scenarioDelay != 5*time.Second {
+		t.Fatalf("delay: %+v %v", cfgDelay, err)
+	}
+	if _, err := parseArgs([]string{"--scenario-delay", "-1s"}, &bytes.Buffer{}); err == nil {
+		t.Fatal("negative delay")
 	}
 	if _, err := parseArgs([]string{"--lang", "de"}, &bytes.Buffer{}); err == nil {
 		t.Fatal("bad lang")
@@ -387,4 +394,51 @@ func absf(v float64) float64 {
 		return -v
 	}
 	return v
+}
+
+func TestHeadlessScenarioDelay(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var out, errw bytes.Buffer
+	go run(ctx, []string{"--headless", "--scenario", "1", "--scenario-delay", "800ms", "--lang", "en"}, &out, &errw, nil)
+	// Before the delay: mains on, 230 V.
+	deadline := time.Now().Add(600 * time.Millisecond)
+	var raw []byte
+	var err error
+	for time.Now().Before(deadline) {
+		raw, err = exchangeDial(t)
+		if err == nil {
+			st, perr := dialect.ParseQ1(raw)
+			if perr == nil && !st.Flags.UtilityFail && st.InputVoltage.Value == 230 {
+				break
+			}
+			err = perr
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("before delay: %v out=%s err=%s", err, out.String(), errw.String())
+	}
+	st, err := dialect.ParseQ1(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Flags.UtilityFail || st.InputVoltage.Value != 230 {
+		t.Fatalf("before delay already on battery: %+v raw=%q", st, raw)
+	}
+	// After the delay: scenario 1, on battery.
+	deadline = time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		raw, err = exchangeDial(t)
+		if err == nil {
+			var perr error
+			st, perr = dialect.ParseQ1(raw)
+			if perr == nil && st.Flags.UtilityFail && st.InputVoltage.Value == 0 {
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("after delay: %+v raw=%q err=%v", st, raw, err)
 }

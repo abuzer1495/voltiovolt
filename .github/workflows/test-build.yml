@@ -95,6 +95,53 @@ jobs:
           test -f "$dir/self-test-result.txt"
           grep -q '^ok ' "$dir/self-test-result.txt"
           cat "$dir/self-test-result.txt"
+
+      - name: Build vlt-simulator for the end-to-end test (VLT-IS-010 005)
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          go build -trimpath -o "$RUNNER_TEMP/vlt-simulator.exe" ./cmd/vlt-simulator
+
+      - name: End-to-end test connection, megatec and scenario 1 (VLT-IS-010 005)
+        run: |
+          set -euo pipefail
+          sim="$RUNNER_TEMP/vlt-simulator.exe"
+          vv="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/VoltioVolt.exe"
+          dir="$RUNNER_TEMP/vv-e2e-megatec"
+          mkdir -p "$dir"
+          "$sim" --headless --lang en --dialect megatec --scenario 1 --scenario-delay 20s &
+          sim_pid=$!
+          cleanup() { kill "$sim_pid" 2>/dev/null || true; wait "$sim_pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          sleep 2
+          "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect megatec --expect-event ON_BATTERY
+          test -f "$dir/self-test-connection-result.txt"
+          grep -q 'dialect=megatec' "$dir/self-test-connection-result.txt"
+          grep -q 'input=230.0' "$dir/self-test-connection-result.txt"
+          grep -q 'event=ON_BATTERY' "$dir/self-test-connection-result.txt"
+          grep -q 'shutdown=dry' "$dir/self-test-connection-result.txt"
+          cat "$dir/self-test-connection-result.txt"
+
+      - name: End-to-end test connection, voltronic dialect (VLT-IS-010 005)
+        run: |
+          set -euo pipefail
+          sim="$RUNNER_TEMP/vlt-simulator.exe"
+          vv="$RUNNER_TEMP/VoltioVolt-test-windows-amd64/VoltioVolt.exe"
+          dir="$RUNNER_TEMP/vv-e2e-voltronic"
+          mkdir -p "$dir"
+          "$sim" --headless --lang en --dialect voltronic &
+          sim_pid=$!
+          cleanup() { kill "$sim_pid" 2>/dev/null || true; wait "$sim_pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          sleep 2
+          "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect voltronic
+          test -f "$dir/self-test-connection-result.txt"
+          grep -q 'dialect=voltronic' "$dir/self-test-connection-result.txt"
+          grep -q 'input=230.0' "$dir/self-test-connection-result.txt"
+          grep -q 'shutdown=dry' "$dir/self-test-connection-result.txt"
+          cat "$dir/self-test-connection-result.txt"
+
       - name: Make the zip file
         shell: pwsh
         run: |
@@ -182,6 +229,57 @@ jobs:
           tar -C "$RUNNER_TEMP" --owner=0 --group=0 -czf dist/VoltioVolt-test-linux-amd64.tar.gz VoltioVolt-test-linux-amd64
           tar -tzvf dist/VoltioVolt-test-linux-amd64.tar.gz
           sha256sum dist/VoltioVolt-test-linux-amd64.tar.gz
+
+      - name: Build vlt-simulator for the end-to-end test (VLT-IS-010 005)
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          go build -trimpath -o "$RUNNER_TEMP/vlt-simulator" ./cmd/vlt-simulator
+
+      - name: End-to-end test connection, megatec and scenario 1 (VLT-IS-010 005)
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-e2e-megatec"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          sim="$RUNNER_TEMP/vlt-simulator"
+          vv="$RUNNER_TEMP/VoltioVolt-test-linux-amd64/voltiovolt"
+          dir="$RUNNER_TEMP/vv-e2e-megatec"
+          mkdir -p "$dir"
+          "$sim" --headless --lang en --dialect megatec --scenario 1 --scenario-delay 20s &
+          sim_pid=$!
+          cleanup() { kill "$sim_pid" 2>/dev/null || true; wait "$sim_pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          sleep 2
+          "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect megatec --expect-event ON_BATTERY
+          test -f "$dir/self-test-connection-result.txt"
+          grep -q 'dialect=megatec' "$dir/self-test-connection-result.txt"
+          grep -q 'input=230.0' "$dir/self-test-connection-result.txt"
+          grep -q 'event=ON_BATTERY' "$dir/self-test-connection-result.txt"
+          grep -q 'shutdown=dry' "$dir/self-test-connection-result.txt"
+          cat "$dir/self-test-connection-result.txt"
+
+      - name: End-to-end test connection, voltronic dialect (VLT-IS-010 005)
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-e2e-voltronic"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          sim="$RUNNER_TEMP/vlt-simulator"
+          vv="$RUNNER_TEMP/VoltioVolt-test-linux-amd64/voltiovolt"
+          dir="$RUNNER_TEMP/vv-e2e-voltronic"
+          mkdir -p "$dir"
+          "$sim" --headless --lang en --dialect voltronic &
+          sim_pid=$!
+          cleanup() { kill "$sim_pid" 2>/dev/null || true; wait "$sim_pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          sleep 2
+          "$vv" --self-test --test-connection --data-dir "$dir" --expect-dialect voltronic
+          test -f "$dir/self-test-connection-result.txt"
+          grep -q 'dialect=voltronic' "$dir/self-test-connection-result.txt"
+          grep -q 'input=230.0' "$dir/self-test-connection-result.txt"
+          grep -q 'shutdown=dry' "$dir/self-test-connection-result.txt"
+          cat "$dir/self-test-connection-result.txt"
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-build-linux

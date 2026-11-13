@@ -98,3 +98,21 @@ func WithDemo(base Lister, demo func() []Candidate) Lister {
 		return base(ctx, c)
 	}
 }
+
+// WithTest wraps a Lister. When Config.Transport is "test", it returns
+// only the vlt-simulator candidates of the local stream (OD-44). No real
+// port is listed (SEC-099).
+func WithTest(base Lister, test func() []Candidate) Lister {
+	return func(ctx context.Context, c Config) ([]Candidate, error) {
+		if c.Transport == TransportTest {
+			if test == nil {
+				return nil, nil
+			}
+			return test(), nil
+		}
+		if base == nil {
+			return nil, nil
+		}
+		return base(ctx, c)
+	}
+}

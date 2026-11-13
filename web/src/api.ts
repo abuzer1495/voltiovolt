@@ -76,6 +76,8 @@ export interface StatusPush {
   policy_active: boolean;
   demo?: boolean;
   demo_message?: string;
+  test?: boolean;
+  test_message?: string;
 }
 
 export interface VltEvent {
@@ -85,6 +87,7 @@ export interface VltEvent {
   severity: 'INFO' | 'WARNING' | 'CRITICAL';
   data: Record<string, unknown>;
   demo?: boolean;
+  origin?: string;
 }
 
 export interface EventsPage {

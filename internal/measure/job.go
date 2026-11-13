@@ -40,7 +40,7 @@ func Maintain(ctx context.Context, db *sql.DB, now time.Time) error {
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT OR REPLACE INTO measurements_1m (ts, name, unit, min, max, mean, count)
 		SELECT ts - (ts % ?) AS b, name, unit, min(value), max(value), avg(value), count(*)
-		FROM measurements WHERE ts >= ? AND ts < ? AND value IS NOT NULL AND demo = 0
+		FROM measurements WHERE ts >= ? AND ts < ? AND value IS NOT NULL AND origin = 'real'
 		GROUP BY b, name, unit`, minuteMs, start, curMinute); err != nil {
 		return fmt.Errorf("measure: 1-minute summaries: %w", err)
 	}

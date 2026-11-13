@@ -324,7 +324,8 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		if err1 != nil || err2 != nil {
 			return nil, invalid("from and to must be RFC 3339 times")
 		}
-		unit, rows, err := measure.QueryFilter(ctx, b.Store.DB(), p.Name, from, to, p.Step, p.IncludeDemo)
+		origin := currentOrigin(ctx, b)
+		unit, rows, err := measure.QueryByOrigin(ctx, b.Store.DB(), p.Name, from, to, p.Step, origin, p.IncludeDemo)
 		if errors.Is(err, measure.ErrBadQuery) {
 			return nil, invalid(err.Error())
 		}
@@ -345,7 +346,7 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		if p.Limit < 1 || p.Limit > event.MaxPage || p.Before < 0 {
 			return nil, invalid("limit must be 1 to 500 and before must be 0 or more")
 		}
-		list, err := event.ListFilter(ctx, b.Store.DB(), p.Before, p.Limit, p.IncludeDemo)
+		list, err := event.ListByOrigin(ctx, b.Store.DB(), p.Before, p.Limit, event.OriginFilter{Current: currentOrigin(ctx, b), IncludeOthers: p.IncludeDemo})
 		if err != nil {
 			return nil, internal()
 		}
@@ -462,4 +463,18 @@ func (cn *conn) policyMethod(ctx context.Context, method string) (any, *wire.Err
 		return wire.OKResult{OK: true}, nil
 	}
 	return nil, internal()
+}
+
+// currentOrigin is the origin of the selected Transport (OD-48).
+func currentOrigin(ctx context.Context, b Backend) string {
+	if b.Device != nil {
+		return device.OriginOf(b.Device.Status().Config.Transport)
+	}
+	if b.Store != nil {
+		cfg, err := device.ConfigFromStore(ctx, b.Store)
+		if err == nil {
+			return device.OriginOf(cfg.Transport)
+		}
+	}
+	return "real"
 }

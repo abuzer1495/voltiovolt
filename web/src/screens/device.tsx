@@ -45,10 +45,17 @@ export function DeviceSettings({ cfg, elevated, onSaved }: { cfg: Cfg; elevated:
   const [allowed, setAllowed] = useState(portsText(cfg.allowed_ports));
   const [ask, setAsk] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [realShutdown, setRealShutdown] = useState(false);
   useEffect(() => {
     setV(cfg);
     setAllowed(portsText(cfg.allowed_ports));
   }, [cfg.transport, cfg.serial_port, cfg.serial_dtr, cfg.serial_rts, portsText(cfg.allowed_ports)]);
+  useEffect(() => {
+    void api.settings().then((r) => {
+      const s = (r?.settings ?? []).find((x) => x.key === 'test.real_shutdown');
+      setRealShutdown(s?.value === true);
+    }, () => undefined);
+  }, []);
   async function save() {
     setAsk(false);
     try {
@@ -59,12 +66,17 @@ export function DeviceSettings({ cfg, elevated, onSaved }: { cfg: Cfg; elevated:
         'device.serial_rts': v.serial_rts,
         'device.serial.allowed_ports': parsePorts(allowed),
       });
+      if (v.transport === 'test' || cfg.transport === 'test') {
+        await api.setSetting('test.real_shutdown', realShutdown);
+      }
       setMsg({ kind: 'ok', text: t('device.saved') });
       onSaved();
     } catch (e) {
       setMsg({ kind: 'error', text: errText(errorCode(e)) });
     }
   }
+  const leavingDemo = cfg.transport === 'demo' && v.transport !== 'demo';
+  const leavingTest = cfg.transport === 'test' && v.transport !== 'test';
   const line = (id: string, label: string, val: Line, set: (l: Line) => void) => (
     <>
       <label for={id}>{t(label)}</label>
@@ -85,6 +97,7 @@ export function DeviceSettings({ cfg, elevated, onSaved }: { cfg: Cfg; elevated:
           <option value="hid">{t('device.transport.hid')}</option>
           <option value="serial">{t('device.transport.serial')}</option>
           <option value="demo">{t('device.transport.demo')}</option>
+          <option value="test">{t('device.transport.test')}</option>
         </select>
         <label for="dev-port">{t('device.serial_port')}</label>
         <input id="dev-port" disabled={!elevated} value={v.serial_port}
@@ -97,11 +110,21 @@ export function DeviceSettings({ cfg, elevated, onSaved }: { cfg: Cfg; elevated:
         <HelpLine text={t('help.dtr')} />
         {line('dev-rts', 'device.rts', v.serial_rts ?? 'unchanged', (l) => setV({ ...v, serial_rts: l }))}
         <HelpLine text={t('help.dtr')} />
+        {(v.transport === 'test' || cfg.transport === 'test') ? (
+          <>
+            <label class="check" for="dev-real-shutdown">
+              <input id="dev-real-shutdown" type="checkbox" disabled={!elevated} checked={realShutdown}
+                onChange={(e) => setRealShutdown((e.target as HTMLInputElement).checked)} />
+              {t('device.test.real_shutdown')}
+            </label>
+            <p class="msg msg-error" role="alert">{t('device.test.real_shutdown.warn')}</p>
+          </>
+        ) : null}
         <button type="submit" class="primary" disabled={!elevated}>{t('common.save')}</button>
       </form>
       {ask ? <Confirm
-        text={cfg.transport === 'demo' && v.transport !== 'demo' ? t('device.demo.leave') : t('device.confirm')}
-        confirmLabel={cfg.transport === 'demo' && v.transport !== 'demo' ? t('device.demo.leave.button') : t('device.confirm.button')}
+        text={leavingDemo ? t('device.demo.leave') : leavingTest ? t('device.test.leave') : t('device.confirm')}
+        confirmLabel={leavingDemo ? t('device.demo.leave.button') : leavingTest ? t('device.test.leave.button') : t('device.confirm.button')}
         onConfirm={() => void save()} onCancel={() => setAsk(false)} /> : null}
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
     </section>
@@ -121,7 +144,7 @@ function resultText(r: ScanResult | undefined): string {
 }
 
 /** Ports is the port list with the scan and "Use this port". */
-export function Ports({ elevated, onUsed, fromDemo = false }: { elevated: boolean; onUsed: () => void; fromDemo?: boolean }) {
+export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false }: { elevated: boolean; onUsed: () => void; fromDemo?: boolean; fromTest?: boolean }) {
   const [ports, setPorts] = useState<SerialPort[] | null>(null);
   const [marked, setMarked] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, ScanResult>>({});
@@ -205,8 +228,8 @@ export function Ports({ elevated, onUsed, fromDemo = false }: { elevated: boolea
         <button type="submit" class="danger" disabled={!elevated || text !== SCAN_TEXT || list.length === 0}>{t('device.scan.button')}</button>
       </form>
       {use ? (
-        <Confirm text={fromDemo ? t('device.demo.leave') : t('device.ports.use.confirm', { name: use })}
-          confirmLabel={fromDemo ? t('device.demo.leave.button') : t('device.ports.use.button')}
+        <Confirm text={fromDemo ? t('device.demo.leave') : fromTest ? t('device.test.leave') : t('device.ports.use.confirm', { name: use })}
+          confirmLabel={fromDemo ? t('device.demo.leave.button') : fromTest ? t('device.test.leave.button') : t('device.ports.use.button')}
           onConfirm={() => void useNow(use)} onCancel={() => setUse(null)} />
       ) : null}
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
@@ -243,9 +266,10 @@ export function Device() {
         {(d?.state === 'port permission denied' || d?.state === 'permission denied') ? <p role="alert" class="msg msg-error">{t('device.port.permission.help')}</p> : null}
         {(d?.state === 'hid permission denied' || d?.state === 'permission denied') ? <p role="alert" class="msg msg-error">{t('device.hid.permission.help')}</p> : null}
         {d?.state === 'not configured' ? <p class="note">{t('device.notconfigured.help')}</p> : null}
+        {d?.state === 'simulator not found' ? <p class="note">{t('device.test.notfound')}</p> : null}
         <button type="button" onClick={() => void load()}>{t('common.refresh')}</button>
       </section>
-      <Ports elevated={elevated} onUsed={() => void load()} fromDemo={d?.config?.transport === 'demo'} />
+      <Ports elevated={elevated} onUsed={() => void load()} fromDemo={d?.config?.transport === 'demo'} fromTest={d?.config?.transport === 'test'} />
       <section class="card"><h3>{t('device.nominal')}</h3><KV obj={p?.nominal} /></section>
       <BatteryEstimate elevated={elevated} />
       <section class="card"><h3>{t('device.model')}</h3><KV obj={p?.info} /><KV obj={p?.model_data} /><KV obj={p?.firmware} /></section>

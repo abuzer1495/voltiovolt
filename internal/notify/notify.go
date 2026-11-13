@@ -159,6 +159,10 @@ type Config struct {
 	// Demo reports whether demo mode is active. Notifications then get
 	// the prefix "[DEMO]" (VLT-IS-009 OD-43).
 	Demo func() bool
+	// Test reports whether the test connection is active. Notifications
+	// then get the prefix "[TEST]" (VLT-IS-010 OD-48). Test takes
+	// precedence over Demo.
+	Test func() bool
 	Log  *slog.Logger
 }
 
@@ -300,21 +304,30 @@ func (r *Router) language(ctx context.Context) string {
 // minimum severity equal to or less than the message severity. r.mu is
 // held.
 func (r *Router) demoPrefix(n Notification) Notification {
-	if r.cfg.Demo == nil || !r.cfg.Demo() {
+	p := ""
+	switch {
+	case r.cfg.Test != nil && r.cfg.Test():
+		p = "[TEST] "
+	case r.cfg.Demo != nil && r.cfg.Demo():
+		p = "[DEMO] "
+	default:
 		return n
 	}
-	const p = "[DEMO] "
-	if !hasDemoPrefix(n.Subject) {
+	if !hasSourcePrefix(n.Subject, p) {
 		n.Subject = p + n.Subject
 	}
-	if !hasDemoPrefix(n.Text) {
+	if !hasSourcePrefix(n.Text, p) {
 		n.Text = p + n.Text
 	}
 	return n
 }
 
+func hasSourcePrefix(s, p string) bool {
+	return len(s) >= len(p) && s[:len(p)] == p
+}
+
 func hasDemoPrefix(s string) bool {
-	return len(s) >= 7 && s[:7] == "[DEMO] "
+	return hasSourcePrefix(s, "[DEMO] ")
 }
 
 func (r *Router) emitLocked(ctx context.Context, m Message, now time.Time) {

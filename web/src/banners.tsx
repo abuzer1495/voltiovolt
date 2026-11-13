@@ -65,3 +65,23 @@ export function DemoShutdownBanner({ message }: { message?: string }) {
     </div>
   );
 }
+
+/** TestBanner is the blue TEST CONNECTION banner, on all screens. */
+export function TestBanner({ test }: { test: boolean }) {
+  if (!test) return null;
+  return (
+    <div class="banner banner-test" role="status">
+      <strong>{t('device.test.banner')}</strong>
+    </div>
+  );
+}
+
+/** TestShutdownBanner is the dry-run shutdown text of the test connection (OD-46). */
+export function TestShutdownBanner({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <div class="banner banner-test" role="status">
+      <strong>{t('device.test.shutdown')}</strong>
+    </div>
+  );
+}

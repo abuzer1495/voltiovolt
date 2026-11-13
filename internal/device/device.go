@@ -37,6 +37,10 @@ const (
 	TransportSerial = "serial"
 	// TransportDemo is the in-process simulator (VLT-IS-009 OD-43).
 	TransportDemo = "demo"
+	// TransportTest is the "Test connection (simulator)" of VLT-IS-010
+	// (RQ-02, OD-44): VoltioVolt dials vlt-simulator on the local stream
+	// and uses the real Driver (Exchange, Probe, Poller).
+	TransportTest = "test"
 )
 
 // MinGap is the minimum time between two requests (VLT-IS-002 TASK
@@ -54,6 +58,10 @@ var ProbeList = []string{"Q1", "F", "I", "QS", "QGS", "QMOD", "QBV", "QWS", "QFL
 // ErrNoDevice is returned when no Transport gives a known Dialect.
 var ErrNoDevice = errors.New("device: no UPS found")
 
+// ErrSimulatorNotFound is returned when the test connection is selected
+// and vlt-simulator is not listening on the local stream (OD-44).
+var ErrSimulatorNotFound = errors.New("simulator not found")
+
 // ErrPortBusy is returned when no Transport gives a known Dialect and a
 // serial port could not open because another program uses it.
 var ErrPortBusy = fmt.Errorf("device: %w", transport.ErrPortBusy)
@@ -69,6 +77,19 @@ var ErrHIDPermission = errors.New("device: HID permission denied")
 // ErrPermissionDenied is returned when both a Linux USB serial port and
 // a hidraw device fail with permission denied.
 var ErrPermissionDenied = errors.New("device: permission denied")
+
+// OriginOf returns the measurement and event origin of a Transport
+// (OD-48): "demo", "test" or "real".
+func OriginOf(transport string) string {
+	switch transport {
+	case TransportDemo:
+		return "demo"
+	case TransportTest:
+		return "test"
+	default:
+		return "real"
+	}
+}
 
 // Config is the Device Settings.
 type Config struct {
@@ -317,10 +338,14 @@ func Detect(ctx context.Context, c Config, list Lister, clock Clock, log *slog.L
 	}
 	busy := false
 	serialPerm, hidPerm := false, false
+	simNotFound := false
 	for _, cand := range cands {
 		tr := cand.New()
 		if err := tr.Open(ctx); err != nil {
 			log.Info("device: cannot open", "transport", cand.Transport, "port", cand.Port, "err", err)
+			if errors.Is(err, ErrSimulatorNotFound) {
+				simNotFound = true
+			}
 			if errors.Is(err, transport.ErrPortBusy) {
 				busy = true
 			}
@@ -363,6 +388,9 @@ func Detect(ctx context.Context, c Config, list Lister, clock Clock, log *slog.L
 	}
 	if busy {
 		return Profile{}, nil, ErrPortBusy
+	}
+	if simNotFound {
+		return Profile{}, nil, ErrSimulatorNotFound
 	}
 	return Profile{}, nil, ErrNoDevice
 }

@@ -68,6 +68,7 @@ type Point struct {
 	Value  float64 `json:"value"`
 	Source string  `json:"source"` // the command, for example "QGS"
 	Demo   bool    `json:"demo,omitempty"`
+	Origin string  `json:"origin,omitempty"`
 }
 
 func add[U dialect.Unit](out []Point, name, src string, q dialect.Quantity[U]) []Point {
@@ -153,18 +154,26 @@ func (w *Writer) WriteCycle(ctx context.Context, samples []Sample) error {
 		return err
 	}
 	defer tx.Rollback()
-	st, err := tx.PrepareContext(ctx, "INSERT INTO measurements (ts, name, value, unit, source, demo) VALUES (?, ?, ?, ?, ?, ?)")
+	st, err := tx.PrepareContext(ctx, "INSERT INTO measurements (ts, name, value, unit, source, demo, origin) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer st.Close()
 	for _, s := range samples {
 		for _, p := range s.Points {
+			origin := p.Origin
+			if origin == "" {
+				if p.Demo {
+					origin = "demo"
+				} else {
+					origin = "real"
+				}
+			}
 			demo := 0
-			if p.Demo {
+			if p.Demo || origin == "demo" {
 				demo = 1
 			}
-			if _, err := st.ExecContext(ctx, ms(s.Time), p.Name, p.Value, p.Unit, p.Source, demo); err != nil {
+			if _, err := st.ExecContext(ctx, ms(s.Time), p.Name, p.Value, p.Unit, p.Source, demo, origin); err != nil {
 				return fmt.Errorf("measure: write %s: %w", p.Name, err)
 			}
 		}

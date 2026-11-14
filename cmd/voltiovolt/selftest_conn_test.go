@@ -18,6 +18,7 @@ import (
 func startTestSim(t *testing.T, p sim.Profile) *sim.Model {
 	t.Helper()
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 	m := sim.NewConsoleModel(p)
 	ln, err := server.ListenExclusive()
 	if err != nil {

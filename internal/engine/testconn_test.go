@@ -21,6 +21,7 @@ import (
 func startConsoleSim(t *testing.T) *sim.Model {
 	t.Helper()
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 	m := sim.NewConsoleModel(sim.ProfileQ1)
 	ln, err := server.ListenExclusive()
 	if err != nil {
@@ -125,6 +126,7 @@ func TestTestConnectionUsesRealDriverAndControl(t *testing.T) {
 
 func TestSimulatorNotFound(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 	ctx := context.Background()
 	_, addr := startTestDaemon(t, dataDir(t), &testOnlyDEKProvider{dek: testOnlyDEK()}, func(c *Config) {
 		c.Lister = func(context.Context, device.Config) ([]device.Candidate, error) {

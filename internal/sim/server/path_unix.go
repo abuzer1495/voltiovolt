@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 )
 
-// Path is the Unix socket of OD-44: $XDG_RUNTIME_DIR/voltiovolt-simulator.sock,
+// defaultPath is the Unix socket of OD-44: $XDG_RUNTIME_DIR/voltiovolt-simulator.sock,
 // or /tmp/voltiovolt-simulator-<uid>.sock when XDG_RUNTIME_DIR is not set.
-func Path() string {
+func defaultPath() string {
 	if d := os.Getenv("XDG_RUNTIME_DIR"); d != "" {
 		return filepath.Join(d, "voltiovolt-simulator.sock")
 	}
@@ -38,4 +38,14 @@ func ListenAt(path string) (net.Listener, error) {
 		return nil, err
 	}
 	return ln, nil
+}
+
+// newTestPath is a socket for one test (VLT-IS-011 Q-1), in
+// $XDG_RUNTIME_DIR (the tests set a temporary folder) or the temp folder.
+func newTestPath(pid int, n uint64) string {
+	d := os.Getenv("XDG_RUNTIME_DIR")
+	if d == "" {
+		d = os.TempDir()
+	}
+	return filepath.Join(d, fmt.Sprintf("vlt-sim-test-%d-%d.sock", pid, n))
 }

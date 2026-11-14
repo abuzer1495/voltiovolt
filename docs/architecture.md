@@ -538,3 +538,26 @@ CI runs an end-to-end test (`VoltioVolt --self-test --test-connection`) on windo
 ### 18.4 Chart series visibility (RQ-03, OD-49)
 
 The History chart keeps one uPlot object. A refresh calls `setData`. The object is destroyed only when the screen unmounts. Series visibility is a user choice in Setting `ui.history.series_visibility`. It stays after a data refresh, a range change and a restart. Hiding a series does not change the recording.
+
+## 19. Interface modes, interface size and the Windows look (VLT-IS-011)
+
+### 19.1 Simple and Expert modes (OD-53)
+
+The mode is the "ui." Setting ui.mode (simple or expert, default simple). A "ui." Setting needs no elevated state; without a store the choice stays in localStorage (web/src/mode.ts). Simple mode shows one screen (web/src/screens/simple.tsx): a status card with the health (Good, Attention, Problem and one sentence), six tiles, the automatic shutdown state, one chart (input voltage and load, 1 hour) and the last 3 Events in plain words. Expert mode shows the left navigation pane and all screens. The wizard step "Interface" asks for the mode. The health rules: comm lost, a countdown, low battery, a fault, overload (load 100 % or more) and over-temperature are Problem; on battery, AVR, bypass, load 90 % or more, temperature 45 °C or more and a low runtime are Attention. The engine has no "replace the battery" signal, so there is no rule for it.
+
+### 19.2 Interface size (OD-54)
+
+The Setting ui.scale is auto or one of 80, 90, 100, 110, 125, 150, 175, 200. All CSS sizes come from one root value: the root font size is 14 px × --ui-scale, and --px is 1 CSS pixel at 100 %. Only hairlines (1 px) and the focus ring are fixed. Auto is the factor 1, because WebView2 and WebKitGTK already use the display scale of the OS (no double scaling); a size in percent is the factor size / (100 × devicePixelRatio). If a size does not fit on the screen (minimum 1024 × 680 CSS px), the front end uses the largest size that fits and shows one message. After each change, the front end calls SetInterfaceScale and the Go side sets the minimum window size (internal/gui ScaledMinSize). Ctrl+Plus, Ctrl+Minus and Ctrl+0 change the size (web/src/scale.ts).
+
+### 19.3 Live History charts (R-09)
+
+The History screen reads only the points after the last timestamp of each series: every 2 s for 1 hour (raw), every 60 s for 24 hours and 7 days (1m), every 10 min for 30 days and 1 year (1h). It stops while paused, while the screen is not shown, while the page is hidden and while the window is minimised or hidden (Wails event vlt:window). Hidden series and the zoom stay.
+
+### 19.4 Windows look and native parts (OD-55)
+
+- CSS (web/src/styles.css): Segoe UI Variable, then Segoe UI, then system-ui; 4 px corners; 32 px controls; 1 px borders; soft shadows on dialogs; the Windows 11 colors for light and dark (prefers-color-scheme). The left navigation pane has icons (web/src/navicons.tsx, own SVG) and text; it can be collapsed to the icons (localStorage vlt.nav-collapsed; it starts collapsed below 1100 CSS px).
+- Accent color: API.Theme returns the OS and, on Windows, the accent color of Wails (app.Env.GetAccentColor). The front end (web/src/native.ts) makes it lighter or darker until the contrast is 4.5:1 on the backgrounds, and picks black or white text on it. On Linux, buttons and the selection use the GTK colors (Highlight, HighlightText) and the system font.
+- Menu bar: internal/gui/native.go has the menu model (BuildMenu): File (Exit), View (Simple mode, Expert mode, Interface size), Tools (Setup wizard, Simulator help), Help (Documentation F1, About). The texts come from en.json and tr.json (SetMenu); "&" marks the access key ("_" on GTK). Exit, the help links and About run in Go; the other commands go to the front end as the Wails event vlt:menu. The help links open in the web browser (SEC-095).
+- Native confirmations: the Confirm component calls ConfirmNative (Yes, No, Cancel; Cancel is the default and the Escape key). Confirmations with a typed word stay in the page. Without a native dialog the inline confirmation is used.
+- Windows resources: tools/winresgen (a separate module) writes rsrc_windows_amd64.syso before the Windows build: the icon (internal/appicon, an own design drawn in code; icon group 32512, which the window class of Wails and the Start menu shortcut use), the version resource (internal/winmeta) and the manifest (per-monitor DPI v2, Common Controls 6 for the TaskDialog of Wails, asInvoker). Wails v3.1.0 sets per-monitor v2 at run time if the process has none (pkg/application/application_windows.go); the manifest sets it before the first window. The tray icon is the application icon with a state mark (shape and color).
+

@@ -10,6 +10,7 @@ import { DASH } from '../format';
 import { lang, setLang, t, type Lang } from '../i18n';
 import { SetPin, fieldValue } from './pin';
 import { ModeChoice } from './simple';
+import { ScaleChoice } from './scalechoice';
 import { startWizard } from './wizard';
 import { app, refreshAuth } from '../state';
 import { useStore } from '../store';
@@ -44,6 +45,10 @@ export function General() {
       <section class="card" aria-labelledby="mode-title">
         <h3 id="mode-title">{t('mode.ui.title')}</h3>
         <ModeChoice />
+      </section>
+      <section class="card" aria-labelledby="scale-title">
+        <h3 id="scale-title">{t('scale.title')}</h3>
+        <ScaleChoice />
       </section>
       <section class="card">
         <h3>{t('general.theme')}</h3>

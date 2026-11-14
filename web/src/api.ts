@@ -350,6 +350,8 @@ export const api = {
   settings: () => call<{ settings: Setting[] }>('Settings'),
   setLanguage: (l: string) => call<void>('SetLanguage', l),
   setSetting: (key: string, value: unknown) => call<void>('SetSetting', key, value),
+  /** setInterfaceScale sets the minimum window size for the interface size (VLT-IS-011 004). */
+  setInterfaceScale: (percent: number) => call<void>('SetInterfaceScale', percent),
   demoPowerFail: () => call<void>('DemoPowerFail'),
   openSource: () => call<void>('OpenSource'),
   openHelp: (url: string) => call<void>('OpenHelp', url),

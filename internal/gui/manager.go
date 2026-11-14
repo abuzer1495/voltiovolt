@@ -129,6 +129,7 @@ type Manager struct {
 	lockT     *time.Timer
 	onTray    func(TrayState)
 	texts     TrayTexts
+	minSize   func(w, h int) // VLT-IS-011 004: the minimum window size
 	openURL   func(string) error
 	onNotify  func(OSNotification)
 	mode      string

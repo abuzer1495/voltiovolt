@@ -564,5 +564,11 @@
   "plain.COMM_RESTORED": "UPS ile iletişim yeniden kuruldu",
   "plain.SHUTDOWN_COUNTDOWN": "Kapatma geri sayımı başladı",
   "plain.SHUTDOWN_COUNTDOWN_CANCELLED": "Kapatma geri sayımı iptal edildi",
-  "plain.SHUTDOWN_REQUESTED": "Kapatma istendi"
+  "plain.SHUTDOWN_REQUESTED": "Kapatma istendi",
+  "scale.title": "Arayüz boyutu",
+  "scale.auto": "Otomatik (%{n})",
+  "scale.auto.short": "Otomatik",
+  "scale.help": "Ctrl+Artı ve Ctrl+Eksi boyutu değiştirir. Ctrl+0 Otomatik yapar.",
+  "scale.used": "Ekran çok küçük: VoltioVolt %{n} kullanıyor.",
+  "scale.reduced": "{want} arayüz boyutu bu ekrana sığmıyor. VoltioVolt %{used} kullanıyor."
 }

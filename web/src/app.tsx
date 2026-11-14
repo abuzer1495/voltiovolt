@@ -18,6 +18,8 @@ import { Security } from './screens/security';
 import { UPSControl } from './screens/ups';
 import { ui, setMode } from './mode';
 import { Simple } from './screens/simple';
+import { ScaleNotice } from './screens/scalechoice';
+import { watchScale } from './scale';
 import { app, lock, refreshAuth, start, watchInput } from './state';
 import { useStore } from './store';
 
@@ -60,6 +62,7 @@ export function App() {
   useEffect(() => {
     start();
     watchInput();
+    watchScale();
   }, []);
   useEffect(() => {
     void api.about().then(async (a) => {
@@ -164,6 +167,7 @@ export function App() {
             ) : null}
             {!showPrompt ? (
               <>
+                <ScaleNotice />
                 <DemoBanner demo={!!s.status?.demo || s.status?.device?.config?.transport === 'demo'} />
                 <DemoShutdownBanner message={s.status?.demo_message} />
                 <TestBanner test={!!s.status?.test || s.status?.device?.config?.transport === 'test'} />

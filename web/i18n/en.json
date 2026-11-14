@@ -564,5 +564,11 @@
   "plain.SHUTDOWN_COUNTDOWN": "Shutdown countdown started",
   "plain.SHUTDOWN_COUNTDOWN_CANCELLED": "Shutdown countdown cancelled",
   "plain.SHUTDOWN_REQUESTED": "Shutdown requested",
-  "health.good.sentence": "Everything is fine. The UPS runs on mains power."
+  "health.good.sentence": "Everything is fine. The UPS runs on mains power.",
+  "scale.title": "Interface size",
+  "scale.auto": "Auto ({n} %)",
+  "scale.auto.short": "Auto",
+  "scale.help": "Ctrl+Plus and Ctrl+Minus change the size. Ctrl+0 sets Auto.",
+  "scale.used": "The screen is too small: VoltioVolt uses {n} %.",
+  "scale.reduced": "The interface size {want} does not fit on this screen. VoltioVolt uses {used} %."
 }

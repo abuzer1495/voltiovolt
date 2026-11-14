@@ -34,6 +34,7 @@ const (
 	EventEvent     = "vlt:event"     // one Event push of vltd
 	EventCountdown = "vlt:countdown" // the countdown push of vltd
 	EventTray      = "vlt:tray"      // TrayState
+	EventWindow    = "vlt:window"    // WindowState: minimised or hidden (VLT-IS-011 002)
 )
 
 // Connection states.

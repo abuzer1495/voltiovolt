@@ -3,26 +3,71 @@
 // for screen readers. VLT-IS-010 TASK 03-00-00-001 (RQ-03, OD-49): one
 // chart object per chart; setData on a refresh; series visibility is a
 // user choice and is stored in ui.history.series_visibility.
+// VLT-IS-011 TASK 03-00-00-002 (R-09): live updates. Only the points
+// newer than the last timestamp are read; setData on the same chart;
+// points older than the range are dropped; a zoom is kept.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import uPlot from 'uplot';
 import { api, errorCode, type Series } from '../api';
 import { errText } from '../components';
 import { DASH, num, time } from '../format';
 import { t } from '../i18n';
+import { view } from '../state';
+import { useStore } from '../store';
 
 export interface Range {
   id: string;
   ms: number;
   step: 'raw' | '1m' | '1h';
+  /** live is the time between two live updates (VLT-IS-011 002). */
+  live: number;
 }
 
 export const RANGES: Range[] = [
-  { id: '1h', ms: 3600e3, step: 'raw' },
-  { id: '24h', ms: 24 * 3600e3, step: '1m' },
-  { id: '7d', ms: 7 * 24 * 3600e3, step: '1m' },
-  { id: '30d', ms: 30 * 24 * 3600e3, step: '1h' },
-  { id: '1y', ms: 365 * 24 * 3600e3, step: '1h' },
+  { id: '1h', ms: 3600e3, step: 'raw', live: 2e3 },
+  { id: '24h', ms: 24 * 3600e3, step: '1m', live: 60e3 },
+  { id: '7d', ms: 7 * 24 * 3600e3, step: '1m', live: 60e3 },
+  { id: '30d', ms: 30 * 24 * 3600e3, step: '1h', live: 600e3 },
+  { id: '1y', ms: 365 * 24 * 3600e3, step: '1h', live: 600e3 },
 ];
+
+/** lastTs is the time (ms) of the last row of a series, or null. */
+export function lastTs(s: Series | undefined): number | null {
+  const r = s?.rows;
+  if (!r || r.length === 0) return null;
+  return Date.parse(r[r.length - 1].ts);
+}
+
+/**
+ * mergeSeries adds the rows of a live read to a series. A new row with the
+ * time of an old row replaces it (the open 1m or 1h bucket). Rows older
+ * than fromMs (the start of the range) are dropped.
+ */
+export function mergeSeries(old: Series | undefined, add: Series, fromMs: number): Series {
+  const rows = add.rows ?? [];
+  const first = rows.length ? Date.parse(rows[0].ts) : Infinity;
+  const kept = (old?.rows ?? []).filter((r) => {
+    const x = Date.parse(r.ts);
+    return x >= fromMs && x < first;
+  });
+  return { ...(old ?? add), unit: add.unit || old?.unit || '', rows: [...kept, ...rows.filter((r) => Date.parse(r.ts) >= fromMs)] };
+}
+
+/**
+ * nextView is the x scale after new data. Without a zoom, null: the chart
+ * shows the full data again. With a zoom that includes the last point
+ * ("now"), the view moves with the new data. Other zooms stay.
+ */
+export function nextView(min: number | null | undefined, max: number | null | undefined, oldFirst: number | undefined, oldLast: number | undefined, newLast: number | undefined): { min: number; max: number } | null | 'keep' {
+  if (min == null || max == null || oldFirst == null || oldLast == null) return null;
+  const zoomed = min > oldFirst + 0.5 || max < oldLast - 0.5;
+  if (!zoomed) return null;
+  if (newLast != null && max >= oldLast - 0.5 && newLast > oldLast) {
+    const d = newLast - oldLast;
+    return { min: min + d, max: max + d };
+  }
+  return 'keep';
+}
 
 interface ChartDef {
   id: string;
@@ -108,7 +153,16 @@ function Chart({ def, series, vis, onVisible }: {
   useEffect(() => {
     if (!ref.current || data[0].length === 0) return;
     if (plot.current) {
-      plot.current.setData(data as uPlot.AlignedData);
+      const u = plot.current;
+      const xs = (u.data?.[0] ?? []) as number[];
+      const v = nextView(u.scales?.x?.min, u.scales?.x?.max, xs[0], xs[xs.length - 1], data[0][data[0].length - 1] as number | undefined);
+      if (v === null) {
+        u.setData(data as uPlot.AlignedData);
+      } else {
+        // Keep the zoom of the user; follow "now" if the view includes it.
+        u.setData(data as uPlot.AlignedData, false);
+        if (v !== 'keep') u.setScale('x', v);
+      }
       return;
     }
     const css = getComputedStyle(document.documentElement);
@@ -214,6 +268,19 @@ export function History() {
   const [vis, setVis] = useState<Record<string, boolean>>({});
   const [visReady, setVisReady] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [docVisible, setDocVisible] = useState(typeof document === 'undefined' || document.visibilityState !== 'hidden');
+  const win = useStore(view);
+  const dataRef = useRef<Record<string, Series>>({});
+  dataRef.current = data;
+  const loaded = useRef(0); // the time of the last full read or live update
+  const live = !paused && docVisible && win.visible;
+
+  useEffect(() => {
+    const f = () => setDocVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', f);
+    return () => document.removeEventListener('visibilitychange', f);
+  }, []);
 
   useEffect(() => {
     let stop = false;
@@ -239,6 +306,7 @@ export function History() {
         if (stop) return;
         const m: Record<string, Series> = {};
         list.forEach((s, i) => (m[names[i]] = s));
+        loaded.current = Date.now();
         setData(m);
       })
       .catch((e) => !stop && setErr(errText(errorCode(e))))
@@ -247,6 +315,43 @@ export function History() {
       stop = true;
     };
   }, [range, showDemo, refresh]);
+
+  // Live updates (VLT-IS-011 002): read only the points after the last
+  // timestamp of each series. No updates while paused, while the screen is
+  // not shown (unmounted) or while the window is minimised or hidden.
+  useEffect(() => {
+    if (!live) return;
+    let stop = false;
+    let inflight = false;
+    const tick = () => {
+      if (stop || inflight || loaded.current === 0) return;
+      inflight = true;
+      const to = Date.now();
+      const from = to - range.ms;
+      const names = CHARTS.flatMap((c) => c.names);
+      const cur = dataRef.current;
+      Promise.all(names.map((n) => api.measurements(n, lastTs(cur[n]) ?? from, to, range.step, showDemo)))
+        .then((list) => {
+          if (stop) return;
+          const m: Record<string, Series> = { ...dataRef.current };
+          list.forEach((s, i) => {
+            if (s) m[names[i]] = mergeSeries(m[names[i]], s, from);
+          });
+          loaded.current = Date.now();
+          setErr(null);
+          setData(m);
+        })
+        .catch((e) => !stop && setErr(errText(errorCode(e))))
+        .finally(() => { inflight = false; });
+    };
+    // After a pause or a hidden window, catch up at once.
+    if (loaded.current !== 0 && Date.now() - loaded.current >= range.live) tick();
+    const id = setInterval(tick, range.live);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, [live, range, showDemo]);
 
   const onVisible = (name: string, show: boolean) => {
     setVis((cur) => {
@@ -266,6 +371,10 @@ export function History() {
           </button>
         ))}
         <button type="button" onClick={() => setRefresh((n) => n + 1)}>{t('hist.refresh')}</button>
+        <button type="button" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>{t(paused ? 'hist.resume' : 'hist.pause')}</button>
+        <span class={'live-badge' + (live ? ' live-on' : '')} role="status" data-live={live ? 'on' : 'off'}>
+          {live ? t('hist.live') : t('hist.live.off')}
+        </span>
         <label class="check" for="hist-demo">
           <input id="hist-demo" type="checkbox" checked={showDemo} onChange={(e) => setShowDemo((e.target as HTMLInputElement).checked)} />
           {t('hist.show_demo')}

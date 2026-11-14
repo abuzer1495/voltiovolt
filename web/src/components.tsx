@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { useEffect, useState } from 'preact/hooks';
 import type { ConnInfo } from './api';
 import { t } from './i18n';
+import { confirmNative, native } from './native';
+import { useStore } from './store';
 
 /** ConnState shows the connection state with an icon and a text, always. */
 export function ConnState({ conn }: { conn: ConnInfo }) {
@@ -40,8 +43,31 @@ export function Badge({ kind, icon, text }: { kind: 'ok' | 'warn' | 'crit' | 'in
   );
 }
 
-/** Confirm is an inline confirmation with a text and two buttons. The focus goes to it. */
+/**
+ * Confirm asks before an action. VLT-IS-011 TASK 03-00-00-005 step 2.2: in
+ * the VoltioVolt window it is the native question dialog with Yes, No and
+ * Cancel (No and Cancel do not do the action). Without a native dialog
+ * (or if it fails) it is an inline confirmation with a text and two
+ * buttons; the focus goes to it. A confirmation with a typed word is not
+ * this component: it stays in the page.
+ */
 export function Confirm({ text, confirmLabel, onConfirm, onCancel }: { text: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) {
+  const nat = useStore(native).dialogs;
+  const [inline, setInline] = useState(!nat);
+  useEffect(() => {
+    if (!nat) return;
+    let live = true;
+    void confirmNative(confirmLabel, text).then((r) => {
+      if (!live) return;
+      if (r === 'yes') onConfirm();
+      else if (r === null) setInline(true);
+      else onCancel();
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!inline) return <p class="small" role="status">{t('confirm.native.wait')}</p>;
   return (
     <div class="confirm" role="alertdialog" aria-modal="false" aria-label={confirmLabel} aria-describedby="confirm-text">
       <p id="confirm-text">{text}</p>

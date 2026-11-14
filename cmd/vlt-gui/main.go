@@ -19,6 +19,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/abuzer1495/voltiovolt/internal/appicon"
 	"github.com/abuzer1495/voltiovolt/internal/gui"
 )
 
@@ -68,6 +69,7 @@ func run(addr string) error {
 	app := application.New(application.Options{
 		Name:        "VLT",
 		Description: "VLT UPS monitor",
+		Icon:        appicon.PNG(256),
 		Services:    []application.Service{application.NewService(api), application.NewService(osn)},
 		Assets: application.AssetOptions{
 			Handler: cspHandler(application.BundledAssetFileServer(dist)),
@@ -83,6 +85,7 @@ func run(addr string) error {
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:      "main",
 		Title:     "VLT",
+		Linux:     application.LinuxWindow{Icon: appicon.PNG(256)},
 		Width:     1100,
 		Height:    760,
 		MinWidth:  gui.MinWindowWidth,
@@ -100,6 +103,8 @@ func run(addr string) error {
 	win.OnWindowEvent(events.Common.WindowRestore, winState(true))
 	win.OnWindowEvent(events.Common.WindowShow, winState(true))
 	m.SetMinSizeFunc(func(w, h int) { win.SetMinSize(w, h) })
+	// File > Exit closes the VLT GUI only; vltd continues.
+	setupNative(app, win, m, func() { app.Quit() })
 	setupTray(app, win, m, api)
 	go m.Run(ctx)
 	return app.Run()

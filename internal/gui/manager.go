@@ -136,6 +136,7 @@ type Manager struct {
 	autostart Autostart
 	dataDir   string
 	firstRun  FirstRun
+	native    nativeState // VLT-IS-011 005: native parts of the window
 }
 
 // OSNotification is a desktop Notification of vltd (VLT-IS-007 TASK

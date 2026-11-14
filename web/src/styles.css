@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-/* Theme follows the OS (prefers-color-scheme). Contrast 4.5:1 or more. */
+/* Theme follows the OS (prefers-color-scheme). Contrast 4.5:1 or more.
+   VLT-IS-011 TASK 03-00-00-005 (OD-55): the look of Windows 11 (Fluent):
+   Segoe UI Variable, the Windows accent color (native.ts), 4 px corners,
+   32 px controls, thin borders, soft shadows on dialogs, a left
+   navigation pane. Linux: the system font and the GTK selection colors. */
 /* VLT-IS-011 TASK 03-00-00-004 (OD-54): all sizes are relative to one
    root value. --px is 1 CSS pixel at the interface size 100 %; --ui-scale
    is set by the front end (scale.ts). Auto is 1: the WebView already uses
@@ -14,44 +18,56 @@
   --row-gap: calc(10 * var(--px));
   --wizard-w: calc(760 * var(--px));
   --wizard-h: calc(560 * var(--px));
-  --bg: #ffffff;
+  --radius: calc(4 * var(--px));
+  --nav-w: calc(240 * var(--px));
+  --nav-w-collapsed: calc(48 * var(--px));
+  --shadow: 0 calc(8 * var(--px)) calc(16 * var(--px)) rgba(0, 0, 0, 0.14), 0 0 calc(2 * var(--px)) rgba(0, 0, 0, 0.12);
+  --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  --nav-hover: rgba(0, 0, 0, 0.04);
+  --nav-sel: rgba(0, 0, 0, 0.06);
+  --bg: #f3f3f3;
   --fg: #1a1a1a;
   --muted: #4d4d4d;
-  --panel: #f2f4f7;
-  --border: #8a8f98;
-  --accent: #0b57d0;
+  --panel: #fbfbfb;
+  --border: #7a7f87;
+  --accent: #0067c0;
   --accent-fg: #ffffff;
   --ok: #146c2e;
   --warn: #7a4a00;
   --warn-bg: #fff4d6;
   --crit: #a1141b;
   --crit-bg: #fde7e8;
-  --focus: #0b57d0;
+  --focus: #0067c0;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15171a;
+    --bg: #202020;
     --fg: #eceef1;
     --muted: #b8bcc4;
-    --panel: #22252a;
-    --border: #7d838d;
-    --accent: #8ab4f8;
-    --accent-fg: #0b1a33;
+    --panel: #2b2b2b;
+    --border: #868c95;
+    --accent: #4cc2ff;
+    --accent-fg: #000000;
     --ok: #7ed492;
     --warn: #ffd27a;
     --warn-bg: #3a2c0a;
     --crit: #ffb3b6;
     --crit-bg: #3d1214;
-    --focus: #8ab4f8;
+    --focus: #4cc2ff;
+    --nav-hover: rgba(255, 255, 255, 0.05);
+    --nav-sel: rgba(255, 255, 255, 0.08);
   }
 }
 html { font-size: calc(14px * var(--ui-scale, 1)); }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.4; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.4; font-family: var(--font); }
 body { font-size: var(--font-size); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } /* a fixed minimum (a11y) */
 a { color: var(--accent); }
-.layout { display: grid; grid-template-rows: auto auto 1fr; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 100vh; }
+.layout > .top { grid-column: 1 / -1; }
+.layout > main { grid-column: 2; min-width: 0; }
+.no-nav > main { grid-column: 1 / -1; }
 .top { display: flex; align-items: center; gap: calc(16 * var(--px)); padding: calc(8 * var(--px)) calc(16 * var(--px)); border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
 .brand { font-size: var(--title-size); margin: 0; }
 .conn { display: flex; gap: calc(6 * var(--px)); align-items: center; }
@@ -62,16 +78,27 @@ main { padding: calc(16 * var(--px)); }
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: calc(8 * var(--px)); top: calc(8 * var(--px)); background: var(--bg); padding: calc(4 * var(--px)) calc(8 * var(--px)); z-index: 10; }
 .lockstate { margin-left: auto; display: flex; gap: calc(8 * var(--px)); align-items: center; }
-.nav { display: flex; gap: calc(4 * var(--px)); padding: calc(6 * var(--px)) calc(16 * var(--px)); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.nav a { padding: calc(6 * var(--px)) calc(10 * var(--px)); border-radius: calc(6 * var(--px)); text-decoration: none; color: var(--fg); }
-.nav a[aria-current="page"] { background: var(--accent); color: var(--accent-fg); text-decoration: underline; }
-button { font: inherit; height: var(--control-height); padding: 0 calc(12 * var(--px)); border: 1px solid var(--border); border-radius: calc(6 * var(--px)); background: var(--panel); color: var(--fg); cursor: pointer; }
+/* VLT-IS-011 005 step 1.4: left navigation pane like Windows Settings,
+   with icons and text; it can be collapsed to the icons. The current
+   screen has a background and an accent bar (not color only). */
+.nav { display: flex; flex-direction: column; gap: calc(2 * var(--px)); width: var(--nav-w); padding: calc(6 * var(--px)); border-right: 1px solid var(--border); background: var(--bg); }
+.nav a { display: flex; align-items: center; gap: calc(12 * var(--px)); min-height: calc(36 * var(--px)); padding: 0 calc(10 * var(--px)); border-radius: var(--radius); text-decoration: none; color: var(--fg); position: relative; white-space: nowrap; }
+.nav a:hover, .nav-toggle:hover { background: var(--nav-hover); }
+.nav a[aria-current="page"] { background: var(--nav-sel); font-weight: 600; }
+.nav a[aria-current="page"]::before { content: ''; position: absolute; left: 0; top: calc(9 * var(--px)); bottom: calc(9 * var(--px)); width: calc(3 * var(--px)); border-radius: calc(2 * var(--px)); background: var(--accent); }
+.nav-icon { width: calc(20 * var(--px)); height: calc(20 * var(--px)); flex: 0 0 auto; }
+.nav-toggle { align-self: flex-start; width: calc(36 * var(--px)); height: calc(36 * var(--px)); padding: 0; display: grid; place-items: center; border: 0; background: none; margin-bottom: calc(4 * var(--px)); }
+.nav-collapsed { width: var(--nav-w-collapsed); }
+.nav-collapsed a { padding: 0; justify-content: center; }
+.nav-collapsed .nav-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.nav-collapsed .nav-toggle { align-self: center; }
+button { font: inherit; height: var(--control-height); padding: 0 calc(12 * var(--px)); border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--fg); cursor: pointer; }
 button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button.danger { background: var(--crit); color: var(--bg); border-color: var(--crit); }
 button:disabled { opacity: 1; cursor: not-allowed; color: var(--muted); background: var(--bg); border-style: dashed; }
-input, select { font: inherit; height: var(--control-height); padding: 0 calc(8 * var(--px)); border: 1px solid var(--border); border-radius: calc(6 * var(--px)); background: var(--bg); color: var(--fg); }
+input, select { font: inherit; height: var(--control-height); padding: 0 calc(8 * var(--px)); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--fg); }
 label { display: block; margin-top: 0; font-weight: 600; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: calc(8 * var(--px)); padding: calc(12 * var(--px)) calc(16 * var(--px)); margin-bottom: calc(16 * var(--px)); }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: calc(12 * var(--px)) calc(16 * var(--px)); margin-bottom: calc(16 * var(--px)); }
 .card h2, .screen h2, .prompt-dialog h2 { margin-top: 0; font-size: var(--title-size); }
 .pin form { display: grid; gap: var(--row-gap); max-width: 36em; }
 .pin form button { margin-top: calc(10 * var(--px)); justify-self: start; }
@@ -83,7 +110,7 @@ label { display: block; margin-top: 0; font-weight: 600; }
 .badge-ok { color: var(--ok); }
 .badge-warn { color: var(--warn); background: var(--warn-bg); }
 .badge-crit { color: var(--crit); background: var(--crit-bg); }
-.mode { display: flex; align-items: center; gap: calc(10 * var(--px)); font-size: calc(20 * var(--px)); font-weight: 700; padding: calc(10 * var(--px)) calc(14 * var(--px)); border-radius: calc(8 * var(--px)); border: calc(2 * var(--px)) solid var(--border); margin-bottom: calc(16 * var(--px)); }
+.mode { display: flex; align-items: center; gap: calc(10 * var(--px)); font-size: calc(20 * var(--px)); font-weight: 700; padding: calc(10 * var(--px)) calc(14 * var(--px)); border-radius: var(--radius); border: calc(2 * var(--px)) solid var(--border); margin-bottom: calc(16 * var(--px)); }
 .mode-icon { font-size: calc(26 * var(--px)); }
 .mode-ok { color: var(--ok); }
 .mode-warn { color: var(--warn); background: var(--warn-bg); }
@@ -96,7 +123,7 @@ label { display: block; margin-top: 0; font-weight: 600; }
 .table { border-collapse: collapse; width: 100%; }
 .table caption { text-align: left; font-weight: 700; padding-bottom: calc(6 * var(--px)); }
 .table th, .table td { border-bottom: 1px solid var(--border); padding: calc(4 * var(--px)) calc(8 * var(--px)); text-align: left; }
-.banner { display: flex; align-items: center; gap: calc(12 * var(--px)); padding: calc(10 * var(--px)) calc(14 * var(--px)); border-radius: calc(8 * var(--px)); margin-bottom: calc(12 * var(--px)); border: calc(2 * var(--px)) solid; }
+.banner { display: flex; align-items: center; gap: calc(12 * var(--px)); padding: calc(10 * var(--px)) calc(14 * var(--px)); border-radius: var(--radius); margin-bottom: calc(12 * var(--px)); border: calc(2 * var(--px)) solid; }
 .banner-icon { font-size: calc(24 * var(--px)); }
 .banner-crit { color: var(--crit); background: var(--crit-bg); border-color: var(--crit); }
 .banner-warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn); }
@@ -110,7 +137,7 @@ label { display: block; margin-top: 0; font-weight: 600; }
 .form { display: grid; gap: var(--row-gap); max-width: 42em; }
 .form button { justify-self: start; margin-top: calc(10 * var(--px)); }
 label.check { font-weight: 400; display: flex; gap: calc(6 * var(--px)); align-items: center; }
-.confirm { border: calc(2 * var(--px)) solid var(--crit); background: var(--crit-bg); color: var(--fg); border-radius: calc(8 * var(--px)); padding: calc(10 * var(--px)) calc(14 * var(--px)); margin-top: calc(10 * var(--px)); }
+.confirm { box-shadow: var(--shadow); border: calc(2 * var(--px)) solid var(--crit); background: var(--crit-bg); color: var(--fg); border-radius: var(--radius); padding: calc(10 * var(--px)) calc(14 * var(--px)); margin-top: calc(10 * var(--px)); }
 .plot { width: 100%; overflow: hidden; }
 .chart details { margin-top: calc(8 * var(--px)); }
 .u-legend { color: var(--fg); }
@@ -122,7 +149,7 @@ button[aria-pressed="true"] { text-decoration: underline; }
 .scenario h4 { margin: calc(10 * var(--px)) 0 calc(4 * var(--px)); }
 .steps { margin: 0; padding-left: calc(22 * var(--px)); }
 .vt { font-variant-numeric: tabular-nums; color: var(--muted); }
-fieldset.radio { border: 1px solid var(--border); border-radius: calc(6 * var(--px)); }
+fieldset.radio { border: 1px solid var(--border); border-radius: var(--radius); }
 fieldset.radio legend { font-weight: 600; }
 
 /* VLT-IS-009 TASK 03-00-00-003: compact forms and wizard dialog. */
@@ -170,8 +197,8 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: calc(8 * var(--px));
-  box-shadow: 0 calc(8 * var(--px)) calc(24 * var(--px)) rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 .wizard-dialog > header {
@@ -230,9 +257,9 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: calc(8 * var(--px));
+  border-radius: var(--radius);
   padding: calc(16 * var(--px));
-  box-shadow: 0 calc(8 * var(--px)) calc(24 * var(--px)) rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow);
 }
 .prompt-dialog .row { justify-content: flex-end; margin: calc(16 * var(--px)) 0 0; }
 
@@ -252,7 +279,7 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
   flex: 1 0 100%;
   border: 1px solid var(--border);
   background: var(--panel);
-  border-radius: calc(6 * var(--px));
+  border-radius: var(--radius);
   padding: calc(8 * var(--px)) calc(10 * var(--px));
   margin-top: calc(2 * var(--px));
 }
@@ -298,3 +325,13 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
 .tile-label { font-size: 0.85em; }
 .tile-value { font-size: 1.5em; font-weight: 600; }
 .simple-events { margin: 0; padding-left: 1.2em; }
+
+/* VLT-IS-011 TASK 03-00-00-005: selection with the accent color; dialogs
+   and the lock screen with a soft shadow. */
+::selection { background: var(--accent); color: var(--accent-fg); }
+.lock-screen { box-shadow: var(--shadow); }
+/* Linux (step 5): the system font (system-ui is the GTK font) and the
+   selection colors of the GTK theme. */
+html[data-os="linux"] { --font: system-ui, "Noto Sans", sans-serif; }
+html[data-os="linux"] ::selection { background: Highlight; color: HighlightText; }
+html[data-os="linux"] button.primary { background: Highlight; color: HighlightText; border-color: Highlight; }

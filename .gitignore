@@ -39,3 +39,8 @@ VLT-RPT-*.md
 
 # Owner analysis files (VLT-IS-006 OD-25, SEC-101). Private. Do not commit.
 ANALIZ/
+
+# Windows resources of the exe (VLT-IS-011 005): written by tools/winresgen
+# before the Windows build. Do not commit.
+/cmd/voltiovolt/rsrc_windows_*.syso
+/cmd/vlt-gui/rsrc_windows_*.syso

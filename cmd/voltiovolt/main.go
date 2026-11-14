@@ -24,6 +24,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/abuzer1495/voltiovolt/internal/appicon"
 	"github.com/abuzer1495/voltiovolt/internal/audit"
 	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/engine"
@@ -190,7 +191,8 @@ func run(dir string) error {
 
 	app := application.New(application.Options{
 		Name:        "VoltioVolt",
-		Description: "VLT UPS monitor",
+		Description: "VoltioVolt UPS Management",
+		Icon:        appicon.PNG(256),
 		Services:    []application.Service{application.NewService(api), application.NewService(osn)},
 		Assets: application.AssetOptions{
 			Handler: cspHandler(application.BundledAssetFileServer(dist)),
@@ -211,6 +213,7 @@ func run(dir string) error {
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:      "main",
 		Title:     "VoltioVolt",
+		Linux:     application.LinuxWindow{Icon: appicon.PNG(256)},
 		Width:     1100,
 		Height:    760,
 		MinWidth:  gui.MinWindowWidth,
@@ -227,6 +230,7 @@ func run(dir string) error {
 	})
 	watchWindow(app, win)
 	m.SetMinSizeFunc(func(w, h int) { win.SetMinSize(w, h) })
+	setupNative(app, win, m, func() { confirmAndQuit(app, stopAll) })
 	setupTray(app, win, m, api, func() { confirmAndQuit(app, stopAll) })
 	go m.Run(ctx)
 	return app.Run()

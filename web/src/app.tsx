@@ -20,6 +20,8 @@ import { ui, setMode } from './mode';
 import { Simple } from './screens/simple';
 import { ScaleNotice } from './screens/scalechoice';
 import { watchScale } from './scale';
+import { onWizard, watchNative } from './native';
+import { NavIcon } from './navicons';
 import { app, lock, refreshAuth, start, watchInput } from './state';
 import { useStore } from './store';
 
@@ -41,6 +43,21 @@ export const routes: Route[] = [
   { id: 'general', label: 'nav.general', comp: General },
 ];
 
+const NAV_KEY = 'vlt.nav-collapsed';
+/** NAV_NARROW: below this window width (CSS px) the pane starts collapsed. */
+export const NAV_NARROW = 1100;
+
+/** navCollapsed is the first state of the navigation pane (step 1.4). */
+export function navCollapsed(): boolean {
+  try {
+    const v = localStorage.getItem(NAV_KEY);
+    if (v === '1' || v === '0') return v === '1';
+  } catch {
+    /* no local store */
+  }
+  return typeof window !== 'undefined' && window.innerWidth < NAV_NARROW;
+}
+
 function currentRoute(): string {
   const h = (typeof location !== 'undefined' ? location.hash : '').replace(/^#\/?/, '');
   return routes.some((r) => r.id === h) ? h : 'dashboard';
@@ -59,11 +76,20 @@ export function App() {
   const [later, setLater] = useState(0);
   const [laterSession, setLaterSession] = useState(false);
   const [lockClosed, setLockClosed] = useState(false);
+  const [collapsed, setCollapsed] = useState(navCollapsed());
   useEffect(() => {
     start();
     watchInput();
     watchScale();
+    // VLT-IS-011 TASK 03-00-00-005: menu bar, accent color, F1.
+    watchNative();
+    onWizard(() => startWizard(app.get().auth && !app.get().auth?.pin_set ? 'pin' : undefined));
   }, []);
+  const toggleNav = () => {
+    const c = !collapsed;
+    setCollapsed(c);
+    try { localStorage.setItem(NAV_KEY, c ? '1' : '0'); } catch { /* no local store */ }
+  };
   useEffect(() => {
     void api.about().then(async (a) => {
       const p = a.mode === 'portable';
@@ -101,10 +127,11 @@ export function App() {
     if (elevated) setLockClosed(false);
   }, [elevated]);
   const lockScreen = connected && !!auth?.pin_set && !elevated && !wiz.open && !showPrompt && (unlock || !lockClosed);
+  const showNav = connected && !showPrompt && !simple;
   const Screen = routes.find((r) => r.id === route)?.comp ?? Dashboard;
 
   return (
-    <div class={'layout' + (simple ? ' layout-simple' : '')} data-mode={uiMode}>
+    <div class={'layout' + (simple ? ' layout-simple' : '') + (showNav ? '' : ' no-nav')} data-mode={uiMode}>
       <a class="skip" href="#main">{t('app.skip')}</a>
       <header class="top">
         <h1 class="brand">{t('app.name')}</h1>
@@ -125,15 +152,20 @@ export function App() {
           </div>
         ) : null}
       </header>
-      {connected && !showPrompt && !simple ? (
-        <nav class="nav" aria-label={t('nav.label')}>
+      {showNav ? (
+        <nav class={'nav' + (collapsed ? ' nav-collapsed' : '')} aria-label={t('nav.label')}>
+          <button type="button" class="nav-toggle" aria-expanded={!collapsed} aria-label={t(collapsed ? 'nav.expand' : 'nav.collapse')}
+            title={t(collapsed ? 'nav.expand' : 'nav.collapse')} onClick={toggleNav}>
+            <NavIcon name="menu" />
+          </button>
           {routes.map((r) => (
-            <a href={'#/' + r.id} aria-current={r.id === route ? 'page' : undefined}>{t(r.label)}</a>
+            <a href={'#/' + r.id} aria-current={r.id === route ? 'page' : undefined} title={collapsed ? t(r.label) : undefined}>
+              <NavIcon name={r.id} />
+              <span class="nav-text">{t(r.label)}</span>
+            </a>
           ))}
         </nav>
-      ) : (
-        <div />
-      )}
+      ) : null}
       <main id="main" tabIndex={-1}>
         {!connected ? (
           s.conn.state === 'connecting' ? <p role="status">{t('conn.connecting')}</p> : <ConnProblem conn={s.conn} />

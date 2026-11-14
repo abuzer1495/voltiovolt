@@ -13,6 +13,8 @@ import { createStore, useStore } from '../store';
 import { ModeView, Values, modeOf } from './dashboard';
 import { Ports } from './device';
 import { Login, SetPin } from './pin';
+import { ModeChoice } from './simple';
+import { ui } from '../mode';
 
 export const wizardWanted = createStore({ open: false, start: '' as Step | '' });
 
@@ -21,7 +23,7 @@ export function startWizard(start?: Step): void {
   wizardWanted.set({ open: true, start: start ?? '' });
 }
 
-export const STEPS = ['pin', 'port', 'values', 'policy', 'telegram', 'email', 'modem', 'summary'] as const;
+export const STEPS = ['pin', 'port', 'values', 'policy', 'telegram', 'email', 'modem', 'interface', 'summary'] as const;
 export type Step = (typeof STEPS)[number];
 
 export interface WizardResult {
@@ -293,6 +295,7 @@ function EmailStep({ elevated }: { elevated: boolean; onDone?: () => void }) {
 
 export function Wizard({ first = false, portable = false, startAt, onDone }: { first?: boolean; portable?: boolean; startAt?: Step; onDone?: () => void }) {
   const s = useStore(app);
+  const uiMode = useStore(ui).mode;
   const elevated = !!s.auth?.elevated;
   const start: Step = startAt || (first && !s.auth?.pin_set ? 'pin' : 'port');
   const [step, setStep] = useState<Step>(start);
@@ -406,6 +409,15 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
         </section>
       ) : null}
 
+      {step === 'interface' ? (
+        // VLT-IS-011 TASK 03-00-00-003: the wizard asks for the mode (OD-53).
+        <section class="card" aria-labelledby="wiz-ui">
+          <h3 id="wiz-ui">{t('wizard.step.interface')}</h3>
+          <p>{t('wizard.interface.intro')}</p>
+          <ModeChoice name="wiz-ui-mode" />
+        </section>
+      ) : null}
+
       {step === 'values' ? (
         <section class="card" aria-labelledby="wiz-val">
           <h3 id="wiz-val">{t('wizard.step.values')}</h3>
@@ -463,6 +475,7 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
             <div><dt>{t('wizard.step.modem')}</dt><dd>
               {res.modem === 'yes' ? t('wizard.modem.yes') : res.modem === 'no' ? t('wizard.modem.no') : t('wizard.summary.skipped')}
             </dd></div>
+            <div><dt>{t('wizard.step.interface')}</dt><dd>{t('mode.ui.' + uiMode)}</dd></div>
           </dl>
           {res.modem === 'no' ? (
             <p class="banner banner-warn" role="note">

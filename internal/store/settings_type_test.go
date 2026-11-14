@@ -98,3 +98,22 @@ func TestSeriesVisibilitySetting(t *testing.T) {
 		t.Fatal("non-boolean accepted")
 	}
 }
+
+// TestUIModeSetting: ui.mode is "simple" by default (VLT-IS-011 OD-53).
+func TestUIModeSetting(t *testing.T) {
+	for _, d := range DefaultSettings() {
+		if d.Key != SettingUIMode {
+			continue
+		}
+		if string(d.Default) != `"simple"` {
+			t.Fatalf("default %s", d.Default)
+		}
+		for v, ok := range map[string]bool{`"simple"`: true, `"expert"`: true, `"Simple"`: false, `""`: false, `1`: false} {
+			if err := d.Check(json.RawMessage(v)); (err == nil) != ok {
+				t.Errorf("%s: %v", v, err)
+			}
+		}
+		return
+	}
+	t.Fatal("ui.mode missing")
+}

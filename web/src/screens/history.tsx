@@ -69,19 +69,24 @@ export function nextView(min: number | null | undefined, max: number | null | un
   return 'keep';
 }
 
-interface ChartDef {
+export interface ChartDef {
   id: string;
   title: string;
   names: string[];
+  /** two: the second series has its own scale on the right. */
+  two?: boolean;
 }
 
 export const CHARTS: ChartDef[] = [
   { id: 'voltage', title: 'hist.voltages', names: ['input.voltage', 'output.voltage'] },
   { id: 'frequency', title: 'hist.frequency', names: ['input.frequency', 'output.frequency'] },
   { id: 'load', title: 'hist.load', names: ['load.percent'] },
-  { id: 'battery', title: 'hist.battery', names: ['battery.voltage', 'battery.charge', 'battery.charge_estimate'] },
+  { id: 'battery', title: 'hist.battery', names: ['battery.voltage', 'battery.charge', 'battery.charge_estimate'], two: true },
   { id: 'temperature', title: 'hist.temperature', names: ['ups.temperature'] },
 ];
+
+/** SIMPLE_CHART is the 1 h live chart of the Simple mode (VLT-IS-011 003). */
+export const SIMPLE_CHART: ChartDef = { id: 'simple', title: 'simple.chart', names: ['input.voltage', 'load.percent'], two: true };
 
 /** SERIES_VISIBILITY_KEY is the "ui." Setting of OD-49. */
 export const SERIES_VISIBILITY_KEY = 'ui.history.series_visibility';
@@ -170,7 +175,7 @@ function Chart({ def, series, vis, onVisible }: {
     const grid = css.getPropertyValue('--border').trim() || '#888';
     const scales: uPlot.Scales = { x: { time: true } };
     const axes: uPlot.Axis[] = [{ stroke: fg, grid: { stroke: grid, width: 0.5 } }, { stroke: fg, grid: { stroke: grid, width: 0.5 }, scale: 'a' }];
-    const two = def.id === 'battery';
+    const two = !!def.two;
     if (two) axes.push({ stroke: fg, side: 1, scale: 'b', grid: { show: false } });
     const u = new uPlot({
       width: Math.max(320, ref.current.clientWidth || 640),
@@ -259,7 +264,8 @@ function Chart({ def, series, vis, onVisible }: {
   );
 }
 
-export function History() {
+export function History({ simple = false }: { simple?: boolean } = {}) {
+  const charts = simple ? [SIMPLE_CHART] : CHARTS;
   const [range, setRange] = useState<Range>(RANGES[0]);
   const [data, setData] = useState<Record<string, Series>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -300,7 +306,7 @@ export function History() {
     const from = to - range.ms;
     setBusy(true);
     setErr(null);
-    const names = CHARTS.flatMap((c) => c.names);
+    const names = charts.flatMap((c) => c.names);
     Promise.all(names.map((n) => api.measurements(n, from, to, range.step, showDemo)))
       .then((list) => {
         if (stop) return;
@@ -328,7 +334,7 @@ export function History() {
       inflight = true;
       const to = Date.now();
       const from = to - range.ms;
-      const names = CHARTS.flatMap((c) => c.names);
+      const names = charts.flatMap((c) => c.names);
       const cur = dataRef.current;
       Promise.all(names.map((n) => api.measurements(n, lastTs(cur[n]) ?? from, to, range.step, showDemo)))
         .then((list) => {
@@ -361,6 +367,30 @@ export function History() {
     });
   };
 
+  const liveControls = (
+    <>
+      <button type="button" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>{t(paused ? 'hist.resume' : 'hist.pause')}</button>
+      <span class={'live-badge' + (live ? ' live-on' : '')} role="status" data-live={live ? 'on' : 'off'}>
+        {live ? t('hist.live') : t('hist.live.off')}
+      </span>
+    </>
+  );
+  if (simple) {
+    return (
+      <div class="simple-chart">
+        <div class="row">{liveControls}</div>
+        {err ? <p role="alert" class="msg msg-error">{err}</p> : null}
+        {visReady ? (
+          <Chart
+            def={SIMPLE_CHART}
+            series={SIMPLE_CHART.names.map((n) => data[n] ?? { name: n, unit: '', step: range.step, rows: [] })}
+            vis={vis}
+            onVisible={onVisible}
+          />
+        ) : null}
+      </div>
+    );
+  }
   return (
     <div class="screen">
       <h2>{t('nav.history')}</h2>
@@ -371,10 +401,7 @@ export function History() {
           </button>
         ))}
         <button type="button" onClick={() => setRefresh((n) => n + 1)}>{t('hist.refresh')}</button>
-        <button type="button" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>{t(paused ? 'hist.resume' : 'hist.pause')}</button>
-        <span class={'live-badge' + (live ? ' live-on' : '')} role="status" data-live={live ? 'on' : 'off'}>
-          {live ? t('hist.live') : t('hist.live.off')}
-        </span>
+        {liveControls}
         <label class="check" for="hist-demo">
           <input id="hist-demo" type="checkbox" checked={showDemo} onChange={(e) => setShowDemo((e.target as HTMLInputElement).checked)} />
           {t('hist.show_demo')}
@@ -382,7 +409,7 @@ export function History() {
       </div>
       {busy ? <p role="status">{t('common.loading')}</p> : null}
       {err ? <p role="alert" class="msg msg-error">{err}</p> : null}
-      {visReady ? CHARTS.map((c) => (
+      {visReady ? charts.map((c) => (
         <Chart
           def={c}
           series={c.names.map((n) => data[n] ?? { name: n, unit: '', step: range.step, rows: [] })}

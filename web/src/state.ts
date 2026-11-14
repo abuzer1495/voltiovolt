@@ -2,6 +2,7 @@
 // The GUI state: connection, auth, the last push messages of vltd.
 import { api, events, on, type AuthInfo, type ConnInfo, type Countdown, type PolicyInfo, type StatusPush, type VltEvent } from './api';
 import { lang, onLangChange, osLang, setLang, t, type Lang } from './i18n';
+import { loadMode } from './mode';
 import { createStore } from './store';
 
 export interface AppState {
@@ -121,6 +122,7 @@ export async function lock(): Promise<void> {
 
 /** onConnected reads the auth state, then (with a PIN) the last Events and the policy. */
 function onConnected(): void {
+  void loadMode();
   void api.authStatus().then((a) => {
     app.set({ auth: a });
     if (a.pin_set) {

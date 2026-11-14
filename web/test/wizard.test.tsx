@@ -134,6 +134,9 @@ describe('first-run wizard', () => {
     });
     expect(root.textContent).toContain(t('wizard.modem.warn'));
     await click(byText(t('wizard.next')));
+    // VLT-IS-011 003: the Interface step (Simple or Expert) is before the Summary.
+    expect(root.textContent).toContain(t('wizard.interface.intro'));
+    await click(byText(t('wizard.next')));
     expect(root.textContent).toContain(t('wizard.step.summary'));
     expect(root.textContent).toContain(t('wizard.modem.no'));
     expect(root.textContent).toContain(t('wizard.modem.warn'));

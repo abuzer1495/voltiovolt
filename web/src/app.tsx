@@ -16,6 +16,8 @@ import { Login } from './screens/pin';
 import { Policy } from './screens/policy';
 import { Security } from './screens/security';
 import { UPSControl } from './screens/ups';
+import { ui, setMode } from './mode';
+import { Simple } from './screens/simple';
 import { app, lock, refreshAuth, start, watchInput } from './state';
 import { useStore } from './store';
 
@@ -29,7 +31,7 @@ export const routes: Route[] = [
   { id: 'dashboard', label: 'nav.dashboard', comp: Dashboard },
   { id: 'device', label: 'nav.device', comp: Device },
   { id: 'ups', label: 'nav.ups', comp: UPSControl },
-  { id: 'history', label: 'nav.history', comp: History },
+  { id: 'history', label: 'nav.history', comp: () => <History /> },
   { id: 'events', label: 'nav.events', comp: Events },
   { id: 'policy', label: 'nav.policy', comp: Policy },
   { id: 'notifications', label: 'nav.notifications', comp: Notifications },
@@ -46,6 +48,8 @@ export function App() {
   useLang();
   const s = useStore(app);
   const wiz = useStore(wizardWanted);
+  const uiMode = useStore(ui).mode;
+  const simple = uiMode === 'simple';
   const [route, setRoute] = useState(currentRoute());
   const [unlock, setUnlock] = useState(false);
   const [portable, setPortable] = useState(false);
@@ -97,11 +101,14 @@ export function App() {
   const Screen = routes.find((r) => r.id === route)?.comp ?? Dashboard;
 
   return (
-    <div class="layout">
+    <div class={'layout' + (simple ? ' layout-simple' : '')} data-mode={uiMode}>
       <a class="skip" href="#main">{t('app.skip')}</a>
       <header class="top">
         <h1 class="brand">{t('app.name')}</h1>
         <ConnState conn={s.conn} />
+        {connected && !simple ? (
+          <button type="button" class="mode-switch" onClick={() => void setMode('simple')}>{t('mode.ui.to_simple')}</button>
+        ) : null}
         {connected && auth?.pin_set ? (
           <div class="lockstate">
             <span role="status">
@@ -115,7 +122,7 @@ export function App() {
           </div>
         ) : null}
       </header>
-      {connected && !showPrompt ? (
+      {connected && !showPrompt && !simple ? (
         <nav class="nav" aria-label={t('nav.label')}>
           {routes.map((r) => (
             <a href={'#/' + r.id} aria-current={r.id === route ? 'page' : undefined}>{t(r.label)}</a>
@@ -171,7 +178,7 @@ export function App() {
                     <button type="button" onClick={() => { setUnlock(false); setLockClosed(true); }}>{t('lock.screen.close')}</button>
                   </section>
                 ) : null}
-                <Screen />
+                {simple ? <Simple /> : <Screen />}
               </>
             ) : null}
           </>

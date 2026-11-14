@@ -11,6 +11,7 @@ import (
 func TestListenExclusiveSecondFails(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_RUNTIME_DIR", dir)
+	t.Cleanup(SetTestPath(NewTestPath())) // VLT-IS-011 Q-1
 	ln, err := ListenExclusive()
 	if err != nil {
 		t.Fatal(err)
@@ -36,4 +37,22 @@ func TestListenExclusiveNoTCP(t *testing.T) {
 		t.Fatalf("Path looks like TCP: %s", p)
 	}
 	_ = os.PathSeparator
+}
+
+// TestProductPathUnchanged: the test-only endpoint does not change the
+// endpoint of OD-44 (VLT-IS-011 Q-1).
+func TestProductPathUnchanged(t *testing.T) {
+	want := ProductPath()
+	restore := SetTestPath(NewTestPath())
+	if Path() == want {
+		t.Fatal("test path not used")
+	}
+	a, b := NewTestPath(), NewTestPath()
+	if a == b {
+		t.Fatalf("test paths not unique: %s", a)
+	}
+	restore()
+	if Path() != want {
+		t.Fatalf("after restore %q want %q", Path(), want)
+	}
 }

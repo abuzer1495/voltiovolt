@@ -244,6 +244,11 @@ func TestUPSControlAccess(t *testing.T) {
 	if err := c.SetPIN(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
+	// OD-50 (VLT-IS-011): the connection keeps the elevated state after
+	// set_pin. Lock to test the access without elevation.
+	if err := c.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := c.UPSTestStart(ctx, wire.TestType10s, 0, wire.TestConfirmation); client.Code(err) != wire.CodeNotElevated {
 		t.Fatalf("test start: %v", err)
 	}

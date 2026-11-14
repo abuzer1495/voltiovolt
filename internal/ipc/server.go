@@ -312,6 +312,7 @@ var methodAccess = map[string]access{
 	wire.MethodForgotPIN:    readOnly, // portable only; confirmation "RESET"; no current PIN
 	wire.MethodLogin:        readOnly,
 	wire.MethodLogout:       readOnly,
+	wire.MethodAuthTouch:    readOnly, // OD-52: user input in the VLT GUI
 	wire.MethodSettingsList: readOnly,
 	wire.MethodSecretStatus: readOnly,
 	wire.MethodSettingsSet:  readOnly, // "ui." keys: PIN set; other keys: elevated (dispatch, VLT-IS-006 Q-IA-1)
@@ -404,7 +405,11 @@ func (cn *conn) serve(b []byte) wire.Response {
 	case acc == elevated && !elev, acc == setPINRule && pinSet && !elev:
 		return fail(id, wire.CodeNotElevated, "enter the PIN first")
 	}
-	if elev {
+	// OD-52 (VLT-IS-011): only user actions start the idle time again:
+	// a request that needs the elevated state, a PIN change and
+	// auth.touch (the VLT GUI sends it after keyboard or mouse input).
+	// Polling and push messages (open and read-only methods) do not.
+	if elev && (acc == elevated || acc == setPINRule || req.Method == wire.MethodAuthTouch) {
 		cn.session.Touch(now)
 	}
 	res, werr := cn.dispatch(ctx, req, pinSet, elev)
@@ -485,6 +490,9 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 			return nil, internal()
 		}
 		res := wire.AuthStatusResult{PINSet: st.PINSet, Elevated: elev}
+		if elev && pinSet {
+			res.IdleLeft = int(cn.session.IdleLeft(cn.s.now(), cn.idle(ctx)) / time.Second)
+		}
 		if st.BlockUntil.After(cn.s.now()) {
 			res.BlockUntil = st.BlockUntil.UTC().Format(time.RFC3339)
 		}
@@ -503,7 +511,12 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 		}
 		switch {
 		case err == nil:
-			cn.session.Drop()
+			// OD-50 (VLT-IS-011, R-08): the connection that sets the
+			// first PIN, or changes the PIN, keeps the elevated state.
+			// The idle time starts now. Before this fix the session was
+			// dropped here, so the next wizard step (device.settings.set)
+			// got "not_elevated" and the GUI showed the lock.
+			cn.session.Elevate(cn.s.now())
 			return wire.OKResult{OK: true}, nil
 		case errors.Is(err, auth.ErrPINIsSet):
 			return nil, &wire.Error{Code: wire.CodeNotElevated, Message: "a PIN is already set; enter the PIN first"}
@@ -595,6 +608,16 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 			return nil, &wire.Error{Code: wire.CodePINIncorrect, Message: msg}
 		}
 		return nil, internal()
+
+	case wire.MethodAuthTouch:
+		if err := wire.Strict(req.Params, &wire.NoParams{}); err != nil {
+			return nil, bad(err)
+		}
+		res := wire.AuthStatusResult{PINSet: pinSet, Elevated: elev}
+		if elev && pinSet {
+			res.IdleLeft = int(cn.session.IdleLeft(cn.s.now(), cn.idle(ctx)) / time.Second)
+		}
+		return res, nil
 
 	case wire.MethodLogout:
 		if err := wire.Strict(req.Params, &wire.NoParams{}); err != nil {

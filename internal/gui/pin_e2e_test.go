@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/engine"
 	"github.com/abuzer1495/voltiovolt/internal/ipc"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client"
@@ -37,6 +38,11 @@ func startPortableGUI(t *testing.T, dir string) (*engine.Daemon, *Manager, *API,
 		Listen:     func() (net.Listener, ipc.PeerCheck, error) { return ln, ipc.InProcessCheck, nil },
 		Log:        slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Version:    "pin-e2e",
+		// No real port (SEC-099): the Device Manager exists, so the
+		// wizard port step (device.settings.set) can be tested
+		// (VLT-IS-011 TASK 03-00-00-001). The test transport adds the
+		// simulator candidate; the simulator is not running.
+		Lister: func(context.Context, device.Config) ([]device.Candidate, error) { return nil, nil },
 	}
 	d := engine.New(cfg)
 	if err := d.Start(context.Background()); err != nil {
@@ -80,7 +86,7 @@ func mustSetAndLock(t *testing.T, a *API, pin string) {
 	if err != nil || !st.PINSet {
 		t.Fatalf("after SetPIN: %+v err=%v", st, err)
 	}
-	// SetPIN drops the session. A Lock after that must still be safe.
+	// OD-50 (VLT-IS-011): the session stays elevated after SetPIN. Lock.
 	if st.Elevated {
 		if err := a.Logout(); err != nil {
 			t.Fatalf("Lock: %v", err)

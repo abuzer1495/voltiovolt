@@ -156,6 +156,15 @@ WARNING: The UPS turns off its output during this test. All equipment on the UPS
     6. Forgot PIN: click "Lock", then click "Forgot PIN". The text is: "This removes the PIN and deletes all saved passwords and tokens (Telegram, e-mail). The automatic shutdown becomes inactive. Your settings and your history stay." The confirmation is: "Type RESET to confirm." Type RESET (this word is the same in English and in Turkish). Click "Reset PIN".
     7. After the reset: the setup wizard starts at the PIN step. The Shutdown Policy is inactive. Settings, Events and History stay. Saved passwords and tokens are deleted. Open "Security" and find the audit entry of the reset.
 - Expected result: steps 3 and 5 unlock with the correct PIN. Step 6 removes the PIN, deletes the Secrets and makes the policy inactive. Settings and history stay. The confirmation word is RESET.
+- Owner sequence after the R-08 fix (VLT-IS-011 TASK 03-00-00-001, OD-50, OD-51, OD-52). Do these steps first, with a new data folder:
+    1.1. Start VoltioVolt with a new data folder. The setup wizard starts at the PIN step.
+    1.2. Set a PIN of at least 6 characters and click "Set PIN".
+    1.3. The wizard opens the step "UPS port". VoltioVolt does not show "Locked" and does not ask for the PIN.
+    1.4. Click "Test connection (simulator)". The setting is saved and the step shows the selected port. VoltioVolt does not ask for the PIN.
+    1.5. Click "Next" to the Shutdown Policy step. Click "Run the Simulation", then "Activate", and confirm. VoltioVolt does not ask for the PIN.
+    1.6. Go to the end of the wizard and click "Finish". The Dashboard opens and VoltioVolt is unlocked.
+    1.7. Click "Lock": the lock screen opens. Enter the PIN and click "Unlock": VoltioVolt is unlocked.
+    Repeat steps 1.3 to 1.7 with the PIN set in the General screen ("Set PIN") instead of the wizard: after "Set PIN", VoltioVolt stays unlocked. The lock screen never covers the wizard: if a wizard step needs the PIN, the PIN field is inside the wizard dialog. VoltioVolt locks after 10 minutes without keyboard or mouse input; the live values do not keep it unlocked.
 - Send: the result of each step (OK or the problem) and the audit entry. Do not send the PIN. Screenshots are permitted; check that no PIN and no Secret is in them.
 
 ### T-15 Wizard and screens at 1280 × 720 (VLT-IS-009)
@@ -433,6 +442,15 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
     6. PIN'i unuttum: "Kilitle" düğmesine tıklayın, sonra "PIN'i unuttum" bağlantısına tıklayın. Metin şudur: "Bu işlem PIN'i kaldırır ve kayıtlı tüm parolaları ve belirteçleri (Telegram, e-posta) siler. Otomatik kapatma devre dışı kalır. Ayarlarınız ve geçmişiniz kalır." Onay metni şudur: "Onaylamak için RESET yazın." RESET yazın (bu sözcük İngilizce ve Türkçede aynıdır). "PIN'i sıfırla" düğmesine tıklayın.
     7. Sıfırlamadan sonra: kurulum sihirbazı PIN adımında başlar. Kapatma Politikası devre dışıdır. Ayarlar, Olaylar ve Geçmiş kalır. Kayıtlı parolalar ve belirteçler silinir. "Güvenlik" ekranını açın ve sıfırlamanın denetim kaydını bulun.
 - Beklenen sonuç: 3. ve 5. adımlarda doğru PIN ile kilit açılır. 6. adım PIN'i kaldırır, Gizli bilgileri siler ve politikayı devre dışı bırakır. Ayarlar ve geçmiş kalır. Onay sözcüğü RESET'tir.
+- R-08 düzeltmesinden sonraki Owner sırası (VLT-IS-011 TASK 03-00-00-001, OD-50, OD-51, OD-52). Bu adımları önce, yeni bir veri klasörüyle yapın:
+    1.1. VoltioVolt'u yeni bir veri klasörüyle başlatın. Kurulum sihirbazı PIN adımında başlar.
+    1.2. En az 6 karakterlik bir PIN girin ve "PIN belirle" düğmesine tıklayın.
+    1.3. Sihirbaz "UPS portu" adımını açar. VoltioVolt "Kilitli" göstermez ve PIN istemez.
+    1.4. "Test bağlantısı (simülatör)" düğmesine tıklayın. Ayar kaydedilir ve adım seçilen portu gösterir. VoltioVolt PIN istemez.
+    1.5. "İleri" ile Kapatma Politikası adımına gidin. "Simülasyonu çalıştır", sonra "Etkinleştir" düğmesine tıklayın ve onaylayın. VoltioVolt PIN istemez.
+    1.6. Sihirbazın sonuna gidin ve "Bitir" düğmesine tıklayın. Gösterge paneli açılır ve VoltioVolt'un kilidi açıktır.
+    1.7. "Kilitle" düğmesine tıklayın: kilit ekranı açılır. PIN'i girin ve "Kilidi aç" düğmesine tıklayın: VoltioVolt'un kilidi açılır.
+    1.3–1.7 adımlarını, PIN'i sihirbaz yerine "Genel" ekranında ("PIN belirle") belirleyerek yineleyin: "PIN belirle"den sonra VoltioVolt'un kilidi açık kalır. Kilit ekranı sihirbazın üstünü hiçbir zaman örtmez: bir sihirbaz adımı PIN gerektirirse PIN alanı sihirbaz penceresinin içindedir. VoltioVolt, 10 dakika klavye veya fare kullanılmazsa kilitlenir; canlı değerler kilidi açık tutmaz.
 - Gönderin: her adımın sonucu (tamam veya sorun) ve denetim kaydı. PIN'i göndermeyin. Ekran görüntülerine izin vardır; PIN ve Gizli bilgi olmadığından emin olun.
 
 ### T-15 1280 × 720 boyutunda sihirbaz ve ekranlar (VLT-IS-009)

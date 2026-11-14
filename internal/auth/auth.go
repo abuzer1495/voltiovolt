@@ -382,7 +382,19 @@ func (s *Session) Elevated(now time.Time, idle time.Duration) bool {
 	return true
 }
 
-// Touch records a request.
+// IdleLeft is the time until the idle time ends the elevated state, or 0.
+func (s *Session) IdleLeft(now time.Time, idle time.Duration) time.Duration {
+	if !s.Elevated(now, idle) {
+		return 0
+	}
+	left := idle - now.Sub(s.last)
+	if hard := MaxSession - now.Sub(s.start); hard < left {
+		left = hard
+	}
+	return left
+}
+
+// Touch records a user action (VLT-IS-011 OD-52).
 func (s *Session) Touch(now time.Time) {
 	if s.elevated {
 		s.last = now

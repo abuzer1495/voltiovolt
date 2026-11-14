@@ -184,6 +184,11 @@ func TestPushAccess(t *testing.T) {
 	if err := c.SetPIN(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
+	// OD-50 (VLT-IS-011): the connection keeps the elevated state after
+	// set_pin. Lock to test the access without elevation.
+	if err := c.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
 	for _, m := range []string{wire.MethodDeviceSettingsSet, wire.MethodPolicySet, wire.MethodPolicySimulate,
 		wire.MethodPolicyActivate, wire.MethodPolicyDeactivate, wire.MethodShutdownCancel, wire.MethodDeviceScan,
 		wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet} {

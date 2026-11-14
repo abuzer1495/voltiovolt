@@ -46,9 +46,23 @@ func (a *API) SetPIN(pin string) error {
 	if err != nil {
 		return wrap(err)
 	}
+	// OD-50: the connection that set the PIN keeps the elevated state.
+	if cl := a.m.client(); cl != nil {
+		a.m.readIdle(c, cl)
+	}
+	a.m.setElevated(true)
 	a.m.subscribe(c)
 	a.m.refreshAuth(c)
 	return nil
+}
+
+// Touch is the keep-alive after user input in the VLT GUI (keyboard,
+// mouse; VLT-IS-011 OD-52). It sends auth.touch at most one time in each
+// 30 seconds. Polling and push messages do not call it.
+func (a *API) Touch() {
+	c, cancel := ctx()
+	defer cancel()
+	a.m.touch(c)
 }
 
 // RemovePIN calls auth.remove_pin. It needs the current PIN. After a

@@ -524,7 +524,7 @@
   "simple.auto": "Otomatik kapatma",
   "simple.auto.on": "Açık.",
   "simple.auto.off": "Kapalı. Bilgisayar otomatik olarak kapanmaz.",
-  "simple.trigger": "Bilgisayar {battery} dk aküde çalıştıktan sonra, çalışma süresi {runtime} dk'nın veya doluluk %{charge}'nin altına düşünce {action}.",
+  "simple.trigger": "Bilgisayar, {battery} dakika aküde çalıştıktan sonra ya da kalan süre {runtime} dakikanın veya doluluk %{charge} değerinin altına düştüğünde {action}.",
   "simple.action.shutdown": "kapanır",
   "simple.action.hibernate": "hazırda bekletilir",
   "simple.chart": "Giriş gerilimi ve yük (1 saat)",

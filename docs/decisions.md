@@ -1,6 +1,6 @@
 # Decisions
 
-This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00, VLT-IS-006 01-00-00, VLT-IS-007 01-00-00, VLT-IS-008 01-00-00 and VLT-IS-009 01-00-00. The source texts are in `docs/instructions/`.
+This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00-00, VLT-IS-004 01-00-00, VLT-IS-005 01-00-00, VLT-IS-006 01-00-00, VLT-IS-007 01-00-00, VLT-IS-008 01-00-00, VLT-IS-009 01-00-00, VLT-IS-010 01-00-00 and VLT-IS-011 01-00-00. The source texts are in `docs/instructions/`.
 
 | No. | Date | Decision | Source document |
 |-----|------|----------|-----------------|
@@ -137,3 +137,11 @@ This file has one row for each decision in VLT-IS-002 01-00-00, VLT-IS-003 01-00
 | OD-47 | 2026-11-13 | CONTROL commands in test connection mode: VoltioVolt sends them to the simulator. This is permitted, because the simulator is not real hardware. They never go to real hardware or a real port. | VLT-IS-010 Rev 00, 01-00-00 |
 | OD-48 | 2026-11-13 | Data of the test connection: Measurements and Events have the source "test". The History and Events screens show the data of the current source by default. A filter shows the other sources (real, demo, test). | VLT-IS-010 Rev 00, 01-00-00 |
 | OD-49 | 2026-11-13 | Chart series visibility: the visibility of each series is a user choice. It stays after a data refresh, a change of the range and a restart of VoltioVolt. Hiding a series does not change the recording. | VLT-IS-010 Rev 00, 01-00-00 |
+| Q-1 | 2026-11-14 | Approved (answer to VLT-RPT-010 question 1). Windows test flake: each test uses its own pipe name with a test-only option. The product pipe name does not change. | VLT-IS-011 Rev 00, 01-00-00 |
+| OD-50 | 2026-11-14 | Session after a PIN set: the connection that sets the first PIN, or changes the PIN, keeps the elevated state. The idle timer starts from that time. | VLT-IS-011 Rev 00, 01-00-00 |
+| OD-51 | 2026-11-14 | Wizard and lock: the lock screen never covers the wizard. If a wizard step needs the elevated state and the state is locked, the wizard shows a PIN field inside the dialog. | VLT-IS-011 Rev 00, 01-00-00 |
+| OD-52 | 2026-11-14 | Idle time: user input in the VLT GUI (keyboard, mouse) resets the idle timer. Background polling does not reset it. | VLT-IS-011 Rev 00, 01-00-00 |
+| OD-53 | 2026-11-14 | Interface modes: Simple and Expert. Default at the first start: Simple. The wizard asks the user. The mode is a "ui." Setting (ui.mode). | VLT-IS-011 Rev 00, 01-00-00 |
+| OD-54 | 2026-11-14 | Interface scale: one setting "Interface size" (ui.scale): Auto (follows the Windows display scale), 80 %, 90 %, 100 %, 110 %, 125 %, 150 %, 175 %, 200 %. Default: Auto. Keyboard: Ctrl + Plus, Ctrl + Minus, Ctrl + 0. | VLT-IS-011 Rev 00, 01-00-00 |
+| OD-55 | 2026-11-14 | Windows look: follow the Windows 11 design style (Fluent): the Windows font, the Windows accent color, light and dark theme from Windows, a left navigation pane like the Windows Settings application, a menu bar, native dialogs for confirmations. | VLT-IS-011 Rev 00, 01-00-00 |
+| OD-56 | 2026-11-14 | Roadmap: after VLT-IS-011, VLT-IS-012 is the release candidate 0.9.0 (version number, changelog, stable release flow). Then the v1.0 features. | VLT-IS-011 Rev 00, 01-00-00 |

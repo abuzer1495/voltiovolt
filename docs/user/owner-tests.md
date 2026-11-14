@@ -210,6 +210,52 @@ WARNING: The UPS turns off its output during this test. All equipment on the UPS
 - Expected result: the blue TEST CONNECTION banner is visible. Scenarios 1, 2, 5, 6 and 7 change the Dashboard as described. Events and Notifications of the test have source "test" and the prefix "[TEST]". The countdown, if it runs, is a dry run: "Test: the computer would shut down now." The computer does not shut down. A hidden History series stays hidden after a refresh, a range change and a restart. No CONTROL bytes go to a real UPS.
 - Send: the result of each step (OK or the problem). Do not send a Secret. Screenshots are permitted; check that no Secret, no PIN and no serial number is in them.
 
+### T-18 Simple mode and Expert mode (VLT-IS-011)
+
+- Purpose: check the two interface modes (VLT-IS-011 TASK 03-00-00-003, R-10, OD-53) and the menu bar (TASK 03-00-00-005).
+- Preconditions: VoltioVolt from the test package. A real UPS is not necessary: use the simulator (T-17). Leave `test.real_shutdown` off.
+- Steps:
+    1. Start VoltioVolt with a new data folder. In the setup wizard, the step "Interface" asks for Simple or Expert. Choose "Simple" and finish the wizard.
+    2. The Simple screen shows one status card (Good, Attention or Problem, with a sentence), six tiles (input, output, battery, runtime, load, temperature), the automatic shutdown state, one chart and the last 3 events. There is no left navigation pane.
+    3. With the simulator, press 1 ("Power failure now"). The status card changes to "Attention" with "Power failure: the UPS runs on battery." Press 9 or R.
+    4. Click "Expert mode". The left navigation pane with all screens opens. Click "Simple mode" in the header: the Simple screen opens again. No PIN is asked.
+    5. Menu bar: open View and choose "Expert mode", then "Simple mode". Press Alt: the access keys of the menu are underlined. Tools > "Setup wizard" opens the wizard. Help > "Documentation" (or F1) opens the documentation in the web browser. Help > "About VoltioVolt" shows the version and the license.
+    6. Restart VoltioVolt: the last mode stays.
+    7. Change the language to Turkish and do step 4 and step 5 again. The texts use the Turkish characters (ç, ğ, ı, İ, ö, ş, ü).
+- Expected result: the default is Simple. The mode changes at once, without a PIN, and stays after a restart. The menu bar has File, View, Tools and Help.
+- Send: the result of each step (OK or the problem). Screenshots are permitted; check that no PIN and no Secret is in them.
+
+### T-19 Interface size at the Owner screens (VLT-IS-011)
+
+- Purpose: check the interface size (VLT-IS-011 TASK 03-00-00-004, R-11, OD-54) on the screens of the Owner.
+- Preconditions: VoltioVolt from the test package. Write down the screen size and the Windows display scale of each screen (Settings > System > Display > Scale).
+- Steps:
+    1. Open General (Expert mode) or Settings (Simple mode). "Interface size" is "Auto (… %)" and the percent is the Windows display scale.
+    2. Press Ctrl+Plus two times: the interface becomes larger at once. Press Ctrl+Minus: smaller. Press Ctrl+0: "Auto" again.
+    3. Choose each size in the list: 80 %, 100 %, 125 %, 150 %, 200 %. The menu View > "Interface size" shows the same choice.
+    4. At each size, open the 9 Expert screens and the Simple screen. Check that no text is cut and that there is no horizontal scroll bar. Open the setup wizard: it fits in the window.
+    5. If a size does not fit on the screen, VoltioVolt uses a smaller size and shows one message with the used size.
+    6. Make the window as small as possible: the minimum size grows with the interface size.
+    7. If you have two screens with different scales, move the window to the other screen: the text stays sharp and the size follows the scale of that screen.
+    8. Restart VoltioVolt: the size stays.
+- Expected result: all sizes apply at once without a restart. No cut text and no horizontal scroll bar at the sizes that fit.
+- Send: the screen sizes and scales, and the result of each step (OK or the problem, with the screen and the size). Screenshots are permitted.
+
+### T-20 Live History charts with the simulator (VLT-IS-011)
+
+- Purpose: check the live update of the History charts (VLT-IS-011 TASK 03-00-00-002, R-09).
+- Preconditions: the simulator is running and VoltioVolt uses "Test connection (simulator)" (T-17 steps 1 and 2). Leave `test.real_shutdown` off.
+- Steps:
+    1. Open History with the range "1 hour". The indicator "Live" is shown. New points come about every 2 seconds without "Refresh".
+    2. In the simulator, press 1 ("Power failure now"). The input voltage line goes to 0 within a few seconds. Press 9 or R: it goes back.
+    3. Hide one series (click its name in the legend). New points come and the series stays hidden.
+    4. Zoom into an old part of the chart: the zoom stays while new points come. Zoom out to the full range: the chart follows the new points again.
+    5. Click "Pause": the indicator shows "Paused" and no new points come. Click "Resume": the points of the pause come.
+    6. Choose "24 hours" and "7 days" (an update each minute), and "30 days" (an update each 10 minutes).
+    7. Minimize the window for 1 minute, then restore it: the chart continues and has the points of that minute.
+- Expected result: the charts update without "Refresh". Hidden series and zoom stay. Pause stops the updates.
+- Send: the result of each step (OK or the problem). Screenshots are permitted; check that no Secret and no serial number is in them.
+
 ### Service mode (later)
 
 These tests need the service mode (vltd, vlt-setup, a local group and a user right). The service mode stays in the source code. It is not in the default package (OD-36). Do not run these tests with the VLT-IS-008 portable package. The text of T-02, T-03, T-04, T-05, T-06 and T-07 is kept here for a later release.
@@ -495,6 +541,52 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
     8. Gizli grafik serisi (RQ-03): Geçmiş ekranını açın. Bir seriyi gizleyin (grafik gösterimindeki adına tıklayın). Veriyi yenileyin (yeni bir nokta bekleyin, veya bir süzgeci değiştirip geri alın). Zaman aralığını değiştirin. VoltioVolt'u kapatın ve yeniden başlatın (simülatörü çalışır durumda bırakın ve gerekirse "Test bağlantısı (simülatör)" seçin). Aynı seri gizli kalır. O serinin kaydı durmamıştır: yeniden gösterdiğinizde, gizli olduğu sürenin noktaları vardır.
 - Beklenen sonuç: mavi TEST BAĞLANTISI bandı görünür. 1, 2, 5, 6 ve 7. senaryolar Gösterge panelini anlatıldığı gibi değiştirir. Test Olayları ve Bildirimleri "test" kaynağına ve "[TEST]" ön ekine sahiptir. Geri sayım çalışırsa kuru çalıştırmadır: "Test: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz. Gizli bir Geçmiş serisi, yenilemeden, aralık değişiminden ve yeniden başlatmadan sonra gizli kalır. Gerçek bir UPS'e CONTROL baytı gitmez.
 - Gönderin: her adımın sonucu (tamam veya sorun). Gizli bilgi göndermeyin. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun.
+
+### T-18 Basit kip ve Uzman kip (VLT-IS-011)
+
+- Amaç: iki arayüz kipini (VLT-IS-011 TASK 03-00-00-003, R-10, OD-53) ve menü çubuğunu (TASK 03-00-00-005) kontrol etmek.
+- Ön koşullar: test paketindeki VoltioVolt. Gerçek bir UPS gerekli değildir: simülatörü kullanın (T-17). `test.real_shutdown` kapalı kalsın.
+- Adımlar:
+    1. VoltioVolt'u yeni bir veri klasörüyle başlatın. Kurulum sihirbazındaki "Arayüz" adımı Basit veya Uzman seçimini sorar. "Basit"i seçin ve sihirbazı bitirin.
+    2. Basit ekran bir durum kartı (İyi, Dikkat veya Sorun ve bir cümle), altı kutu (giriş, çıkış, akü, kalan süre, yük, sıcaklık), otomatik kapatma durumu, bir grafik ve son 3 olayı gösterir. Sol gezinti bölmesi yoktur.
+    3. Simülatörde 1 tuşuna basın ("Şimdi elektrik kesintisi"). Durum kartı "Dikkat" ve "Elektrik kesintisi: UPS aküyle çalışıyor." olur. 9 veya R tuşuna basın.
+    4. "Uzman kipi" düğmesine tıklayın. Tüm ekranların olduğu sol gezinti bölmesi açılır. Üst bölümdeki "Basit kip" düğmesine tıklayın: Basit ekran yeniden açılır. PIN sorulmaz.
+    5. Menü çubuğu: Görünüm menüsünü açın ve "Uzman kip", sonra "Basit kip" seçin. Alt tuşuna basın: menünün erişim tuşlarının altı çizilir. Araçlar > "Kurulum sihirbazı" sihirbazı açar. Yardım > "Belgeler" (veya F1) belgeleri web tarayıcısında açar. Yardım > "VoltioVolt hakkında" sürümü ve lisansı gösterir.
+    6. VoltioVolt'u yeniden başlatın: son kip kalır.
+    7. Dili İngilizce yapın ve 4. ile 5. adımı yeniden yapın.
+- Beklenen sonuç: varsayılan Basit kiptir. Kip PIN olmadan hemen değişir ve yeniden başlatmadan sonra kalır. Menü çubuğunda Dosya, Görünüm, Araçlar ve Yardım vardır.
+- Gönderin: her adımın sonucu (tamam veya sorun). Ekran görüntülerine izin vardır; PIN ve Gizli bilgi olmadığından emin olun.
+
+### T-19 Sahibin ekranlarında arayüz boyutu (VLT-IS-011)
+
+- Amaç: arayüz boyutunu (VLT-IS-011 TASK 03-00-00-004, R-11, OD-54) Sahibin ekranlarında kontrol etmek.
+- Ön koşullar: test paketindeki VoltioVolt. Her ekranın boyutunu ve Windows ekran ölçeğini not edin (Ayarlar > Sistem > Ekran > Ölçek).
+- Adımlar:
+    1. Genel (Uzman kip) veya Ayarlar (Basit kip) ekranını açın. "Arayüz boyutu" "Otomatik (%…)" değerindedir ve yüzde Windows ekran ölçeğidir.
+    2. Ctrl+Artı tuşuna iki kez basın: arayüz hemen büyür. Ctrl+Eksi: küçülür. Ctrl+0: yeniden "Otomatik".
+    3. Listeden her boyutu seçin: %80, %100, %125, %150, %200. Görünüm > "Arayüz boyutu" menüsü aynı seçimi gösterir.
+    4. Her boyutta 9 Uzman ekranı ve Basit ekranı açın. Hiçbir metnin kesilmediğini ve yatay kaydırma çubuğu olmadığını kontrol edin. Kurulum sihirbazını açın: pencereye sığar.
+    5. Bir boyut ekrana sığmazsa VoltioVolt daha küçük bir boyut kullanır ve kullanılan boyutla bir ileti gösterir.
+    6. Pencereyi olabildiğince küçültün: en küçük boyut arayüz boyutuyla büyür.
+    7. Ölçekleri farklı iki ekranınız varsa pencereyi öbür ekrana taşıyın: metin keskin kalır ve boyut o ekranın ölçeğine uyar.
+    8. VoltioVolt'u yeniden başlatın: boyut kalır.
+- Beklenen sonuç: tüm boyutlar yeniden başlatmadan hemen uygulanır. Sığan boyutlarda kesik metin ve yatay kaydırma çubuğu yoktur.
+- Gönderin: ekran boyutları ve ölçekleri ile her adımın sonucu (tamam veya sorun; ekran ve boyutla). Ekran görüntülerine izin vardır.
+
+### T-20 Simülatörle canlı Geçmiş grafikleri (VLT-IS-011)
+
+- Amaç: Geçmiş grafiklerinin canlı güncellenmesini (VLT-IS-011 TASK 03-00-00-002, R-09) kontrol etmek.
+- Ön koşullar: simülatör çalışır ve VoltioVolt "Test bağlantısı (simülatör)" kullanır (T-17 1. ve 2. adım). `test.real_shutdown` kapalı kalsın.
+- Adımlar:
+    1. Geçmiş ekranını "1 saat" aralığıyla açın. "Canlı" göstergesi görünür. Yeni noktalar "Yenile" olmadan yaklaşık her 2 saniyede gelir.
+    2. Simülatörde 1 tuşuna basın ("Şimdi elektrik kesintisi"). Giriş gerilimi çizgisi birkaç saniye içinde 0'a iner. 9 veya R tuşuna basın: geri döner.
+    3. Bir seriyi gizleyin (göstergedeki adına tıklayın). Yeni noktalar gelir ve seri gizli kalır.
+    4. Grafiğin eski bir bölümüne yakınlaştırın: yeni noktalar gelirken yakınlaştırma kalır. Tüm aralığa uzaklaştırın: grafik yeniden yeni noktaları izler.
+    5. "Duraklat" düğmesine tıklayın: gösterge "Duraklatıldı" olur ve yeni nokta gelmez. "Sürdür" düğmesine tıklayın: duraklama süresinin noktaları gelir.
+    6. "24 saat" ve "7 gün" (her dakika bir güncelleme) ile "30 gün" (her 10 dakikada bir güncelleme) seçin.
+    7. Pencereyi 1 dakika simge durumuna küçültün, sonra geri açın: grafik devam eder ve o dakikanın noktalarını içerir.
+- Beklenen sonuç: grafikler "Yenile" olmadan güncellenir. Gizli seriler ve yakınlaştırma kalır. Duraklat güncellemeleri durdurur.
+- Gönderin: her adımın sonucu (tamam veya sorun). Ekran görüntülerine izin vardır; Gizli bilgi ve seri numarası olmadığından emin olun.
 
 ### Hizmet kipi (daha sonra)
 

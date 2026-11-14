@@ -97,6 +97,12 @@ To leave the test connection, select a different transport. The confirmation is:
 
 ---
 
+### 7. Owner tests
+
+- [T-17 Simulator test](owner-tests.md#t-17-simulator-test-vlt-is-010)
+- [T-18 Simple mode and Expert mode](owner-tests.md#t-18-simple-mode-and-expert-mode-vlt-is-011)
+- [T-20 Live History charts with the simulator](owner-tests.md#t-20-live-history-charts-with-the-simulator-vlt-is-011)
+
 ## Türkçe
 
 vlt-simulator bir konsol UPS simülatörüdür. Klasik bir cmd penceresinde (Windows) veya bir uçbirimde (Linux) çalışır. Test paketindedir: Windows'ta `vlt-simulator.exe`, Linux'ta `./vlt-simulator`. Kurulum betiği onu VoltioVolt'un yanına kopyalar. Simülatör için bir Başlat menüsü kısayolu yoktur.
@@ -186,3 +192,9 @@ VoltioVolt gerçek Sürücüyü kullanır (gerçek bir UPS ile aynı Exchange, P
 CONTROL komutları (testler, sesli uyarı, UPS çıkışının kapanması) yalnızca simülatöre gider; gerçek bir UPS'e ve gerçek bir porta gitmez.
 
 Test bağlantısından çıkmak için farklı bir taşıma seçin. Onay metni şudur: "Test bağlantısından çıkılsın ve gerçek bir UPS bağlantısı kullanılsın mı? Test olayları ve ölçümleri geçmişte kalır ve test olarak işaretlenir."
+
+### 7. Sahip testleri
+
+- [T-17 Simülatör testi](owner-tests.md#t-17-simülatör-testi-vlt-is-010)
+- [T-18 Basit kip ve Uzman kip](owner-tests.md#t-18-basit-kip-ve-uzman-kip-vlt-is-011)
+- [T-20 Simülatörle canlı Geçmiş grafikleri](owner-tests.md#t-20-simülatörle-canlı-geçmiş-grafikleri-vlt-is-011)

@@ -73,6 +73,7 @@ func TestDefaultLangTurkishFromOS(t *testing.T) {
 func TestHeadlessQ1AndSecondInstance(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_RUNTIME_DIR", dir)
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var out, errw bytes.Buffer
@@ -143,10 +144,21 @@ func exchangeDial(t *testing.T) ([]byte, error) {
 
 func TestHeadlessScenario1(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var out, errw bytes.Buffer
-	go run(ctx, []string{"--headless", "--scenario", "1", "--lang", "en"}, &out, &errw, nil)
+	done := make(chan int, 1)
+	go func() { done <- run(ctx, []string{"--headless", "--scenario", "1", "--lang", "en"}, &out, &errw, nil) }()
+	// Stop and wait: the next test must not see this endpoint (VLT-IS-011 006).
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Error("simulator did not stop")
+		}
+	})
 	deadline := time.Now().Add(3 * time.Second)
 	var raw []byte
 	var err error
@@ -276,6 +288,7 @@ func TestMenuKeysChangeValues(t *testing.T) {
 
 func TestUILayoutAndKeys(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 	t.Setenv("LANG", "C")
 	ln, err := server.ListenExclusive()
 	if err != nil {
@@ -398,10 +411,23 @@ func absf(v float64) float64 {
 
 func TestHeadlessScenarioDelay(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var out, errw bytes.Buffer
-	go run(ctx, []string{"--headless", "--scenario", "1", "--scenario-delay", "800ms", "--lang", "en"}, &out, &errw, nil)
+	done := make(chan int, 1)
+	go func() {
+		done <- run(ctx, []string{"--headless", "--scenario", "1", "--scenario-delay", "800ms", "--lang", "en"}, &out, &errw, nil)
+	}()
+	// Stop and wait: the next test must not see this endpoint (VLT-IS-011 006).
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Error("simulator did not stop")
+		}
+	})
 	// Before the delay: mains on, 230 V.
 	deadline := time.Now().Add(600 * time.Millisecond)
 	var raw []byte

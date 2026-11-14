@@ -18,6 +18,7 @@ import (
 func uniqueRuntime(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Cleanup(server.SetTestPath(server.NewTestPath())) // VLT-IS-011 Q-1: own endpoint
 }
 
 func opts() transport.Options {

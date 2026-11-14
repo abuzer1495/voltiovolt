@@ -4,12 +4,13 @@ package gui
 
 import (
 	"bytes"
-	"image"
 	"image/color"
 	"image/png"
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/abuzer1495/voltiovolt/internal/appicon"
 )
 
 // iconSize is the size of the tray icon in pixels.
@@ -58,7 +59,15 @@ func TrayShape(state string) string {
 	return "ring"
 }
 
-// TrayIcon returns the PNG icon of a tray state.
+// badgeSize is the size of the state mark in the tray icon.
+const badgeSize = 20
+
+// TrayIcon returns the PNG icon of a tray state. VLT-IS-011 TASK
+// 03-00-00-005 step 3.1: the application icon (internal/appicon) with a
+// state mark at the bottom right. The mark has its own shape for each
+// state (VLT-IS-005 step 2.2: color is not the only signal); the area of
+// the mark is transparent outside the shape, so the shapes differ in the
+// opaque pixel mask too.
 func TrayIcon(state string) []byte {
 	var in func(x, y float64) bool
 	var c color.NRGBA
@@ -72,33 +81,36 @@ func TrayIcon(state string) []byte {
 	default:
 		in, c = inRing, iconGrey
 	}
-	img := image.NewNRGBA(image.Rect(0, 0, iconSize, iconSize))
-	px := func(i int) float64 { return (float64(i)+0.5)/iconSize*2 - 1 }
-	for j := 0; j < iconSize; j++ {
-		for i := 0; i < iconSize; i++ {
+	img := appicon.Image(iconSize)
+	o := iconSize - badgeSize
+	px := func(i int) float64 { return (float64(i)+0.5)/badgeSize*2 - 1 }
+	for j := 0; j < badgeSize; j++ {
+		for i := 0; i < badgeSize; i++ {
 			x, y := px(i), px(j)
 			if !in(x, y) {
+				img.SetNRGBA(o+i, o+j, color.NRGBA{})
 				continue
 			}
 			// A dark edge: a pixel with a neighbour outside the shape.
-			d := 2.0 / iconSize
+			d := 2.0 / badgeSize
 			edge := !in(x-d, y) || !in(x+d, y) || !in(x, y-d) || !in(x, y+d)
 			if edge {
-				img.SetNRGBA(i, j, iconEdge)
+				img.SetNRGBA(o+i, o+j, iconEdge)
 			} else {
-				img.SetNRGBA(i, j, c)
+				img.SetNRGBA(o+i, o+j, c)
 			}
 		}
 	}
 	// A mark in the critical square: "!" so that it differs in grey scale.
 	if state == TrayCritical {
-		for j := 8; j < 20; j++ {
-			img.SetNRGBA(15, j, color.NRGBA{0xff, 0xff, 0xff, 0xff})
-			img.SetNRGBA(16, j, color.NRGBA{0xff, 0xff, 0xff, 0xff})
+		white := color.NRGBA{0xff, 0xff, 0xff, 0xff}
+		for j := 4; j < 12; j++ {
+			img.SetNRGBA(o+9, o+j, white)
+			img.SetNRGBA(o+10, o+j, white)
 		}
-		for j := 22; j < 25; j++ {
-			img.SetNRGBA(15, j, color.NRGBA{0xff, 0xff, 0xff, 0xff})
-			img.SetNRGBA(16, j, color.NRGBA{0xff, 0xff, 0xff, 0xff})
+		for j := 14; j < 16; j++ {
+			img.SetNRGBA(o+9, o+j, white)
+			img.SetNRGBA(o+10, o+j, white)
 		}
 	}
 	var b bytes.Buffer

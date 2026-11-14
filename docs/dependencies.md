@@ -45,6 +45,15 @@ cmd/vlt-gui is a separate Go module (cmd/vlt-gui/go.mod) with `replace github.co
 
 Linux system packages for the cgo build of Wails v3.1.0 (CI jobs gui-linux and test-build-linux; the same as for v3.0.0): build-essential, pkg-config, libgtk-4-dev, libwebkitgtk-6.0-dev, libsoup-3.0-dev, libx11-dev. Sources: wails v3.1.0 pkg/application/linux_cgo.go (`#cgo linux pkg-config: gtk4 webkitgtk-6.0`; the GTK 3 files need the build tag gtk3), internal/assetserver/webview/webkit_linux.go (`gtk4 webkitgtk-6.0 libsoup-3.0 gio-unix-2.0`), pkg/application/global_shortcut_linux_x11.go (`x11`), internal/doctor/packagemanager/apt.go (Debian and Ubuntu package names).
 
+## Go modules of the build tool tools/winresgen (VLT-IS-011 TASK 03-00-00-005)
+
+tools/winresgen is a separate Go module (tools/winresgen/go.mod, `replace github.com/abuzer1495/voltiovolt => ../..`). It runs before the Windows build and writes the resource file (.syso) of VoltioVolt.exe and vlt-gui.exe: the application icon (internal/appicon), the version resource and the application manifest (internal/winmeta). Its modules are not linked into the binaries; only the resource data is. CI checks its licenses with go-licenses (job gui-windows, SEC-061 list). Choice: github.com/tc-hib/winres was not used: its license is 0BSD, which is not in the SEC-061 list.
+
+| Name | Version | Published (proxy.golang.org) | License | Reason | Used by |
+|------|---------|------------------------------|---------|--------|---------|
+| github.com/josephspurrier/goversioninfo | v1.7.0 | 2026-05-11T03:48:46Z | MIT | Version resource, icon group and manifest in a COFF .syso file | tools/winresgen (build only) |
+| github.com/akavel/rsrc | v0.10.2 (indirect) | 2021-03-12T14:42:57Z | MIT | COFF resource writer of goversioninfo | tools/winresgen (build only) |
+
 ## npm packages of the VLT GUI front end (web/; VLT-IS-005)
 
 Installed with `npm ci --ignore-scripts` only. Exact versions in package.json; package-lock.json is committed. All versions in package-lock.json (92 packages, with the optional packages of other platforms) were resolved with `npm install --before=2026-10-27T23:59:59Z` and checked with `npm view <name> time` (SEC-094). CI checks the licenses of all 92 packages with web/scripts/check-licenses.mjs (SEC-061 allow list) and runs `npm audit --audit-level=high`.

@@ -29,6 +29,10 @@ func methodCases(secret []byte) map[string]methodCase {
 		"Rules":                  {nil, ""},
 		"SetTrayTexts":           {[]any{DefaultTrayTexts}, ""},
 		"SetInterfaceScale":      {[]any{125}, ""},
+		"Theme":                  {nil, ""},
+		"ConfirmNative":          {[]any{ConfirmRequest{Text: "x", Yes: "Yes", No: "No", Cancel: "Cancel"}}, ""},
+		"SetMenu":                {[]any{MenuState{}}, ""},
+		"OpenDocs":               {nil, ""},
 		"OpenSource":             {nil, ""},
 		"OpenHelp":               {[]any{"https://core.telegram.org/bots/tutorial"}, ""},
 		"SystemStatus":           {nil, wire.MethodStatus},
@@ -132,6 +136,7 @@ func TestEachMethodWithFakeServer(t *testing.T) {
 	m.SetOpenURL(func(string) error { return nil })
 	m.SetAutostart(&fakeAutostart{})
 	m.SetFirstRun(&fakeFirstRun{})
+	m.SetNativeHooks(NativeHooks{Confirm: func(ConfirmRequest) string { return "yes" }})
 	cases := methodCases([]byte("value"))
 	for _, name := range exported(a) {
 		c, ok := cases[name]

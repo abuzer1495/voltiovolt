@@ -72,6 +72,9 @@ jobs:
           set -euo pipefail
           out="$RUNNER_TEMP/VoltioVolt-test-windows-amd64"
           mkdir -p "$out"
+          # VLT-IS-011 TASK 03-00-00-005 step 3: icon, version resource and
+          # manifest (.syso). winresgen runs on the runner, not for GOOS.
+          (cd tools/winresgen && GOOS="$(go env GOHOSTOS)" GOARCH="$(go env GOHOSTARCH)" go run . -version "${VLT_VERSION}" -name VoltioVolt -file VoltioVolt.exe -out ../../cmd/voltiovolt/rsrc_windows_amd64.syso)
           (cd cmd/voltiovolt && go build -tags production -trimpath -ldflags "-H windowsgui -X main.version=${VLT_VERSION} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=${VLT_VERSION}" -o "$out/VoltioVolt.exe" .)
           go build -trimpath -ldflags "-X main.toolVersion=${VLT_VERSION}" -o "$out/vlt-probe.exe" ./cmd/vlt-probe
           go build -trimpath -ldflags "-X main.version=${VLT_VERSION}" -o "$out/vlt-simulator.exe" ./cmd/vlt-simulator

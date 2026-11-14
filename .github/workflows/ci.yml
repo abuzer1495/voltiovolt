@@ -446,6 +446,8 @@ jobs:
           go vet -tags production .
           go test -tags production .
           mkdir -p dist
+          # VLT-IS-011 TASK 03-00-00-005 step 3: icon, version resource, manifest.
+          (cd ../../tools/winresgen && go run . -version "ci-${GITHUB_SHA::12}" -name vlt-gui -file vlt-gui.exe -out ../../cmd/vlt-gui/rsrc_windows_amd64.syso)
           go build -tags production -trimpath -ldflags "-H windowsgui -X github.com/abuzer1495/voltiovolt/internal/gui.Version=ci-${GITHUB_SHA::12}" -o dist/vlt-gui-windows-amd64.exe .
           (cd dist && sha256sum vlt-gui-windows-amd64.exe > vlt-gui-windows-amd64.exe.sha256 && cat vlt-gui-windows-amd64.exe.sha256)
       - name: go-licenses and govulncheck of vlt-gui
@@ -484,8 +486,27 @@ jobs:
           go vet -tags production .
           go test -tags production .
           mkdir -p dist
+          (cd ../../tools/winresgen && go run . -version "ci-${GITHUB_SHA::12}" -name VoltioVolt -file VoltioVolt.exe -out ../../cmd/voltiovolt/rsrc_windows_amd64.syso)
           go build -tags production -trimpath -ldflags "-H windowsgui -X main.version=ci-${GITHUB_SHA::12} -X github.com/abuzer1495/voltiovolt/internal/gui.Version=ci-${GITHUB_SHA::12}" -o dist/VoltioVolt.exe .
           (cd dist && sha256sum VoltioVolt.exe > VoltioVolt.exe.sha256 && cat VoltioVolt.exe.sha256)
+      - name: Windows resources of VoltioVolt.exe and vlt-gui.exe (VLT-IS-011 TASK 03-00-00-005 step 3)
+        shell: pwsh
+        run: |
+          foreach ($f in @('cmd/voltiovolt/dist/VoltioVolt.exe', 'cmd/vlt-gui/dist/vlt-gui-windows-amd64.exe')) {
+            $v = (Get-Item $f).VersionInfo
+            Write-Output "$f : $($v.ProductName) | $($v.FileDescription) | $($v.ProductVersion) | $($v.LegalCopyright) | $($v.Comments)"
+            if ($v.ProductName -ne 'VoltioVolt' -or $v.FileDescription -ne 'VoltioVolt UPS Management' -or $v.Comments -ne 'License: AGPL-3.0-or-later') { throw "version resource of $f" }
+          }
+      - name: winresgen tests and licenses (SEC-061)
+        working-directory: tools/winresgen
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          go vet .
+          go test .
+          "$RUNNER_TEMP/bin/go-licenses" report . --ignore github.com/abuzer1495/voltiovolt
+          "$RUNNER_TEMP/bin/go-licenses" check . --allowed_licenses="${ALLOWED_LICENSES}" --ignore github.com/abuzer1495/voltiovolt
       - name: go-licenses and govulncheck of VoltioVolt
         working-directory: cmd/voltiovolt
         env:

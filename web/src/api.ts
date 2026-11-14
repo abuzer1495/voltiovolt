@@ -10,7 +10,32 @@ export const events = {
   countdown: 'vlt:countdown',
   tray: 'vlt:tray',
   window: 'vlt:window',
+  /** A command of the native menu bar (VLT-IS-011 005). */
+  menu: 'vlt:menu',
 } as const;
+
+/** ThemeInfo: the OS, its accent color and the native parts (VLT-IS-011 005). */
+export interface ThemeInfo {
+  os: string;
+  accent: string;
+  native: boolean;
+  menu: boolean;
+}
+
+export interface ConfirmRequest {
+  title: string;
+  text: string;
+  yes: string;
+  no: string;
+  cancel: string;
+}
+
+export interface MenuState {
+  texts: Record<string, string>;
+  mode: string;
+  scale: string;
+  scales: { value: string; label: string }[];
+}
 
 export interface ConnInfo {
   state: 'connecting' | 'connected' | 'disconnected';
@@ -355,6 +380,11 @@ export const api = {
   demoPowerFail: () => call<void>('DemoPowerFail'),
   openSource: () => call<void>('OpenSource'),
   openHelp: (url: string) => call<void>('OpenHelp', url),
+  // Native parts of the window (VLT-IS-011 TASK 03-00-00-005).
+  theme: () => call<ThemeInfo>('Theme'),
+  confirmNative: (r: ConfirmRequest) => call<'yes' | 'no' | 'cancel'>('ConfirmNative', r),
+  setMenu: (st: MenuState) => call<void>('SetMenu', st),
+  openDocs: () => call<void>('OpenDocs'),
   // Notification Channels (VLT-IS-007 TASK 03-00-00-007).
   channels: () => call<ChannelsList>('Channels'),
   setChannel: (channel: string, enabled: boolean, minSeverity: string, settings: Record<string, unknown>) =>

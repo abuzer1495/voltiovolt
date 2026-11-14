@@ -225,9 +225,24 @@ func run(dir string) error {
 			showStillMonitoring(app, dir)
 		})
 	})
+	watchWindow(app, win)
 	setupTray(app, win, m, api, func() { confirmAndQuit(app, stopAll) })
 	go m.Run(ctx)
 	return app.Run()
+}
+
+// watchWindow sends gui.EventWindow when the window is minimised, hidden
+// or shown again: the History screen stops its live updates while the
+// window is not visible (VLT-IS-011 TASK 03-00-00-002).
+func watchWindow(app *application.App, win *application.WebviewWindow) {
+	state := func(visible bool) func(*application.WindowEvent) {
+		return func(*application.WindowEvent) { app.Event.Emit(gui.EventWindow, gui.WindowState{Visible: visible}) }
+	}
+	win.OnWindowEvent(events.Common.WindowMinimise, state(false))
+	win.OnWindowEvent(events.Common.WindowHide, state(false))
+	win.OnWindowEvent(events.Common.WindowUnMinimise, state(true))
+	win.OnWindowEvent(events.Common.WindowRestore, state(true))
+	win.OnWindowEvent(events.Common.WindowShow, state(true))
 }
 
 func showStillMonitoring(app *application.App, dir string) {

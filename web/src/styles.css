@@ -269,3 +269,9 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+
+/* VLT-IS-011 002: the "Live" indicator of the History screen. Text and a
+   dot: not colour only. */
+.live-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9em; }
+.live-badge::before { content: ''; width: 8px; height: 8px; border-radius: 50%; border: 1px solid currentColor; }
+.live-badge.live-on::before { background: #1e8e3e; border-color: #1e8e3e; }

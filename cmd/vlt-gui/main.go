@@ -17,6 +17,7 @@ import (
 	"os"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/abuzer1495/voltiovolt/internal/gui"
 )
@@ -88,6 +89,16 @@ func run(addr string) error {
 		MinHeight: gui.MinWindowHeight,
 		URL:       "/",
 	})
+	// VLT-IS-011 TASK 03-00-00-002: the History screen stops the live
+	// updates while the window is minimised or hidden.
+	winState := func(visible bool) func(*application.WindowEvent) {
+		return func(*application.WindowEvent) { app.Event.Emit(gui.EventWindow, gui.WindowState{Visible: visible}) }
+	}
+	win.OnWindowEvent(events.Common.WindowMinimise, winState(false))
+	win.OnWindowEvent(events.Common.WindowHide, winState(false))
+	win.OnWindowEvent(events.Common.WindowUnMinimise, winState(true))
+	win.OnWindowEvent(events.Common.WindowRestore, winState(true))
+	win.OnWindowEvent(events.Common.WindowShow, winState(true))
 	setupTray(app, win, m, api)
 	go m.Run(ctx)
 	return app.Run()

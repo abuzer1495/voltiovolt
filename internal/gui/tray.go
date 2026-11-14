@@ -14,6 +14,12 @@ const (
 	TrayOffline  = "offline"  // grey ring: no connection to vltd or comm lost
 )
 
+// WindowState is the data of EventWindow: false when the main window is
+// minimised or hidden (VLT-IS-011 TASK 03-00-00-002).
+type WindowState struct {
+	Visible bool `json:"visible"`
+}
+
 // TrayState is the state of the tray icon.
 type TrayState struct {
 	State   string `json:"state"`

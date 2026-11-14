@@ -9,6 +9,7 @@ export const events = {
   event: 'vlt:event',
   countdown: 'vlt:countdown',
   tray: 'vlt:tray',
+  window: 'vlt:window',
 } as const;
 
 export interface ConnInfo {

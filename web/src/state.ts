@@ -22,6 +22,13 @@ export const app = createStore<AppState>({
   policy: null,
 });
 
+/**
+ * view is the visibility of the main window (VLT-IS-011 TASK
+ * 03-00-00-002): false when it is minimised or hidden. The History
+ * screen stops its live updates then.
+ */
+export const view = createStore<{ visible: boolean }>({ visible: true });
+
 /** LAST_EVENTS is the number of Events on the Dashboard. */
 export const LAST_EVENTS = 10;
 
@@ -43,6 +50,7 @@ export function start(): void {
     app.set({ status: st, countdown: st.countdown ?? app.get().countdown });
   });
   on(events.countdown, (d) => app.set({ countdown: d as Countdown }));
+  on(events.window, (d) => view.set({ visible: (d as { visible?: boolean } | null)?.visible !== false }));
   // A new Event goes to the top of the list. No request to vltd: a
   // request while elevated starts the idle time of vltd again.
   on(events.event, (d) => app.set({ events: [d as VltEvent, ...app.get().events].slice(0, LAST_EVENTS) }));

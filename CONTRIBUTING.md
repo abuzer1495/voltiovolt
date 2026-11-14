@@ -1,6 +1,6 @@
 # Contributing to VoltioVolt (VLT)
 
-VLT is in pre-alpha. The Owner approves all decisions. Read these rules before you open a pull request.
+VLT is in pre-alpha (test builds only). The Owner approves all decisions. Read these rules before you open a pull request. [docs/building.md](docs/building.md) gives the build and test steps.
 
 ## 1. Clean-room rule (SEC-060)
 
@@ -41,7 +41,7 @@ The sign-off line is `Signed-off-by: Name <e-mail>`. It must agree with the comm
 
 1. Each parser has table tests with the test vectors and one fuzz target.
 2. A parser never panics. It returns an error with the field index.
-3. Use only the simulator (`internal/sim`, `cmd/vlt-sim`) for tests. Do not run tests against a real UPS.
+3. Use only the simulators (`internal/sim`, `cmd/vlt-sim`, `cmd/vlt-simulator`) and Demo mode for tests. Do not run tests against a real UPS. Do not send CONTROL or CONFIG commands to real hardware. Keep the setting `test.real_shutdown` off.
 4. Test data in `testdata/` contains only fake values. Do not add real serial numbers, tokens or personal data.
 5. Run these commands before a pull request:
 
@@ -51,6 +51,8 @@ go vet ./...
 CGO_ENABLED=0 go build ./...
 go test -race ./...
 ```
+
+   The front end (`web/`): `npm ci --ignore-scripts`, `npm run typecheck`, `npm test`, `npm run build`. The modules `cmd/voltiovolt` and `cmd/vlt-gui`: `go vet -tags production .` and `go test -tags production .` (see docs/building.md).
 
 6. Fuzz smoke test (each target for 30 seconds), for example:
 

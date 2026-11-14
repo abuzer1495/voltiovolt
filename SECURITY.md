@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-None. VLT is pre-alpha. There is no release.
+None. VLT is pre-alpha. The only download is the pre-release "Test build" (tag `test-latest`) for tests. It is not supported for production use.
 
 ## Report a vulnerability
 

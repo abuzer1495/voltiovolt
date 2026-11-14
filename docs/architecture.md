@@ -6,30 +6,33 @@ This file gives the component model of VLT-IS-001 03-10-00 (text only), with the
 
 | Process | Function |
 |---------|----------|
-| vltd | The VLT service. It runs in the background without a user session. It is the only component that talks to the UPS. |
-| VLT GUI | The desktop user interface. It shows data. It changes Settings only through vltd. It connects to vltd through local IPC only (named pipe on Windows, Unix domain socket on Linux). |
+| vltd | The VLT service (service mode, not in the default package). It runs in the background without a user session. In service mode, it is the only component that talks to the UPS. |
+| VLT GUI | The desktop user interface. It shows data. It changes Settings only through the monitoring engine. In service mode (vlt-gui) it connects to vltd through local IPC only (named pipe on Windows, Unix domain socket on Linux). In portable mode it is inside VoltioVolt and uses an in-process connection (section 17). |
 | VLT Agent | A small client on another computer. It receives shutdown signals from vltd. Release v2.0. |
-| vlt-probe, vlt-sim | Diagnostic tools, not vltd (VLT-IS-002 01-30-00). vlt-probe is a READ-only capture tool. vlt-sim is the UPS simulator. |
+| vlt-probe, vlt-sim, vlt-simulator | Diagnostic tools, not vltd (VLT-IS-002 01-30-00). vlt-probe is a READ-only capture tool. vlt-sim is the UPS simulator for development and CI. vlt-simulator is the interactive terminal simulator for the test connection (section 18, VLT-IS-010). |
 | VoltioVolt (portable, default) | One application: VoltioVolt.exe (Windows) and voltiovolt (Linux). It contains the VLT GUI and the monitoring engine in one process (section 17, VLT-IS-008). |
 
-The default package contains VoltioVolt and vlt-probe only. The processes vltd and VLT GUI stay in the repository and in CI. They are not in the default package.
+The default package contains VoltioVolt, vlt-probe and vlt-simulator (section 17.6). The service-mode processes vltd, vlt-gui and vlt-setup stay in the repository and in CI. They are not in the default package.
 
 ## 2. Components
 
+"engine" is the monitoring engine: vltd in service mode, or the engine inside VoltioVolt in portable mode (section 17).
+
 | Component | Part of | Function | Package (this repository) |
 |-----------|---------|----------|---------------------------|
-| Device Manager | vltd | Finds the UPS. Selects the Transport and the Dialect. | not yet |
-| Poller | vltd | Sends READ commands on a schedule. | not yet |
-| Measurement Store | vltd | Records Measurements. Keeps summaries per minute and per hour. | not yet |
-| Event Engine | vltd | Makes Events from state changes. | not yet |
-| Analyzer | vltd | Calculates runtime, battery health, power quality (EN 50160-based estimate) and energy. | not yet |
-| Policy Engine | vltd | Runs Shutdown Policies. | not yet |
-| Notification Router | vltd | Sends Notifications. Runs Escalations. Receives Acknowledgements. | not yet |
-| Vault | vltd | Keeps Secrets. | `internal/vault` |
-| IPC Server | vltd | Serves the VLT GUI. Checks access. | `internal/ipc`, `internal/ipc/wire`, `internal/ipc/client` |
-| Audit Log | vltd | Records security-relevant actions. | `internal/audit` |
-| CONTROL | vltd | Makes and sends CONTROL commands (tests, beeper, shutdown and restore) with a Grant, and verifies them (section 14, SEC-098). | `internal/control` |
-| VLT GUI | Desktop | Screens: Dashboard, History, Events, Analysis, Channels, Policies, UPS Settings, Security. | not yet |
+| Device Manager | engine | Finds the UPS. Selects the Transport and the Dialect. | `internal/device` |
+| Poller | engine | Sends READ commands on a schedule. | `internal/poller` |
+| Measurement Store | engine | Records Measurements. Keeps summaries per minute and per hour. | `internal/measure`, `internal/store` |
+| Event Engine | engine | Makes Events from state changes. | `internal/event` |
+| Analyzer | engine | Calculates runtime, battery health, power quality (EN 50160-based estimate) and energy. | not yet (planned for v1.0, docs/roadmap.md) |
+| Policy Engine | engine | Runs Shutdown Policies and the Simulation. | `internal/policy`, `internal/shutdown` (OS shutdown) |
+| Notification Router | engine | Sends Notifications (desktop, Telegram, e-mail). Runs Escalations. Receives Acknowledgements. | `internal/notify` |
+| Vault | engine | Keeps Secrets. | `internal/vault` |
+| IPC Server | engine | Serves the VLT GUI. Checks access. | `internal/ipc`, `internal/ipc/wire`, `internal/ipc/client` |
+| Audit Log | engine | Records security-relevant actions. | `internal/audit` |
+| CONTROL | engine | Makes and sends CONTROL commands (tests, beeper, shutdown and restore) with a Grant, and verifies them (section 14, SEC-098). | `internal/control` |
+| VLT GUI | Desktop | Screens (section 13.4): Simple screen; Dashboard, Device, UPS Control, History, Events, Shutdown Policy, Notifications, Security, General; setup wizard. | `internal/gui`, `web/`, `cmd/voltiovolt`, `cmd/vlt-gui` |
+| Engine assembly | engine | Starts the components in one process (vltd or VoltioVolt). Demo and test-connection modes. | `internal/engine`, `internal/portable`, `internal/demo`, `internal/testconn` |
 
 Protocol layer (made by VLT-IS-002):
 
@@ -37,7 +40,7 @@ Protocol layer (made by VLT-IS-002):
 |------|----------|---------|
 | Transport | The physical link to the UPS: USB HID or RS-232 serial. Sends one request and returns one response. Accepts only READ commands from the command registry. | `internal/transport` |
 | Dialect | Command registry, READ encoder and response parsers for the Megatec Q family. | `internal/dialect` |
-| Simulator | UPS model, Dialect profiles, fault injection, command recorder, pty endpoint (Linux). For development and CI only (SEC-036). | `internal/sim`, `cmd/vlt-sim` |
+| Simulator | UPS model, Dialect profiles, fault injection, command recorder, pty endpoint (Linux). For development and CI only (SEC-036). The protocol server of vlt-simulator (VLT-IS-010). | `internal/sim`, `internal/sim/server`, `cmd/vlt-sim`, `cmd/vlt-simulator` |
 | Capture tool | Sends the Probe List or the Watch List and writes a Capture file. | `cmd/vlt-probe` |
 
 ## 3. Data flow
@@ -353,11 +356,13 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 | Dashboard | Mode with icon and text, values, countdown banner with Cancel, Fallback banner, last Events. |
 | Device | device.status; port list with the USB description, "Scan" (WARNING, typed text "SCAN PORTS", elevated), "Use this port" (elevated, confirmation); port busy help; device settings (elevated). |
 | UPS Control | ups.control.capabilities; buttons Test 10 seconds, Test for minutes (1 to 99), Test until battery low (WARNING, typed text "TEST UNTIL LOW"), Cancel test, Beeper on, Beeper off. Each button needs the elevated state and the function in the capabilities. The tests ask for a confirmation and send "START TEST". The last test result (TEST_PASSED or TEST_FAILED) with its time. No shutdown button (VLT-IS-006). |
-| History | uPlot charts for 1 h, 24 h, 7 d, 30 d, 1 y; a text table for each chart. |
+| Simple | The default screen in Simple mode (VLT-IS-011, section 19): health, automatic shutdown state, input voltage and load of 1 hour, last Events, a link to the settings. |
+| History | uPlot charts for 1 h, 24 h, 7 d, 30 d, 1 y; a text table for each chart. Live update with Pause and Resume, series visibility saved in the Setting `ui.history.series_visibility` (VLT-IS-010, VLT-IS-011). Data with the source "demo" or "test" only with "Show other sources". |
 | Events | events.list with paging, filter by severity and type. |
 | Shutdown Policy | policy.get, edit with default and range per field, Simulation with steps, Activate only after a passed Simulation of the current version, Deactivate, shutdown.status. VLT-IS-006: the 3 ups_off Settings with their ranges, the WARNING "An incorrect delay can turn off the power before the computer has shut down. Data can be lost." and the text with the delay and restore values. |
+| Notifications | Desktop, Telegram (token, pairing, paired chats) and e-mail (SMTP, Gmail preset); minimum severity; "Send test message" (VLT-IS-007). |
 | Security | Vault state and reason, SEC-005 notice for "reduced protection", Vault reset (type "RESET VAULT"), Change PIN, audit log with paging. |
-| General | Language (tr/en, Setting ui.language), theme follows the OS, About. |
+| General | Language (tr/en, Setting ui.language), theme follows the OS, interface mode and interface size, Set PIN and Remove PIN, start at logon, data folder path, "Start the setup wizard", About. |
 
 ### 13.5 Fallback Policy in the VLT GUI
 
@@ -461,7 +466,10 @@ The wizard starts when no PIN is set. In portable mode it also starts when the w
 4. Shutdown Policy: show the defaults, run the Simulation, activate it. The Simulation includes the step "OS shutdown". If that step fails, the error is "This user cannot shut down the computer." and the policy cannot be activated (section 17.4).
 5. Notifications: Telegram, then e-mail (each step can be skipped).
 6. Question: "Are the modem and the router connected to the UPS?" If the answer is No, show: "During a power failure, the internet stops. Telegram and e-mail cannot send messages."
-7. Summary.
+7. Interface: the interface mode and the interface size (VLT-IS-011, section 19).
+8. Summary.
+
+The wizard is a dialog of 760 × 560 (scaled with the interface size), centered on the main window (VLT-IS-009, section 17.7).
 
 Each step has "Back" and "Skip" (except step 1 in service mode).
 
@@ -509,6 +517,13 @@ Portable mode is the default mode (OD-35). One application, VoltioVolt, contains
 ### 17.6 Default packages
 
 The pre-release test-latest has VoltioVolt-test-windows-amd64.zip (VoltioVolt.exe, vlt-probe.exe, vlt-simulator.exe, install.cmd, uninstall.cmd, remove-old-test-service.cmd, OKUBENI-README.txt) and VoltioVolt-test-linux-amd64.tar.gz (voltiovolt, vlt-probe, vlt-simulator, install.sh, uninstall.sh, OKUBENI-README.txt). The install scripts copy files into the folder of the user only, with no administrator rights. A Start menu or desktop shortcut is made only when the user agrees (OD-38), and only for VoltioVolt (not for the simulator). The script remove-old-test-service.cmd is only for computers with the VLT-IS-007 test installation. The binaries vltd, vlt-gui and vlt-setup are not in the default package.
+
+### 17.7 Forgot PIN, help, Demo mode and the compact window (VLT-IS-009)
+
+1. Forgot PIN (OD-40): the method `auth.forgot_pin` is available only on the in-process connection (portable mode). It needs the confirmation text `RESET` and no current PIN. It resets the Vault (all Secrets are deleted), deactivates the Shutdown Policy and removes the PIN. Settings and Measurements stay. The audit log has the entry `pin_forgot`.
+2. Field help (OD-42): each field has a one-sentence help text and an optional "?" panel (web/src/help.tsx). A help link opens in the OS web browser only if `gui.AllowedHelpURL` accepts it: https, port 443, no user information, and a host in the list core.telegram.org, support.google.com, support.microsoft.com. The list of the product links is `gui.OfficialHelpURLs`. The CI job link-check (tools/check-help-links.sh) checks these links and never blocks a merge.
+3. Demo mode (OD-43): the Transport "demo" runs an in-process simulator (`internal/demo`) with live values. "Simulate power failure" puts it on battery for 60 s. The OS shutdown is replaced by the message "Demo: the computer would shut down now." Measurements and Events have the source "demo"; History and Events hide them by default.
+4. Compact window: the main window opens at 1100 × 760, minimum 1024 × 680 (`gui.MinWindowWidth`, `gui.MinWindowHeight`). The wizard is a 760 × 560 dialog (section 16).
 
 ## 18. UPS simulator and the test connection (VLT-IS-010)
 

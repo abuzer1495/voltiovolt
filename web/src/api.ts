@@ -47,6 +47,8 @@ export interface AuthInfo {
   pin_set: boolean;
   elevated: boolean;
   block_until?: string;
+  /** Seconds until the idle time ends the elevated state (VLT-IS-011 OD-52). */
+  idle_left?: number;
 }
 
 export interface Point {
@@ -315,6 +317,8 @@ export const api = {
   login: (pin: string) => call<void>('Login', pin),
   forgotPIN: (confirmation: string) => call<void>('ForgotPIN', confirmation),
   logout: () => call<void>('Logout'),
+  /** touch is the keep-alive after user input (OD-52). The Go side sends auth.touch at most each 30 s. */
+  touch: () => call<void>('Touch'),
   wizardCompleted: () => call<boolean>('WizardCompleted'),
   setWizardCompleted: () => call<void>('SetWizardCompleted'),
   wizardLaterCount: () => call<number>('WizardLaterCount'),

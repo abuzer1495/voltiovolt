@@ -204,6 +204,11 @@ func TestAllMethodsNoSecretInResponses(t *testing.T) {
 	if err := c.SetPIN(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
+	// OD-50 (VLT-IS-011): the connection keeps the elevated state after
+	// set_pin. Lock to test the access without elevation.
+	if err := c.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
 	// After the first PIN, set_pin needs elevation.
 	if err := c.SetPIN(ctx, "9q8w7e6r"); client.Code(err) != wire.CodeNotElevated {
 		t.Fatalf("second set_pin: %v", err)
@@ -251,9 +256,19 @@ func TestAllMethodsNoSecretInResponses(t *testing.T) {
 	if err := c.SetPIN(ctx, "9q8w7e6r"); err != nil {
 		t.Fatalf("set_pin when elevated: %v", err)
 	}
-	// A PIN change ends the elevated state.
+	// OD-50 (VLT-IS-011): a PIN change keeps the elevated state. Lock,
+	// then the old PIN does not unlock and the new PIN does.
+	if as, err := c.AuthStatus(ctx); err != nil || !as.Elevated {
+		t.Fatalf("after PIN change: %+v %v", as, err)
+	}
+	if err := c.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if err := c.DeleteSecret(ctx, "telegram.bot_token"); client.Code(err) != wire.CodeNotElevated {
-		t.Fatalf("after PIN change: %v", err)
+		t.Fatalf("after Lock: %v", err)
+	}
+	if err := c.Login(ctx, testPIN); client.Code(err) != wire.CodePINIncorrect {
+		t.Fatalf("old PIN after change: %v", err)
 	}
 	if err := c.Login(ctx, "9q8w7e6r"); err != nil {
 		t.Fatal(err)
@@ -474,5 +489,66 @@ func TestSessionIdle(t *testing.T) {
 	other := typed.New(e.ln.dial(t))
 	if _, err := other.Audit(ctx, 0, 1); client.Code(err) != wire.CodeNotElevated {
 		t.Fatalf("other connection: %v", err)
+	}
+}
+
+// TestSessionAfterSetPINAndTouch is VLT-IS-011 OD-50 and OD-52: the
+// connection that sets the PIN is elevated and the idle time starts then;
+// polling (read-only methods, auth.status) does not start the idle time
+// again; auth.touch and elevated requests do.
+func TestSessionAfterSetPINAndTouch(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
+	var mu sync.Mutex
+	e.srv.now = func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	step := func(d time.Duration) { mu.Lock(); now = now.Add(d); mu.Unlock() }
+	c := typed.New(e.ln.dial(t))
+	if err := c.SetPIN(ctx, testPIN); err != nil {
+		t.Fatal(err)
+	}
+	// OD-50: elevated at once, no login.
+	if _, err := c.Audit(ctx, 0, 1); err != nil {
+		t.Fatalf("elevated request after set_pin: %v", err)
+	}
+	as, err := c.AuthStatus(ctx)
+	if err != nil || !as.Elevated || as.IdleLeft != 600 {
+		t.Fatalf("auth.status after set_pin: %+v %v", as, err)
+	}
+	// OD-52: polling for 9 minutes does not reset the idle time.
+	for i := 0; i < 9; i++ {
+		step(time.Minute)
+		if _, err := c.AuthStatus(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.Settings(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	as, _ = c.AuthStatus(ctx)
+	if !as.Elevated || as.IdleLeft != 60 {
+		t.Fatalf("after 9 min polling: %+v", as)
+	}
+	// auth.touch (user input) starts the idle time again.
+	tr, err := c.Touch(ctx)
+	if err != nil || !tr.Elevated || tr.IdleLeft != 600 {
+		t.Fatalf("auth.touch: %+v %v", tr, err)
+	}
+	step(9 * time.Minute)
+	if _, err := c.Audit(ctx, 0, 1); err != nil {
+		t.Fatalf("9 min after touch: %v", err)
+	}
+	// Polling only for 10 minutes: the elevated state ends.
+	step(10 * time.Minute)
+	if _, err := c.AuthStatus(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Audit(ctx, 0, 1); client.Code(err) != wire.CodeNotElevated {
+		t.Fatalf("after 10 min idle: %v", err)
+	}
+	// auth.touch while locked does not elevate.
+	tr, err = c.Touch(ctx)
+	if err != nil || tr.Elevated || tr.IdleLeft != 0 {
+		t.Fatalf("auth.touch when locked: %+v %v", tr, err)
 	}
 }

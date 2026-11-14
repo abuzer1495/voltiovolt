@@ -76,7 +76,7 @@ UPS -> Transport -> Dialect parser -> Measurement -> Measurement Store and Event
 
 ### 5.4 Methods, protocol version 1
 
-Before a PIN is set, only system.hello, system.status, auth.status and auth.set_pin are permitted. Other methods give "pin_not_set". The elevated state is for one connection only (no token). It ends after `auth.session_idle_minutes` without a request, after 8 hours, at auth.logout, at a PIN change and when the connection closes. In portable mode, if no PIN is set, the engine gives the elevated state to the in-process connection at all times (OD-37). Secret fields stay write-only.
+Before a PIN is set, only system.hello, system.status, auth.status and auth.set_pin are permitted. Other methods give "pin_not_set". The elevated state is for one connection only (no token). It ends after `auth.session_idle_minutes` without a user action, after 8 hours, at auth.logout and when the connection closes. The connection that sets the first PIN, or changes the PIN, keeps the elevated state, and the idle time starts then (VLT-IS-011 OD-50). Only elevated requests and auth.touch start the idle time again; read-only requests (polling) do not (OD-52). In portable mode, if no PIN is set, the engine gives the elevated state to the in-process connection at all times (OD-37). Secret fields stay write-only.
 
 | Method | Elevated state needed | Params | Result |
 |--------|------------------------|--------|--------|
@@ -341,7 +341,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 ### 13.3 Push events and the lock timer
 
 1. The Manager subscribes (status.subscribe) after each connect and sends each push message to the front end as a Wails event. A new Event goes to the top of the Event list of the Dashboard. The front end does not ask vltd again.
-2. Each vltd request in the elevated state starts the idle time of vltd again. For this reason the VLT GUI sends no background requests. The Manager records the time of the last request. It sets a timer to that time plus auth.session_idle_minutes plus 2 s (or to the 8-hour limit), and then calls auth.status. When the elevated state ends, the GUI shows the locked state. A locked GUI still shows the Dashboard.
+2. Each elevated vltd request and each auth.touch starts the idle time of vltd again. Read-only requests, polling and push messages do not (VLT-IS-011 OD-52). After keyboard or mouse input, the VLT GUI sends auth.touch, at most one time in each 30 s and only when elevated. The Manager records the time of the last elevated request or touch, and uses idle_left from auth.status. It sets a timer to that time plus auth.session_idle_minutes plus 2 s (or to the 8-hour limit), and then calls auth.status. When the elevated state ends, the GUI shows the locked state and the lock screen; the lock screen opens only at the "Lock" button, at the idle time, at a start with a PIN set and after an elevated request that fails outside the wizard. It never covers the wizard: a wizard step that needs the PIN shows the PIN field inside the dialog (OD-51). A locked GUI still shows the Dashboard.
 3. Connection: system.hello on each connect. If the connection fails, the GUI shows the reason and tries again every 5 s. Access denied: the GUI shows help (Linux: group vlt; Windows: group "VLT Operators"; then log out and log in).
 4. Tray: the icon has a different shape for each state (mains, battery, countdown, fault, no connection), so the state is not shown by color only. The menu texts come from the front end (i18n).
 

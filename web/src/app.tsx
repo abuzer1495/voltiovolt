@@ -16,7 +16,7 @@ import { Login } from './screens/pin';
 import { Policy } from './screens/policy';
 import { Security } from './screens/security';
 import { UPSControl } from './screens/ups';
-import { app, lock, refreshAuth, start } from './state';
+import { app, lock, refreshAuth, start, watchInput } from './state';
 import { useStore } from './store';
 
 export interface Route {
@@ -52,7 +52,11 @@ export function App() {
   const [wizDone, setWizDone] = useState(false);
   const [later, setLater] = useState(0);
   const [laterSession, setLaterSession] = useState(false);
-  useEffect(() => start(), []);
+  const [lockClosed, setLockClosed] = useState(false);
+  useEffect(() => {
+    start();
+    watchInput();
+  }, []);
   useEffect(() => {
     void api.about().then(async (a) => {
       const p = a.mode === 'portable';
@@ -82,6 +86,14 @@ export function App() {
   const showPrompt = needsPrompt && !wiz.open && !laterSession;
   const firstStart = needsPrompt;
   const elevated = !!auth?.elevated;
+  // VLT-IS-011 TASK 03-00-00-001 step 5: the lock screen opens only when the
+  // state becomes locked (the "Lock" button, the idle time, an elevated
+  // request that fails) or at the start with a PIN set. Never over the
+  // wizard (OD-51).
+  useEffect(() => {
+    if (elevated) setLockClosed(false);
+  }, [elevated]);
+  const lockScreen = connected && !!auth?.pin_set && !elevated && !wiz.open && !showPrompt && (unlock || !lockClosed);
   const Screen = routes.find((r) => r.id === route)?.comp ?? Dashboard;
 
   return (
@@ -151,7 +163,14 @@ export function App() {
                 <TestShutdownBanner message={s.status?.test_message} />
                 <FallbackBanner fallback={!!s.policy?.fallback} />
                 <CountdownBanner cd={s.countdown} elevated={elevated} lowBattery={!!s.status?.ups?.low_battery} />
-                {unlock && !elevated ? <Login portable={portable} blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} onForgot={() => { setUnlock(false); refreshAuth(); startWizard('pin'); }} /> : null}
+                {lockScreen ? (
+                  <section class="card lock-screen" aria-labelledby="lock-screen-title">
+                    <h2 id="lock-screen-title">{t('lock.screen.title')}</h2>
+                    <p>{t('lock.screen.intro')}</p>
+                    <Login portable={portable} blockUntil={auth?.block_until} onDone={() => { setUnlock(false); refreshAuth(); }} onForgot={() => { setUnlock(false); refreshAuth(); startWizard('pin'); }} />
+                    <button type="button" onClick={() => { setUnlock(false); setLockClosed(true); }}>{t('lock.screen.close')}</button>
+                  </section>
+                ) : null}
                 <Screen />
               </>
             ) : null}

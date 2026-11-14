@@ -213,6 +213,12 @@ func (c *Client) Logout(ctx context.Context) error {
 	return c.Call(ctx, wire.MethodLogout, nil, nil)
 }
 
+// Touch calls auth.touch (VLT-IS-011 OD-52). It reports the elevated state.
+func (c *Client) Touch(ctx context.Context) (r wire.AuthStatusResult, err error) {
+	err = c.Call(ctx, wire.MethodAuthTouch, nil, &r)
+	return
+}
+
 func (c *Client) ForgotPIN(ctx context.Context, confirmation string) error {
 	return c.Call(ctx, wire.MethodForgotPIN, wire.ForgotPINParams{Confirmation: confirmation}, nil)
 }

@@ -86,6 +86,10 @@ func TestChannelMethods(t *testing.T) {
 	if err := ro.SetPIN(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
+	// OD-50 (VLT-IS-011): set_pin keeps the elevated state. Lock.
+	if err := ro.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
 	var list wire.ChannelsListResult
 	if err := ro.Call(ctx, wire.MethodChannelsList, nil, &list); err != nil {
 		t.Fatal(err)

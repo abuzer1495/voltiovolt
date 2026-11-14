@@ -57,9 +57,13 @@ const (
 const RetryInterval = 5 * time.Second
 
 // lockMargin is the time after the end of the idle time before the GUI
-// asks vltd for the auth state. A request while elevated starts the idle
-// time again, so the GUI does not ask before the end.
+// asks vltd for the auth state. Only user actions start the idle time of
+// vltd again (VLT-IS-011 OD-52); auth.status tells the time that is left.
 const lockMargin = 2 * time.Second
+
+// TouchInterval is the shortest time between two auth.touch requests after
+// user input (VLT-IS-011 TASK 03-00-00-001 step 4).
+const TouchInterval = 30 * time.Second
 
 // maxElevated is the maximum elevated time of vltd (VLT-IS-003).
 const maxElevated = 8 * time.Hour
@@ -117,7 +121,8 @@ type Manager struct {
 	auth      AuthInfo
 	last      map[string]json.RawMessage
 	critical  map[string]bool
-	lastReq   time.Time
+	lastReq   time.Time // last user action that started the idle time of vltd
+	lastTouch time.Time // last auth.touch request
 	elevAt    time.Time
 	idle      time.Duration
 	lockT     *time.Timer
@@ -419,16 +424,14 @@ func (m *Manager) client() *client.Client {
 // ErrNotConnected is returned when there is no connection to vltd.
 var ErrNotConnected = errors.New("not_connected")
 
-// call runs f on the connection. It records the request time for the lock
-// timer and maps a "not_elevated" answer to the locked state.
+// call runs f on the connection and maps a "not_elevated" answer to the
+// locked state. A call does not start the idle time again (OD-52): only
+// Touch, Login and SetPIN do, and refreshAuth reads the time that is left.
 func (m *Manager) call(ctx context.Context, f func(*client.Client) error) error {
 	c := m.client()
 	if c == nil {
 		return ErrNotConnected
 	}
-	m.mu.Lock()
-	m.lastReq = m.now()
-	m.mu.Unlock()
 	err := f(c)
 	if client.Code(err) == wire.CodeNotElevated {
 		m.setElevated(false)
@@ -443,6 +446,7 @@ func (m *Manager) setElevated(on bool) {
 	m.auth.Elevated = on
 	if on {
 		m.elevAt = m.now()
+		m.lastReq = m.elevAt
 	}
 	a := m.auth
 	m.mu.Unlock()
@@ -485,15 +489,53 @@ func (m *Manager) refreshAuth(ctx context.Context) {
 		return
 	}
 	m.mu.Lock()
-	if st.Elevated {
-		// auth.status while elevated starts the idle time of vltd again.
-		m.lastReq = t
-	}
+	m.applyIdleLeft(t, st)
 	was := m.auth
 	m.auth = AuthInfo{PINSet: st.PINSet, Elevated: st.Elevated, BlockUntil: st.BlockUntil}
 	if st.Elevated && !was.Elevated {
 		m.elevAt = m.now()
 	}
+	a := m.auth
+	m.mu.Unlock()
+	if a != was {
+		m.send(EventAuth, a)
+	}
+	m.armLock()
+}
+
+// applyIdleLeft sets the last user action time from the idle time that is
+// left in vltd (auth.status or auth.touch). The caller holds m.mu.
+func (m *Manager) applyIdleLeft(at time.Time, st wire.AuthStatusResult) {
+	if !st.Elevated || st.IdleLeft <= 0 || m.idle <= 0 {
+		return
+	}
+	m.lastReq = at.Add(time.Duration(st.IdleLeft)*time.Second - m.idle)
+}
+
+// touch sends auth.touch after user input, at most one time in each
+// TouchInterval (OD-52). It does nothing when the GUI is not elevated.
+func (m *Manager) touch(ctx context.Context) {
+	m.mu.Lock()
+	c := m.c
+	now := m.now()
+	if c == nil || !m.auth.Elevated || (!m.lastTouch.IsZero() && now.Sub(m.lastTouch) < TouchInterval) {
+		m.mu.Unlock()
+		return
+	}
+	m.lastTouch = now
+	m.mu.Unlock()
+	st, err := c.Touch(ctx)
+	if err != nil {
+		return
+	}
+	m.mu.Lock()
+	if st.Elevated {
+		m.lastReq = now
+		m.applyIdleLeft(now, st)
+	}
+	was := m.auth
+	m.auth.Elevated = st.Elevated
+	m.auth.PINSet = st.PINSet
 	a := m.auth
 	m.mu.Unlock()
 	if a != was {

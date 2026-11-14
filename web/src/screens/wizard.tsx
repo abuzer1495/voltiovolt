@@ -12,7 +12,7 @@ import { app, refreshAuth, refreshPolicy } from '../state';
 import { createStore, useStore } from '../store';
 import { ModeView, Values, modeOf } from './dashboard';
 import { Ports } from './device';
-import { SetPin } from './pin';
+import { Login, SetPin } from './pin';
 
 export const wizardWanted = createStore({ open: false, start: '' as Step | '' });
 
@@ -300,6 +300,8 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
   const [modem, setModem] = useState<'yes' | 'no' | ''>('');
   const [portName, setPortName] = useState('');
   const pinOptional = portable;
+  // Steps that change Settings need the elevated state (OD-51).
+  const needPIN = !!s.auth?.pin_set && !elevated && (step === 'port' || step === 'policy' || step === 'telegram' || step === 'email');
 
   function go(next: Step) {
     setStep(next);
@@ -352,6 +354,16 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
         <StepIndicator step={step} />
       </header>
       <div class="wizard-body">
+
+      {needPIN ? (
+        // OD-51 (VLT-IS-011): the lock screen never covers the wizard. A
+        // step that needs the elevated state shows the PIN field here.
+        <section class="card wizard-unlock" aria-labelledby="wiz-unlock">
+          <h3 id="wiz-unlock">{t('login.title')}</h3>
+          <p>{t('wizard.unlock.intro')}</p>
+          <Login blockUntil={s.auth?.block_until} onDone={() => refreshAuth()} />
+        </section>
+      ) : null}
 
       {step === 'pin' ? (
         <>

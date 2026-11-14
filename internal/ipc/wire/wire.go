@@ -168,14 +168,17 @@ const (
 
 // Methods of protocol version 1.
 const (
-	MethodHello        = "system.hello"
-	MethodStatus       = "system.status"
-	MethodAuthStatus   = "auth.status"
-	MethodSetPIN       = "auth.set_pin"
-	MethodRemovePIN    = "auth.remove_pin"
-	MethodForgotPIN    = "auth.forgot_pin"
-	MethodLogin        = "auth.login"
-	MethodLogout       = "auth.logout"
+	MethodHello      = "system.hello"
+	MethodStatus     = "system.status"
+	MethodAuthStatus = "auth.status"
+	MethodSetPIN     = "auth.set_pin"
+	MethodRemovePIN  = "auth.remove_pin"
+	MethodForgotPIN  = "auth.forgot_pin"
+	MethodLogin      = "auth.login"
+	MethodLogout     = "auth.logout"
+	// MethodAuthTouch is the keep-alive of the VLT GUI after user input
+	// (VLT-IS-011 OD-52). Only user actions start the idle time again.
+	MethodAuthTouch    = "auth.touch"
 	MethodSettingsList = "settings.list"
 	MethodSettingsSet  = "settings.set"
 	MethodSecretStatus = "secret.status"
@@ -247,7 +250,7 @@ const ForgotPINConfirmation = "RESET"
 
 // Methods lists all methods.
 var Methods = []string{
-	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodRemovePIN, MethodForgotPIN, MethodLogin, MethodLogout,
+	MethodHello, MethodStatus, MethodAuthStatus, MethodSetPIN, MethodRemovePIN, MethodForgotPIN, MethodLogin, MethodLogout, MethodAuthTouch,
 	MethodSettingsList, MethodSettingsSet, MethodSecretStatus, MethodSecretSet, MethodSecretDelete,
 	MethodVaultReset, MethodAuditList,
 	MethodDeviceStatus, MethodDeviceSettingsSet, MethodSubscribe, MethodUnsubscribe, MethodMeasurements,
@@ -374,6 +377,9 @@ type (
 		PINSet     bool   `json:"pin_set"`
 		BlockUntil string `json:"block_until,omitempty"`
 		Elevated   bool   `json:"elevated"`
+		// IdleLeft is the time in seconds until the idle time ends the
+		// elevated state (0 when not elevated, VLT-IS-011 OD-52).
+		IdleLeft int `json:"idle_left,omitempty"`
 	}
 	Setting struct {
 		Key       string          `json:"key"`

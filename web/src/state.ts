@@ -69,6 +69,39 @@ export function refreshAuth(): void {
   }, () => undefined);
 }
 
+/** TOUCH_MS is the shortest time between two keep-alive calls (VLT-IS-011 OD-52). */
+export const TOUCH_MS = 30_000;
+let lastTouch = 0;
+
+/**
+ * userInput is called after keyboard or mouse input in the VLT GUI. It
+ * starts the idle time of the engine again with auth.touch, at most one
+ * time in each 30 s and only when elevated (OD-52). Polling and push
+ * messages do not call it.
+ */
+export function userInput(now: number = Date.now()): void {
+  const a = app.get().auth;
+  if (!a?.pin_set || !a.elevated) return;
+  if (lastTouch !== 0 && now - lastTouch < TOUCH_MS) return;
+  lastTouch = now;
+  void api.touch().catch(() => undefined);
+}
+
+/** resetTouch is for tests. */
+export function resetTouch(): void {
+  lastTouch = 0;
+}
+
+let inputWatch = false;
+
+/** watchInput adds the keyboard and mouse listeners of OD-52 (one time). */
+export function watchInput(target: Pick<Window, 'addEventListener'> = window): void {
+  if (inputWatch) return;
+  inputWatch = true;
+  const f = () => userInput();
+  for (const ev of ['keydown', 'pointerdown', 'wheel']) target.addEventListener(ev, f, { passive: true, capture: true });
+}
+
 /** lock calls auth.logout (the "Lock" button). */
 export async function lock(): Promise<void> {
   try {

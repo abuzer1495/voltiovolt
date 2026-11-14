@@ -47,9 +47,18 @@ func TestPortablePINSetNeedsLogin(t *testing.T) {
 	if err := c.SetPIN(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
+	// OD-50 (VLT-IS-011, R-08): the connection that sets the PIN keeps
+	// the elevated state.
 	as, err := c.AuthStatus(ctx)
-	if err != nil || !as.PINSet || as.Elevated {
+	if err != nil || !as.PINSet || !as.Elevated {
 		t.Fatalf("after set: %+v err=%v", as, err)
+	}
+	if err := c.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
+	as, err = c.AuthStatus(ctx)
+	if err != nil || !as.PINSet || as.Elevated {
+		t.Fatalf("after set and Lock: %+v err=%v", as, err)
 	}
 	if _, err := c.Policy(ctx); err != nil {
 		t.Fatalf("policy.get is read-only: %v", err)

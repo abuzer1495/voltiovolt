@@ -29,6 +29,11 @@ func TestSettingsSetUIPrefix(t *testing.T) {
 	if err := c.SetPIN(ctx, testPIN); err != nil {
 		t.Fatal(err)
 	}
+	// OD-50 (VLT-IS-011): the connection keeps the elevated state after
+	// set_pin. Lock to test the access without elevation.
+	if err := c.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
 	// PIN set, not elevated.
 	if v, err := c.SetSetting(ctx, store.SettingLanguage, "tr"); err != nil || v != 1 {
 		t.Fatalf("ui. key without elevation: %d %v", v, err)

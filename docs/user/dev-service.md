@@ -1,5 +1,7 @@
 # vltd development service: install and test (VLT-IS-003 TASK 03-00-00-008, VLT-IS-004 TASK 03-00-00-001 and 03-00-00-002)
 
+NOTE: Service mode is not in the default package. Portable mode (VoltioVolt) is the default (OD-35, OD-36). For normal use, see the [user guide](README.md). This page is for development only.
+
 English first. Turkish: section T below.
 
 WARNING: This is a development install, not a package. Use a test computer. Since VLT-IS-004, vltd finds and polls a connected UPS (READ commands only). The Shutdown Policy is inactive until a Simulation passes and an operator activates it (policy.activate). An active policy can turn off the computer.

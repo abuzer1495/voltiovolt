@@ -23,7 +23,7 @@ General preconditions for all tests:
 - The Reference UPS and its USB or serial cable.
 - The test package of the latest pre-release "Test build" (tag test-latest). See "Preparation" above.
 - PIN is optional in portable mode. If no PIN is set, all functions are available. Secret fields stay write-only.
-- Do the tests in this order: T-01 first, then T-08 to T-17. The tests T-02, T-03, T-05, T-07 and the service parts of T-04 and T-06 are in the section "Service mode (later)".
+- Do the tests in this order: T-01 first, then T-08 to T-20. The tests T-02, T-03, T-05, T-07 and the service parts of T-04 and T-06 are in the section "Service mode (later)".
 
 ### T-01 vlt-probe Capture on the Reference UPS
 

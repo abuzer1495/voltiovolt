@@ -15,6 +15,8 @@ Watch List: `Q1, QS, QGS, QMOD, QBV, QWS`
 
 ### 1. Download the artifact and check the SHA-256
 
+The test package of the pre-release "Test build" (tag `test-latest`) also contains vlt-probe (`vlt-probe.exe` on Windows, `vlt-probe` on Linux). Its SHA-256 is checked with `SHA256SUMS.txt` of the package ([user guide](README.md) section 1). If you use the test package, omit the steps below.
+
 1. Sign in to GitHub. GitHub shows artifacts only to signed-in users.
 2. Open the **Actions** tab of the repository. Select the latest successful **ci** run on `main`.
 3. In the **Artifacts** section, download `vlt-probe-windows-amd64` or `vlt-probe-linux-amd64`. The download is a ZIP file. Extract it.
@@ -107,6 +109,8 @@ Probe List (sabit sıra): `Q1, F, I, QS, QGS, QMOD, QBV, QWS, QFLAG, QRI, QID, Q
 Watch List: `Q1, QS, QGS, QMOD, QBV, QWS`
 
 ### 1. Artifact dosyasını indirin ve SHA-256 değerini kontrol edin
+
+"Test build" ön sürümünün (etiket `test-latest`) test paketinde vlt-probe da vardır (Windows'ta `vlt-probe.exe`, Linux'ta `vlt-probe`). SHA-256 değeri paketteki `SHA256SUMS.txt` ile kontrol edilir ([kullanım kılavuzu](README.md) bölüm 1). Test paketini kullanıyorsanız aşağıdaki adımları atlayın.
 
 1. GitHub'a giriş yapın. GitHub, artifact dosyalarını yalnızca giriş yapmış kullanıcılara gösterir.
 2. Deponun **Actions** sekmesini açın. `main` dalındaki son başarılı **ci** çalışmasını seçin.

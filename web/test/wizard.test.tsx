@@ -201,11 +201,15 @@ describe('first-start dialog (OD-41)', () => {
 describe('compact CSS (VLT-IS-009 003)', () => {
   it('sets the base sizes as CSS variables', () => {
     const css = readFileSync(join(__dirname, '../src/styles.css'), 'utf8');
-    expect(css).toContain('--font-size: 14px');
-    expect(css).toContain('--title-size: 20px');
-    expect(css).toContain('--section-size: 16px');
-    expect(css).toContain('--control-height: 32px');
-    expect(css).toContain('--wizard-w: 760px');
-    expect(css).toContain('--wizard-h: 560px');
+    // VLT-IS-011 004: the sizes are relative to one root value; --px is
+    // 1 CSS pixel at the interface size 100 %.
+    expect(css).toContain('html { font-size: calc(14px * var(--ui-scale, 1)); }');
+    expect(css).toContain('--px: calc(1rem / 14)');
+    expect(css).toContain('--font-size: calc(14 * var(--px))');
+    expect(css).toContain('--title-size: calc(20 * var(--px))');
+    expect(css).toContain('--section-size: calc(16 * var(--px))');
+    expect(css).toContain('--control-height: calc(32 * var(--px))');
+    expect(css).toContain('--wizard-w: calc(760 * var(--px))');
+    expect(css).toContain('--wizard-h: calc(560 * var(--px))');
   });
 });

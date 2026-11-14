@@ -99,6 +99,7 @@ func run(addr string) error {
 	win.OnWindowEvent(events.Common.WindowUnMinimise, winState(true))
 	win.OnWindowEvent(events.Common.WindowRestore, winState(true))
 	win.OnWindowEvent(events.Common.WindowShow, winState(true))
+	m.SetMinSizeFunc(func(w, h int) { win.SetMinSize(w, h) })
 	setupTray(app, win, m, api)
 	go m.Run(ctx)
 	return app.Run()

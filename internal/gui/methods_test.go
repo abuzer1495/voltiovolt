@@ -28,6 +28,7 @@ func methodCases(secret []byte) map[string]methodCase {
 		"Last":                   {nil, ""},
 		"Rules":                  {nil, ""},
 		"SetTrayTexts":           {[]any{DefaultTrayTexts}, ""},
+		"SetInterfaceScale":      {[]any{125}, ""},
 		"OpenSource":             {nil, ""},
 		"OpenHelp":               {[]any{"https://core.telegram.org/bots/tutorial"}, ""},
 		"SystemStatus":           {nil, wire.MethodStatus},

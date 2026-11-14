@@ -13,6 +13,7 @@ import { errText } from '../components';
 import { DASH, num, time } from '../format';
 import { t } from '../i18n';
 import { view } from '../state';
+import { scale } from '../scale';
 import { useStore } from '../store';
 
 export interface Range {
@@ -179,7 +180,7 @@ function Chart({ def, series, vis, onVisible }: {
     if (two) axes.push({ stroke: fg, side: 1, scale: 'b', grid: { show: false } });
     const u = new uPlot({
       width: Math.max(320, ref.current.clientWidth || 640),
-      height: 220,
+      height: Math.round(220 * scale.get().factor),
       scales,
       axes,
       legend: { show: true },
@@ -208,6 +209,14 @@ function Chart({ def, series, vis, onVisible }: {
     }, data as uPlot.AlignedData, ref.current);
     plot.current = u;
   }, [data, def]);
+
+  // VLT-IS-011 004: the chart follows the interface size at once.
+  const factor = useStore(scale).factor;
+  useEffect(() => {
+    const u = plot.current;
+    if (!u || !ref.current || typeof u.setSize !== 'function') return;
+    u.setSize({ width: Math.max(320, ref.current.clientWidth || 640), height: Math.round(220 * factor) });
+  }, [factor]);
 
   useEffect(() => {
     const u = plot.current;

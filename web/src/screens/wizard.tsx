@@ -14,6 +14,7 @@ import { ModeView, Values, modeOf } from './dashboard';
 import { Ports } from './device';
 import { Login, SetPin } from './pin';
 import { ModeChoice } from './simple';
+import { ScaleChoice } from './scalechoice';
 import { ui } from '../mode';
 
 export const wizardWanted = createStore({ open: false, start: '' as Step | '' });
@@ -415,6 +416,7 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
           <h3 id="wiz-ui">{t('wizard.step.interface')}</h3>
           <p>{t('wizard.interface.intro')}</p>
           <ModeChoice name="wiz-ui-mode" />
+          <ScaleChoice id="wiz-ui-scale" />
         </section>
       ) : null}
 

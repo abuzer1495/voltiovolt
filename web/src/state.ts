@@ -3,6 +3,7 @@
 import { api, events, on, type AuthInfo, type ConnInfo, type Countdown, type PolicyInfo, type StatusPush, type VltEvent } from './api';
 import { lang, onLangChange, osLang, setLang, t, type Lang } from './i18n';
 import { loadMode } from './mode';
+import { apply as applyScale, loadScale } from './scale';
 import { createStore } from './store';
 
 export interface AppState {
@@ -39,6 +40,7 @@ let started = false;
 export function start(): void {
   if (started) return;
   started = true;
+  applyScale('auto');
   on(events.conn, (d) => {
     const c = d as ConnInfo;
     app.set({ conn: c });
@@ -123,6 +125,7 @@ export async function lock(): Promise<void> {
 /** onConnected reads the auth state, then (with a PIN) the last Events and the policy. */
 function onConnected(): void {
   void loadMode();
+  void loadScale();
   void api.authStatus().then((a) => {
     app.set({ auth: a });
     if (a.pin_set) {

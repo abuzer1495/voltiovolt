@@ -54,6 +54,10 @@ const (
 	// SettingUIMode is the interface mode of the VLT GUI: "simple" (the
 	// default) or "expert" (VLT-IS-011 TASK 03-00-00-003, OD-53).
 	SettingUIMode = "ui.mode"
+	// SettingUIScale is the interface size of the VLT GUI: "auto" (the
+	// default, the display scale of the OS) or a percent (VLT-IS-011 TASK
+	// 03-00-00-004, OD-54).
+	SettingUIScale = "ui.scale"
 
 	// Notification Router (VLT-IS-007 TASK 03-00-00-003 step 2): for each
 	// Channel, on or off and the minimum severity (default WARNING).
@@ -397,6 +401,7 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingLanguage, Type: TypeString, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
 		{Key: SettingHistorySeriesVisibility, Type: TypeSeriesVis, Default: json.RawMessage(`{}`), Check: seriesVisibility},
 		{Key: SettingUIMode, Type: TypeString, Default: json.RawMessage(`"simple"`), Check: oneOf("simple", "expert")},
+		{Key: SettingUIScale, Type: TypeString, Default: json.RawMessage(`"auto"`), Check: oneOf("auto", "80", "90", "100", "110", "125", "150", "175", "200")},
 		// VLT-IS-007 TASK 03-00-00-003 step 2. The desktop Channel is on by
 		// default; Telegram and e-mail need their settings first.
 		{Key: SettingNotifyDesktopEnabled, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},

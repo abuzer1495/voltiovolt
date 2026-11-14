@@ -12,6 +12,7 @@ import { app } from '../state';
 import { useStore } from '../store';
 import { LanguageSettings } from './general';
 import { History } from './history';
+import { ScaleChoice } from './scalechoice';
 import { startWizard } from './wizard';
 
 export type Health = 'good' | 'attention' | 'problem';
@@ -170,6 +171,7 @@ export function Simple() {
         <section class="card simple-settings" aria-labelledby="simple-settings-title">
           <h3 id="simple-settings-title">{t('simple.settings')}</h3>
           <LanguageSettings />
+          <ScaleChoice id="ui-scale-simple" />
           <ModeChoice name="ui-mode-simple" />
           <button type="button" onClick={() => startWizard()}>{t('wizard.general.start')}</button>
         </section>

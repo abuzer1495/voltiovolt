@@ -117,3 +117,27 @@ func TestUIModeSetting(t *testing.T) {
 	}
 	t.Fatal("ui.mode missing")
 }
+
+// TestUIScaleSetting: ui.scale is "auto" or one of the sizes of OD-54.
+func TestUIScaleSetting(t *testing.T) {
+	for _, d := range DefaultSettings() {
+		if d.Key != SettingUIScale {
+			continue
+		}
+		if string(d.Default) != `"auto"` {
+			t.Fatalf("default %s", d.Default)
+		}
+		for _, v := range []string{`"auto"`, `"80"`, `"90"`, `"100"`, `"110"`, `"125"`, `"150"`, `"175"`, `"200"`} {
+			if err := d.Check(json.RawMessage(v)); err != nil {
+				t.Errorf("%s: %v", v, err)
+			}
+		}
+		for _, v := range []string{`"120"`, `"79"`, `100`, `"Auto"`, `""`} {
+			if err := d.Check(json.RawMessage(v)); err == nil {
+				t.Errorf("%s accepted", v)
+			}
+		}
+		return
+	}
+	t.Fatal("ui.scale missing")
+}

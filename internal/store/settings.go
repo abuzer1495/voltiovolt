@@ -51,6 +51,9 @@ const (
 	// SettingHistorySeriesVisibility is the user choice of which History
 	// chart series are visible (VLT-IS-010 TASK 03-00-00-001, OD-49).
 	SettingHistorySeriesVisibility = "ui.history.series_visibility"
+	// SettingUIMode is the interface mode of the VLT GUI: "simple" (the
+	// default) or "expert" (VLT-IS-011 TASK 03-00-00-003, OD-53).
+	SettingUIMode = "ui.mode"
 
 	// Notification Router (VLT-IS-007 TASK 03-00-00-003 step 2): for each
 	// Channel, on or off and the minimum severity (default WARNING).
@@ -393,6 +396,7 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingSessionIdleMinutes, Type: TypeInt, Default: json.RawMessage(`10`), Check: intRange(1, 120)},
 		{Key: SettingLanguage, Type: TypeString, Default: json.RawMessage(`"en"`), Check: oneOf("en", "tr")},
 		{Key: SettingHistorySeriesVisibility, Type: TypeSeriesVis, Default: json.RawMessage(`{}`), Check: seriesVisibility},
+		{Key: SettingUIMode, Type: TypeString, Default: json.RawMessage(`"simple"`), Check: oneOf("simple", "expert")},
 		// VLT-IS-007 TASK 03-00-00-003 step 2. The desktop Channel is on by
 		// default; Telegram and e-mail need their settings first.
 		{Key: SettingNotifyDesktopEnabled, Type: TypeBool, Default: json.RawMessage(`true`), Check: isBool},

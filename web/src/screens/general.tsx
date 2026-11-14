@@ -9,6 +9,7 @@ import { HelpLine } from '../help';
 import { DASH } from '../format';
 import { lang, setLang, t, type Lang } from '../i18n';
 import { SetPin, fieldValue } from './pin';
+import { ModeChoice } from './simple';
 import { startWizard } from './wizard';
 import { app, refreshAuth } from '../state';
 import { useStore } from '../store';
@@ -36,28 +37,13 @@ export function General() {
       setMsg({ kind: 'error', text: errText(errorCode(e)) });
     }
   }
-  async function choose(l: Lang) {
-    setLang(l);
-    setMsg(null);
-    try {
-      await api.setLanguage(l);
-      setMsg({ kind: 'ok', text: t('general.lang.saved') });
-    } catch (e) {
-      const c = errorCode(e);
-      setMsg({ kind: 'error', text: c === 'not_elevated' || c === 'pin_not_set' ? t('general.lang.notsaved') : errText(c) });
-    }
-  }
   return (
     <div class="screen">
       <h2>{t('nav.general')}</h2>
-      <section class="card" aria-labelledby="lang-title">
-        <h3 id="lang-title">{t('general.lang')}</h3>
-        <fieldset class="radio">
-          <legend>{t('general.lang')}</legend>
-          <label class="check"><input type="radio" name="lang" checked={lang() === 'tr'} onChange={() => void choose('tr')} /> {t('lang.tr')}</label>
-          <label class="check"><input type="radio" name="lang" checked={lang() === 'en'} onChange={() => void choose('en')} /> {t('lang.en')}</label>
-        </fieldset>
-        {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
+      <LanguageSettings />
+      <section class="card" aria-labelledby="mode-title">
+        <h3 id="mode-title">{t('mode.ui.title')}</h3>
+        <ModeChoice />
       </section>
       <section class="card">
         <h3>{t('general.theme')}</h3>
@@ -71,6 +57,7 @@ export function General() {
             {t('general.startAtLogon')}
           </label>
           <p id="logon-help">{t('general.startAtLogon.help')}</p>
+          {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
         </section>
       ) : null}
       {about?.mode === 'portable' && !auth?.pin_set ? (
@@ -149,5 +136,32 @@ function RemovePin() {
       </form>
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
     </>
+  );
+}
+
+/** LanguageSettings is the language choice (General, and the Simple settings panel). */
+export function LanguageSettings() {
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  async function choose(l: Lang) {
+    setLang(l);
+    setMsg(null);
+    try {
+      await api.setLanguage(l);
+      setMsg({ kind: 'ok', text: t('general.lang.saved') });
+    } catch (e) {
+      const c = errorCode(e);
+      setMsg({ kind: 'error', text: c === 'not_elevated' || c === 'pin_not_set' ? t('general.lang.notsaved') : errText(c) });
+    }
+  }
+  return (
+    <section class="card" aria-labelledby="lang-title">
+      <h3 id="lang-title">{t('general.lang')}</h3>
+      <fieldset class="radio">
+        <legend>{t('general.lang')}</legend>
+        <label class="check"><input type="radio" name="lang" checked={lang() === 'tr'} onChange={() => void choose('tr')} /> {t('lang.tr')}</label>
+        <label class="check"><input type="radio" name="lang" checked={lang() === 'en'} onChange={() => void choose('en')} /> {t('lang.en')}</label>
+      </fieldset>
+      {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
+    </section>
   );
 }

@@ -143,7 +143,7 @@ describe('Owner sequence T-14 1.1-1.7 (VLT-IS-011 R-08)', () => {
     expect(root.querySelector('.wizard-unlock')).toBeNull();
     expect(fake.calls.some((c) => c.method === 'Login')).toBe(false);
     // 1.6 complete: the wizard ends, unlocked
-    for (let i = 0; i < 4 && !root.querySelector('.wizard-footer')?.textContent?.includes(t('wizard.finish')); i++) {
+    for (let i = 0; i < 6 && !root.querySelector('.wizard-footer')?.textContent?.includes(t('wizard.finish')); i++) {
       expect(root.querySelector('.wizard-unlock')).toBeNull();
       await click(byText(t('wizard.skip')));
     }

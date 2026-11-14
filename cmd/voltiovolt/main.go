@@ -226,6 +226,7 @@ func run(dir string) error {
 		})
 	})
 	watchWindow(app, win)
+	m.SetMinSizeFunc(func(w, h int) { win.SetMinSize(w, h) })
 	setupTray(app, win, m, api, func() { confirmAndQuit(app, stopAll) })
 	go m.Run(ctx)
 	return app.Run()

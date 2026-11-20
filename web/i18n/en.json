@@ -601,5 +601,8 @@
   "conn.ups.test": "Test connection",
   "conn.ups.demo": "Demo",
   "conn.portable.connecting": "Starting …",
-  "conn.portable.disconnected": "The monitoring engine does not answer"
+  "conn.portable.disconnected": "The monitoring engine does not answer",
+  "device.ports.probable": "Probable UPS",
+  "device.profile.legend": "UPS model",
+  "device.profile.other": "Other UPS (automatic detection)"
 }

@@ -225,6 +225,11 @@ export interface SerialPort {
   vid?: string;
   pid?: string;
   product?: string;
+  /** probable_ups: a known USB-to-serial bridge chip (VLT-IS-012 TASK 03-00-00-003). */
+  probable_ups?: boolean;
+  bridge?: string;
+  /** profiles: the UPS profiles that the wizard offers for the port. */
+  profiles?: { id: string; name: string }[];
 }
 
 /** ScanResult is the device.scan result of one marked port. */

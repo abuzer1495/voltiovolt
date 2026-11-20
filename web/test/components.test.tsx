@@ -302,7 +302,7 @@ describe('Device screen ports', () => {
     await click(confirm[confirm.length - 1]);
     const set = fake.calls.filter((c) => c.method === 'SetDeviceSettings');
     expect(set.length).toBe(1);
-    expect(set[0].args[0]).toEqual({ 'device.transport': 'serial', 'device.serial_port': 'COM4' });
+    expect(set[0].args[0]).toEqual({ 'device.transport': 'serial', 'device.serial_port': 'COM4', 'device.profile': '' });
     expect(fake.calls.some((c) => c.method === 'DeviceScan')).toBe(false);
   });
 });

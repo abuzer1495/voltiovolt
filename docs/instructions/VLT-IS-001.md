@@ -121,6 +121,7 @@ NOTE: macOS is out of scope.
 | USB identity          | VID 0665, PID 5161, product string "USB to Serial"           | Known for the product family |
 | USB class             | HID with vendor-defined reports                              | Known for the product family |
 | Serial link           | RS-232, 2400 bit/s, 8 data bits, no parity, 1 stop bit, CR (0x0D) at end of line | Known for the protocol family |
+| Serial bridge chip    | Prolific PL2303, VID 067B, PID 2303 (Windows: "Prolific USB-to-Serial Comm Port", COM3). Added by VLT-IS-012 TASK 03-00-00-003 | FIELD |
 | Protocol              | Megatec Q family, Voltronic dialects                         | UNVERIFIED on the Reference UPS |
 | Battery configuration | Number of 12 V blocks                                        | UNVERIFIED |
 

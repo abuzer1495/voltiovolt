@@ -59,7 +59,7 @@ Only one VoltioVolt runs for each user. A second start shows the window of the f
 At the first start the setup wizard opens (window size 760 × 560). The steps are:
 
 1. PIN ("PIN"): optional, see section 4.
-2. UPS port: select ("UPS portu: seç"): select the COM port (Windows, for example `COM3`) or the port (Linux, for example `/dev/ttyUSB0`) with "Use" ("Kullan"). You can also select "Demo (simulator)" or "Test connection (simulator)".
+2. UPS port: select ("UPS portu: seç"): select the COM port (Windows, for example `COM3`) or the port (Linux, for example `/dev/ttyUSB0`) with "Use" ("Kullan"). You can also select "Demo (simulator)" or "Test connection (simulator)". A port with a known USB-to-serial chip has the mark "Probable UPS" ("Muhtemel UPS") and is at the top of the list; VoltioVolt sends nothing to a port for this mark. For a port with the Prolific chip 067B:2303 (the chip of the Tunçmatik Newtech Pro II) the wizard offers the profile "Tunçmatik Newtech Pro II (Megatec)"; select "Other UPS" ("Başka UPS") for the automatic detection.
 3. UPS port: scan ("UPS portu: tara"): optional. Scan the marked ports to find the UPS.
 4. Live values ("Canlı değerler"): check that the values from the UPS are correct.
 5. Shutdown Policy ("Kapatma politikası"): the triggers, the countdown and the Simulation. This step also checks that your user can shut down the computer.

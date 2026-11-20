@@ -63,6 +63,10 @@ type SerialPortInfo struct {
 	VID     string `json:"vid,omitempty"`
 	PID     string `json:"pid,omitempty"`
 	Product string `json:"product,omitempty"`
+	// ProbableUPS and Bridge are set by device.MarkPorts for a known
+	// USB-to-serial bridge chip (VLT-IS-012 TASK 03-00-00-003).
+	ProbableUPS bool   `json:"probable_ups,omitempty"`
+	Bridge      string `json:"bridge,omitempty"`
 }
 
 // ListSerial lists the serial ports. It opens no port.

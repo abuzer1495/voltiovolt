@@ -157,6 +157,15 @@ export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false, pa
   const [results, setResults] = useState<Record<string, ScanResult>>({});
   const [text, setText] = useState('');
   const [use, setUse] = useState<string | null>(null);
+  // VLT-IS-012 TASK 03-00-00-003 step 3: the UPS profile for the port to
+  // use ("" = Other UPS: automatic detection).
+  const [profile, setProfile] = useState('');
+  const usePort = ports?.find((p) => p.name === use);
+  const offered = usePort?.profiles ?? [];
+  function ask(p: SerialPort) {
+    setProfile(p.profiles?.[0]?.id ?? '');
+    setUse(p.name);
+  }
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const load = () => api.devicePorts().then((r) => setPorts(r?.ports ?? []), (e) => setMsg({ kind: 'error', text: errText(errorCode(e)) }));
   useEffect(() => {
@@ -181,7 +190,11 @@ export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false, pa
   async function useNow(name: string) {
     setUse(null);
     try {
-      await api.setDeviceSettings({ 'device.transport': 'serial', 'device.serial_port': name });
+      const chosen = offered.some((x) => x.id === profile) ? profile : '';
+      const settings: Record<string, unknown> = { 'device.transport': 'serial', 'device.serial_port': name, 'device.profile': chosen };
+      // The profile has DTR and RTS unchanged.
+      if (chosen) Object.assign(settings, { 'device.serial_dtr': 'unchanged', 'device.serial_rts': 'unchanged' });
+      await api.setDeviceSettings(settings);
       setMsg({ kind: 'ok', text: t('device.saved') });
       onUsed();
     } catch (x) {
@@ -216,11 +229,14 @@ export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false, pa
                   </td>
                 ) : null}
                 <td><code>{p.name}</code></td>
-                <td>{desc(p)}</td>
+                <td>
+                  {desc(p)}
+                  {p.probable_ups ? <> <span class="badge badge-ok" title={p.bridge}>{t('device.ports.probable')}</span></> : null}
+                </td>
                 {withScan ? <td>{resultText(results[p.name])}</td> : null}
                 {withUse ? (
                   <td>
-                    <button type="button" aria-label={t('device.ports.use.label', { name: p.name })} disabled={!elevated} onClick={() => setUse(p.name)}>{t('device.ports.use.short')}</button>
+                    <button type="button" aria-label={t('device.ports.use.label', { name: p.name })} disabled={!elevated} onClick={() => ask(p)}>{t('device.ports.use.short')}</button>
                   </td>
                 ) : null}
               </tr>
@@ -241,6 +257,15 @@ export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false, pa
             <button type="submit" class="danger" disabled={!elevated || text !== SCAN_TEXT || list.length === 0}>{t('device.scan.button')}</button>
           </form>
         </>
+      ) : null}
+      {use && offered.length > 0 ? (
+        <fieldset class="profile-choice">
+          <legend>{t('device.profile.legend')}</legend>
+          {offered.map((x) => (
+            <label><input type="radio" name="ups-profile" value={x.id} checked={profile === x.id} onChange={() => setProfile(x.id)} /> {x.name}</label>
+          ))}
+          <label><input type="radio" name="ups-profile" value="" checked={profile === ''} onChange={() => setProfile('')} /> {t('device.profile.other')}</label>
+        </fieldset>
       ) : null}
       {use ? (
         <Confirm text={fromDemo ? t('device.demo.leave') : fromTest ? t('device.test.leave') : t('device.ports.use.confirm', { name: use })}

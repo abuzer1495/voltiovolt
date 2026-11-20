@@ -265,7 +265,7 @@ func TestCommandsOnlyFromPairedChats(t *testing.T) {
 	if len(to) != 3 || to[0] != 100 || to[1] != 100 || to[2] != 100 {
 		t.Fatalf("replies to %v", to)
 	}
-	if !strings.Contains(texts[0], "VLT durumu") || !strings.Contains(texts[0], "Mod: Şebeke gücü") || texts[0] != texts[1] {
+	if !strings.Contains(texts[0], "VLT durumu") || !strings.Contains(texts[0], "Mod: Şebeke") || texts[0] != texts[1] {
 		t.Fatalf("status texts %q %q", texts[0], texts[1])
 	}
 	if !strings.Contains(texts[2], "/durum") {

@@ -93,7 +93,7 @@ Linux note: if systemd cannot decrypt the credential, vltd.service stops with 24
 
 ## T. Türkçe
 
-UYARI: Bu bir geliştirme kurulumudur, paket değildir. Bir test bilgisayarı kullanın. VLT-IS-004 ile vltd bağlı bir UPS'i bulur ve sorgular (yalnızca READ komutları). Kapatma Politikası, bir Simülasyon başarılı olana ve bir operatör onu etkinleştirene (policy.activate) kadar etkin değildir. Etkin bir politika bilgisayarı kapatabilir.
+UYARI: Bu bir geliştirme kurulumudur, paket değildir. Bir test bilgisayarı kullanın. VLT-IS-004 ile vltd bağlı bir UPS'i bulur ve sorgular (yalnızca READ komutları). Kapatma politikası, bir Simülasyon başarılı olana ve bir operatör onu etkinleştirene (policy.activate) kadar etkin değildir. Etkin bir politika bilgisayarı kapatabilir.
 
 ### T.1 Derleme
 

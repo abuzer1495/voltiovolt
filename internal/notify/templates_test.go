@@ -25,7 +25,7 @@ func TestTemplatesTurkish(t *testing.T) {
 	m := Message{Type: "LOW_BATTERY", Severity: Critical, Late: true, Items: []Item{{Time: t0, Type: "LOW_BATTERY", Severity: Critical, Active: true}},
 		Snapshot: Snapshot{Mode: ModeBattery, Charge: f64(18)}}
 	n := Render("tr", m, time.UTC)
-	for _, s := range []string{"[VLT][KRİTİK] Akü düşük", "Geç gönderilen mesaj. Asıl zaman: 2026-11-10 12:00:00", "Mod: Akü ile çalışıyor", "Akü doluluğu: 18 %"} {
+	for _, s := range []string{"[VLT][KRİTİK] Akü düşük", "Geç gönderilen mesaj. Asıl zaman: 2026-11-10 12:00:00", "Mod: Aküde", "Akü doluluğu: 18 %"} {
 		if !strings.Contains(n.Text, s) {
 			t.Errorf("no %q in:\n%s", s, n.Text)
 		}

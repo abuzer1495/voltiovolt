@@ -354,8 +354,8 @@ Tüm testler için genel ön koşullar:
 - Üretim bilgisayarı değil, bir test bilgisayarı. Her testten önce tüm çalışmalarınızı kaydedin.
 - Referans UPS ve USB veya seri kablosu.
 - En son "Test build" ön sürümünün (etiket: test-latest) test paketi. Yukarıdaki "Hazırlık" bölümüne bakın.
-- Taşınabilir kipte PIN isteğe bağlıdır. PIN belirlenmemişse tüm işlevler kullanılabilir. Secret alanları yalnızca yazılır.
-- Testleri şu sırayla yapın: önce T-01, sonra T-08 ile T-17. T-02, T-03, T-05, T-07 ve T-04 ile T-06'nın hizmet kısımları "Hizmet kipi (daha sonra)" bölümündedir.
+- Taşınabilir modda PIN isteğe bağlıdır. PIN belirlenmemişse tüm işlevler kullanılabilir. Secret alanları yalnızca yazılır.
+- Testleri şu sırayla yapın: önce T-01, sonra T-08 ile T-17. T-02, T-03, T-05, T-07 ve T-04 ile T-06'nın hizmet kısımları "Hizmet modu (daha sonra)" bölümündedir.
 
 ### T-01 Referans UPS ile vlt-probe Capture
 
@@ -378,7 +378,7 @@ Tüm testler için genel ön koşullar:
 - Ön koşullar: Test paketi "Hazırlık" bölümündeki gibi hazırlanmıştır. UPS gerekmez. Bu test için UPS bağlamayın: Simülasyon bilgisayarı kapatmaz, ancak etkin bir politika, UPS bir elektrik kesintisi bildirdiğinde bilgisayarı kapatabilir. Grup üyeliği ve yönetici hakları gerekmez.
 - Adımlar:
     1. VoltioVolt'u çıkarılmış klasörden başlatın (Windows: VoltioVolt.exe, Linux: ./voltiovolt). İlk çalıştırma sihirbazı başlarsa, PIN adımı isteğe bağlıdır: bir "Atla" düğmesi vardır. Metin şudur: "Bir PIN, bu bilgisayardaki diğer kişilerin kapatma ayarlarını değiştirmesini önler." "Atla" düğmesine tıklayabilir veya bir PIN belirleyebilirsiniz. PIN belirlenmişse PIN ile kilidi açın. PIN belirlenmemişse tüm işlevler kullanılabilir.
-    2. "Kapatma Politikası" ekranını açın. Sürümü ve durumu (etkin veya etkin değil) not edin. Ekran "Bu kullanıcı bilgisayarı kapatamaz." hatasını gösteriyorsa bunu not edin. Bu durumda politikayı etkinleştiremezsiniz.
+    2. "Kapatma politikası" ekranını açın. Sürümü ve durumu (etkin veya etkin değil) not edin. Ekran "Bu kullanıcı bilgisayarı kapatamaz." hatasını gösteriyorsa bunu not edin. Bu durumda politikayı etkinleştiremezsiniz.
     3. "Simülasyonu çalıştır" düğmesine tıklayın. Her senaryonun sonucunu not edin (başarılı veya başarısız ve kapatma isteğinin veya iptalin zamanı). "İşletim sistemi kapatması" adımının sonucunu not edin (başarılı, veya 2. adımdaki aynı hata).
     4. Simülasyon başarılıysa ("İşletim sistemi kapatması" dahil), "Etkinleştir" düğmesine tıklayın. Onay metnini okuyun ve onaylayın. Durum "etkin" olur.
     5. "Düzenle" düğmesine tıklayın. "countdown_seconds" değerini 90 yapın. "Kaydet" düğmesine tıklayın.
@@ -394,16 +394,16 @@ UYARI: Bu test bilgisayarı kapatır. Tüm çalışmalarınızı kaydedin. Tüm 
 - Amaç: gerçek donanımda tam zinciri kontrol etmek: UPS, Aygıt Yöneticisi, Olay Motoru, Politika Motoru, işletim sistemi kapatma yürütücüsü (TASK 03-00-00-006 ve 007).
 - Ön koşullar: T-01 ve T-08 tamamlanmıştır. Bilgisayar, Referans UPS tarafından beslenir ve UPS bilgisayara USB veya seri ile bağlıdır. VoltioVolt çalışır (T-08'deki gibi çıkarılmış klasörden başlatılmıştır). Bilgisayarı başka bir kişi kullanmaz.
 - Adımlar (tümü VoltioVolt'ta):
-    1. PIN belirlenmişse PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, "trigger.on_battery_seconds" değerini 30 yapın (diğer varsayılanlar kalsın: geri sayım 60 s, eylem kapatma) ve "Kaydet" düğmesine tıklayın.
+    1. PIN belirlenmişse PIN ile kilidi açın. "Kapatma politikası" ekranını açın, "Düzenle" düğmesine tıklayın, "trigger.on_battery_seconds" değerini 30 yapın (diğer varsayılanlar kalsın: geri sayım 60 s, eylem kapatma) ve "Kaydet" düğmesine tıklayın.
     2. "Simülasyonu çalıştır" düğmesine tıklayın. Sonuç, "İşletim sistemi kapatması" adımı dahil, "başarılı" olmalıdır. Sonra "Etkinleştir" düğmesine tıklayın ve onaylayın.
     3. "Aygıt" ekranını açın: durum "bağlı" olmalıdır. Linux "port izni yok" veya "HID izni yok" gösteriyorsa yardım metnini izleyin (komutu bir kez çalıştırın, sonra oturumu kapatıp yeniden açın). VoltioVolt bu komutu çalıştırmaz ve bir udev kuralı kurmaz.
-    4. "Gösterge paneli" ekranını açın. Kip "Şebeke elektriği"dir. Zamanı not edin.
+    4. "Gösterge paneli" ekranını açın. Mod "Şebeke"dir. Zamanı not edin.
     5. UPS giriş gücünü kesin. Zamanı not edin.
-    6. Gösterge panelini izleyin: kip "Aküde" olur, ON_BATTERY Olayı Olayların en üstündedir, 30 saniye sonra 60 saniyelik geri sayım bandı başlar.
+    6. Gösterge panelini izleyin: mod "Aküde" olur, ON_BATTERY Olayı Olayların en üstündedir, 30 saniye sonra 60 saniyelik geri sayım bandı başlar.
     7. Bilgisayar kapanır. Zamanı not edin.
     8. UPS giriş gücünü yeniden bağlayın. Bilgisayarı başlatın.
     9. VoltioVolt'u yeniden başlatın. Windows: veri klasöründeki (Genel, "Veri klasörü") günlük dosyasını açın: logs\vltd.log, ve Olay Görüntüleyicisi, Sistem günlüğü, kaynak User32, olay kimliği 1074. Linux: "Güvenlik" ekranını açın ve denetim kaydını okuyun; VoltioVolt'u bir uçbirimden başlattıysanız standart hata çıktısını da saklayın. `journalctl -u vltd` kullanmayın.
-    10. PIN belirlenmişse kilidi açın. "Güvenlik" ekranını açın ve denetim kaydını okuyun (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Sonra "Kapatma Politikası"nda "trigger.on_battery_seconds" değerini yeniden 300 yapın.
+    10. PIN belirlenmişse kilidi açın. "Güvenlik" ekranını açın ve denetim kaydını okuyun (policy_countdown_start, policy_shutdown_request, os_shutdown_request). Sonra "Kapatma politikası"nda "trigger.on_battery_seconds" değerini yeniden 300 yapın.
 - Beklenen sonuç: bilgisayar, 5. adımdan yaklaşık 90 saniye sonra, bir iletişim kutusu olmadan kapanır. Denetim kaydında üç girdi vardır. Windows: olay 1074, 0x6000c neden kodunu gösterir ("Power Failure: Environment"; tam olay metni UNVERIFIED'dir).
 - İptal: geri sayımı durdurmak için, bitmeden önce giriş gücünü yeniden bağlayın (cancel_when_mains_returns açıktır), veya geri sayım bandındaki "İptal" düğmesine tıklayın (LOW_BATTERY ile mümkün değildir).
 - Gönderin: 4, 5 ve 7. adımların zamanları, günlük satırları, denetim girdileri (içlerinde Secret yoktur) ve Windows olay 1074 metni.
@@ -449,10 +449,10 @@ UYARI: Bu test bilgisayarı kapatır. Tüm çalışmalarınızı kaydedin. Tüm 
 
 UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihazların gücü kesilir. UPS'e yalnızca test bilgisayarını bağlayın. Tüm çalışmalarınızı kaydedin. Bataryanın tam dolu olduğundan emin olun.
 
-- Amaç: Kapatma Politikasının UPS çıkışını kapatma adımını kontrol etmek (VLT-IS-006 TASK 03-00-00-006, OD-28).
+- Amaç: Kapatma politikasının UPS çıkışını kapatma adımını kontrol etmek (VLT-IS-006 TASK 03-00-00-006, OD-28).
 - Ön koşullar: T-09 ve T-11 tamamlanmıştır. UPS çıkışına yalnızca test bilgisayarı bağlıdır. VoltioVolt, T-01'deki port ile çalışır.
 - Adımlar (tümü VoltioVolt'ta):
-    1. PIN belirlenmişse PIN ile kilidi açın. "Kapatma Politikası" ekranını açın, "Düzenle" düğmesine tıklayın, ups_off.enabled açık, ups_off.delay_minutes 2, ups_off.restore_minutes 1 yapın (T-09'daki trigger.on_battery_seconds 30 kalsın) ve "Kaydet" düğmesine tıklayın.
+    1. PIN belirlenmişse PIN ile kilidi açın. "Kapatma politikası" ekranını açın, "Düzenle" düğmesine tıklayın, ups_off.enabled açık, ups_off.delay_minutes 2, ups_off.restore_minutes 1 yapın (T-09'daki trigger.on_battery_seconds 30 kalsın) ve "Kaydet" düğmesine tıklayın.
     2. Simülasyonu çalıştırın. Sonuç "başarılı" olmalıdır ("İşletim sistemi kapatması" dahil) ve her senaryo "UPS çıkışını kapatma komutu (deneme, gönderilmedi)" adımını gösterir. Politikayı etkinleştirin.
     3. UPS giriş gücünü kesin. Zamanı not edin.
     4. İşletim sisteminin kapanma, UPS çıkışının kapanma ve UPS çıkışının açılma zamanlarını kaydedin.
@@ -478,7 +478,7 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
 ### T-14 PIN belirleme, kilitleme, kilit açma, yeniden başlatma ve PIN'i unuttum (VLT-IS-009)
 
 - Amaç: doğru PIN ile kilidin açıldığını (yeniden başlatmadan sonra da) ve "PIN'i unuttum" işlevini kontrol etmek (VLT-IS-009 TASK 03-00-00-001 ve 002, OD-40, R-02).
-- Ön koşullar: Test paketindeki VoltioVolt taşınabilir kipte çalışır. PIN belirleyebileceğiniz bir veri klasörü kullanın. PIN'i göndermeyin.
+- Ön koşullar: Test paketindeki VoltioVolt taşınabilir modda çalışır. PIN belirleyebileceğiniz bir veri klasörü kullanın. PIN'i göndermeyin.
 - Adımlar (tümü VoltioVolt'ta):
     1. PIN belirleme: PIN yoksa "Genel" ekranında "PIN belirle" düğmesine tıklayın veya kurulum sihirbazının PIN adımını kullanın. En az 6 karakterlik bir PIN belirleyin. Daha önceki bir testten PIN varsa onu kullanabilirsiniz.
     2. Kilitleme: "Kilitle" düğmesine tıklayın. Arayüz "Kilitli" gösterir ve Gösterge paneli görünür kalır.
@@ -486,14 +486,14 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
     4. Yeniden başlatma: tepsi menüsünden "Çık"ı kullanın, onaylayın ve VoltioVolt'u aynı klasörden ve aynı veri klasörüyle yeniden başlatın.
     5. Yeniden başlatmadan sonra kilit açma: aynı doğru PIN'i girin ve "Kilidi aç" düğmesine tıklayın. Arayüzün kilidi açılır.
     6. PIN'i unuttum: "Kilitle" düğmesine tıklayın, sonra "PIN'i unuttum" bağlantısına tıklayın. Metin şudur: "Bu işlem PIN'i kaldırır ve kayıtlı tüm parolaları ve belirteçleri (Telegram, e-posta) siler. Otomatik kapatma devre dışı kalır. Ayarlarınız ve geçmişiniz kalır." Onay metni şudur: "Onaylamak için RESET yazın." RESET yazın (bu sözcük İngilizce ve Türkçede aynıdır). "PIN'i sıfırla" düğmesine tıklayın.
-    7. Sıfırlamadan sonra: kurulum sihirbazı PIN adımında başlar. Kapatma Politikası devre dışıdır. Ayarlar, Olaylar ve Geçmiş kalır. Kayıtlı parolalar ve belirteçler silinir. "Güvenlik" ekranını açın ve sıfırlamanın denetim kaydını bulun.
+    7. Sıfırlamadan sonra: kurulum sihirbazı PIN adımında başlar. Kapatma politikası devre dışıdır. Ayarlar, Olaylar ve Geçmiş kalır. Kayıtlı parolalar ve belirteçler silinir. "Güvenlik" ekranını açın ve sıfırlamanın denetim kaydını bulun.
 - Beklenen sonuç: 3. ve 5. adımlarda doğru PIN ile kilit açılır. 6. adım PIN'i kaldırır, Gizli bilgileri siler ve politikayı devre dışı bırakır. Ayarlar ve geçmiş kalır. Onay sözcüğü RESET'tir.
 - R-08 düzeltmesinden sonraki Owner sırası (VLT-IS-011 TASK 03-00-00-001, OD-50, OD-51, OD-52). Bu adımları önce, yeni bir veri klasörüyle yapın:
     1.1. VoltioVolt'u yeni bir veri klasörüyle başlatın. Kurulum sihirbazı PIN adımında başlar.
     1.2. En az 6 karakterlik bir PIN girin ve "PIN belirle" düğmesine tıklayın.
     1.3. Sihirbaz "UPS portu" adımını açar. VoltioVolt "Kilitli" göstermez ve PIN istemez.
     1.4. "Test bağlantısı (simülatör)" düğmesine tıklayın. Ayar kaydedilir ve adım seçilen portu gösterir. VoltioVolt PIN istemez.
-    1.5. "İleri" ile Kapatma Politikası adımına gidin. "Simülasyonu çalıştır", sonra "Etkinleştir" düğmesine tıklayın ve onaylayın. VoltioVolt PIN istemez.
+    1.5. "İleri" ile Kapatma politikası adımına gidin. "Simülasyonu çalıştır", sonra "Etkinleştir" düğmesine tıklayın ve onaylayın. VoltioVolt PIN istemez.
     1.6. Sihirbazın sonuna gidin ve "Bitir" düğmesine tıklayın. Gösterge paneli açılır ve VoltioVolt'un kilidi açıktır.
     1.7. "Kilitle" düğmesine tıklayın: kilit ekranı açılır. PIN'i girin ve "Kilidi aç" düğmesine tıklayın: VoltioVolt'un kilidi açılır.
     1.3–1.7 adımlarını, PIN'i sihirbaz yerine "Genel" ekranında ("PIN belirle") belirleyerek yineleyin: "PIN belirle"den sonra VoltioVolt'un kilidi açık kalır. Kilit ekranı sihirbazın üstünü hiçbir zaman örtmez: bir sihirbaz adımı PIN gerektirirse PIN alanı sihirbaz penceresinin içindedir. VoltioVolt, 10 dakika klavye veya fare kullanılmazsa kilitlenir; canlı değerler kilidi açık tutmaz.
@@ -505,13 +505,13 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
 - Ön koşullar: Test paketindeki VoltioVolt. İlk açılış penceresi için yeni bir veri klasörü kullanın (örneğin yeni boş bir klasör, veri klasörü seçeneğiyle veya taze bir çıkarımla). Owner bilgisayarının ekran ölçeğini not edin (Windows: Ayarlar, Sistem, Ekran, Ölçek; örneğin %100, %125 veya %150).
 - Adımlar:
     1. İlk açılış: pencere "Kurulum sihirbazı başlatılsın mı?" metni ile "Başlat" ve "Daha sonra" düğmelerini gösterir. "Daha sonra"ya tıklayın: Gösterge paneli açılır. VoltioVolt'tan çıkın ve yeniden başlatın: pencere yine görünür. "Daha sonra"ya ikinci kez tıklayın: pencere bir daha görünmez. "Genel" ekranında "Kurulum sihirbazını başlat" düğmesi durur.
-    2. Sihirbaz boyutu: yeni bir veri klasörüyle veya Genel ekranından "Başlat" veya "Kurulum sihirbazını başlat" düğmesine tıklayın. Sihirbaz 760 × 560 piksellik bir penceredir. Geri, Atla ve İleri (veya Bitir) düğmeleri sağ alttadır. Her adımdan geçin (PIN, UPS portu, canlı değerler, Kapatma Politikası, Telegram, e-posta, modem ve yönlendirici, Özet). 1280 × 720 boyutunda her adım kaydırma çubuğu olmadan sığar. Alanların yardım satırları ve örnek değerleri görünür.
-    3. 1280 × 720 ekranlar: sihirbazdan sonra (Bitir veya Daha sonra) her ekranı 1280 × 720 boyutunda açın: Gösterge paneli, Aygıt, Geçmiş, Olaylar, Kapatma Politikası, UPS Kontrolü, Bildirimler, Güvenlik, Genel. Her ekran kullanılabilir: önemli bir denetim kesilmez.
+    2. Sihirbaz boyutu: yeni bir veri klasörüyle veya Genel ekranından "Başlat" veya "Kurulum sihirbazını başlat" düğmesine tıklayın. Sihirbaz 760 × 560 piksellik bir penceredir. Geri, Atla ve İleri (veya Bitir) düğmeleri sağ alttadır. Her adımdan geçin (PIN, UPS portu, canlı değerler, Kapatma politikası, Telegram, e-posta, modem ve yönlendirici, Özet). 1280 × 720 boyutunda her adım kaydırma çubuğu olmadan sığar. Alanların yardım satırları ve örnek değerleri görünür.
+    3. 1280 × 720 ekranlar: sihirbazdan sonra (Bitir veya Daha sonra) her ekranı 1280 × 720 boyutunda açın: Gösterge paneli, Aygıt, Geçmiş, Olaylar, Kapatma politikası, UPS Kontrolü, Bildirimler, Güvenlik, Genel. Her ekran kullanılabilir: önemli bir denetim kesilmez.
     4. Owner'ın ekran ölçeği: Owner bilgisayarının olağan ölçeğini koruyun. 3. adımı (ve mümkünse 2. adımı) yineleyin. Ölçeği not edin.
 - Beklenen sonuç: ilk açılış penceresi 1. adımdaki gibi çalışır. Her sihirbaz adımı kaydırma çubuğu olmadan 760 × 560 piksele sığar. Ekranlar 1280 × 720 boyutunda ve Owner'ın ekran ölçeğinde çalışır.
 - Gönderin: her adımın sonucu, ekran ölçeği ve işletim sistemi. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun. Bir adımda veya ekranda kaydırma çubuğu veya kesilmiş bir denetim varsa bunu yazın ve o adımın veya ekranın görüntüsünü gönderin.
 
-### T-16 Demo kipi (VLT-IS-009)
+### T-16 Demo modu (VLT-IS-009)
 
 - Amaç: Demo (simülatör) taşımasını kontrol etmek (VLT-IS-009 TASK 03-00-00-005, OD-43). Bu test gerçek bir UPS kullanmaz. Bilgisayarı kapatmamalı ve gerçek bir UPS'e CONTROL baytı göndermemelidir.
 - Ön koşullar: Test paketindeki VoltioVolt çalışır. PIN varsa PIN ile kilidi açın. Gerçek bir UPS gerekli değildir.
@@ -519,10 +519,10 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
     1. "Aygıt" ekranını (veya sihirbazın UPS portu adımını) açın. Taşıma olarak "Demo (simülatör)" seçin. Tüm ekranlarda sarı bir "DEMO" bandı görünür.
     2. Gösterge panelini açın: değerler yavaş değişir. "Olaylar" ve "Geçmiş" ekranlarını açın: demo Olayları ve ölçümleri varsayılan olarak gizlidir. "Diğer kaynakları göster" kutuları kapalıdır. Onları açın: demo verisi görünür ve "demo" olarak işaretlidir.
     3. Aygıt ekranında "Güç kesintisini simüle et" düğmesine tıklayın. Simülatör 60 saniye bataryaya geçer, sonra şebeke elektriği döner.
-    4. Kapatma Politikası bilgisayarı kapatacak olsa, ileti şudur: "Demo: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz.
+    4. Kapatma politikası bilgisayarı kapatacak olsa, ileti şudur: "Demo: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz.
     5. "UPS Kontrolü" ekranını açın ve kısa bir test başlatın veya hoparlörü değiştirin. Komut bir kuru çalıştırmadır: gerçek bir UPS'e CONTROL baytı gitmez ve bilgisayar değişmez.
     6. Bir Bildirim Kanalı yapılandırılmışsa, bildirimin ön eki "[DEMO] " olur. Gizli bilgi göndermeyin.
-    7. Demo kipinden çıkış: farklı bir taşıma veya gerçek bir port seçin. Onay metni şudur: "Demo modundan çıkılsın ve gerçek bir UPS bağlantısı kullanılsın mı? Demo olayları ve ölçümleri geçmişte kalır ve demo olarak işaretlenir." İsterseniz onaylayın veya iptal edin. Demo geçmişi kalır ve demo olarak işaretlidir.
+    7. Demo modundan çıkış: farklı bir taşıma veya gerçek bir port seçin. Onay metni şudur: "Demo modundan çıkılsın ve gerçek bir UPS bağlantısı kullanılsın mı? Demo olayları ve ölçümleri geçmişte kalır ve demo olarak işaretlenir." İsterseniz onaylayın veya iptal edin. Demo geçmişi kalır ve demo olarak işaretlidir.
 - Beklenen sonuç: sarı DEMO bandı görünür. Değerler yavaş değişir. "Güç kesintisini simüle et" 60 saniye sürer. Bilgisayar kapanmaz. Gerçek bir UPS'e CONTROL baytı gitmez. Demo Olayları ve ölçümleri varsayılan olarak gizlidir ve "demo" olarak işaretlidir. Çıkış onayı 7. adımdaki tam metindir.
 - Gönderin: her adımın sonucu (tamam veya sorun). Gizli bilgi göndermeyin. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun.
 
@@ -533,28 +533,28 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
 - Adımlar:
     1. Simülatörü başlatın (Windows: bir cmd penceresinde `vlt-simulator.exe`; Linux: bir uçbirimde `./vlt-simulator`). "VoltioVolt UPS Simülatörü" ekranı açılır. Durum "bekliyor"dur.
     2. VoltioVolt'u başlatın. Aygıt ekranını açın ve "Test bağlantısı (simülatör)" seçin. Tüm ekranlarda mavi bir "TEST BAĞLANTISI" bandı görünür. Simülatör durumu "bağlı" olur. Gösterge paneli yaklaşık 230 V giriş gösterir. Simülatör çalışmıyorsa yardım metni şudur: "vlt-simulator.exe uygulamasını başlatın, sonra bekleyin. VoltioVolt otomatik bağlanır."
-    3. Senaryo 1 (1 tuşu, "Şimdi elektrik kesintisi"): Gösterge paneli batarya kipini gösterir (şebeke kapalı). Olaylar ekranını açın: kaynağı "test" olan bir ON_BATTERY Olayı vardır (Geçmiş ve Olaylar varsayılan olarak güncel kaynağı gösterir). Bir Bildirim Kanalı yapılandırılmışsa, bildirimin ön eki "[TEST]" olur. Gizli bilgi göndermeyin. Normal değerlere dönmek için 9 veya R tuşuna basın, veya sonraki senaryoya geçin.
+    3. Senaryo 1 (1 tuşu, "Şimdi elektrik kesintisi"): Gösterge paneli "Aküde" modunu gösterir (şebeke kapalı). Olaylar ekranını açın: kaynağı "test" olan bir ON_BATTERY Olayı vardır (Geçmiş ve Olaylar varsayılan olarak güncel kaynağı gösterir). Bir Bildirim Kanalı yapılandırılmışsa, bildirimin ön eki "[TEST]" olur. Gizli bilgi göndermeyin. Normal değerlere dönmek için 9 veya R tuşuna basın, veya sonraki senaryoya geçin.
     4. Senaryo 2 (2 tuşu, "2 dakikalık kesinti, sonra şebeke açık"): şebeke kapanır, 2 dakika sonra şebeke döner. Her iki durumu da Gösterge panelinde izleyin. Dönüşe ait bir Olay (örneğin MAINS_RESTORED) "test" kaynağına sahiptir.
     5. Senaryo 5 (5 tuşu, "Aşırı yük: % 110"): Gösterge panelindeki yük % 110 olur. Varsa bir aşırı yük Olayı "test" kaynağına sahiptir. Gördükten sonra 9 veya R tuşuna basın.
-    6. Senaryo 6 (6 tuşu, "Akü düşük: şarj % 15 ve şebeke kapalı"): Gösterge paneli düşük akü ve kapalı şebeke gösterir. Kapatma Politikası bilgisayarı kapatacak olsa, bir geri sayım başlar ve sonundaki ileti şudur: "Test: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz. "Bir testte gerçek bilgisayar kapanmasına izin ver" ayarını açmayın.
+    6. Senaryo 6 (6 tuşu, "Akü düşük: doluluk % 15 ve şebeke kapalı"): Gösterge paneli düşük akü ve kapalı şebeke gösterir. Kapatma politikası bilgisayarı kapatacak olsa, bir geri sayım başlar ve sonundaki ileti şudur: "Test: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz. "Bir testte gerçek bilgisayar kapanmasına izin ver" ayarını açmayın.
     7. Senaryo 7 (7 tuşu, "30 saniyelik haberleşme kaybı"): simülatör 30 saniye yanıt göndermez, sonra yeniden normaldir. Kaybı ve dönüşü Gösterge panelinde ve Olaylar ekranında izleyin.
     8. Gizli grafik serisi (RQ-03): Geçmiş ekranını açın. Bir seriyi gizleyin (grafik gösterimindeki adına tıklayın). Veriyi yenileyin (yeni bir nokta bekleyin, veya bir süzgeci değiştirip geri alın). Zaman aralığını değiştirin. VoltioVolt'u kapatın ve yeniden başlatın (simülatörü çalışır durumda bırakın ve gerekirse "Test bağlantısı (simülatör)" seçin). Aynı seri gizli kalır. O serinin kaydı durmamıştır: yeniden gösterdiğinizde, gizli olduğu sürenin noktaları vardır.
 - Beklenen sonuç: mavi TEST BAĞLANTISI bandı görünür. 1, 2, 5, 6 ve 7. senaryolar Gösterge panelini anlatıldığı gibi değiştirir. Test Olayları ve Bildirimleri "test" kaynağına ve "[TEST]" ön ekine sahiptir. Geri sayım çalışırsa kuru çalıştırmadır: "Test: bilgisayar şimdi kapanırdı." Bilgisayar kapanmaz. Gizli bir Geçmiş serisi, yenilemeden, aralık değişiminden ve yeniden başlatmadan sonra gizli kalır. Gerçek bir UPS'e CONTROL baytı gitmez.
 - Gönderin: her adımın sonucu (tamam veya sorun). Gizli bilgi göndermeyin. Ekran görüntülerine izin vardır; Gizli bilgi, PIN ve seri numarası olmadığından emin olun.
 
-### T-18 Basit kip ve Uzman kip (VLT-IS-011)
+### T-18 Basit mod ve Uzman mod (VLT-IS-011)
 
-- Amaç: iki arayüz kipini (VLT-IS-011 TASK 03-00-00-003, R-10, OD-53) ve menü çubuğunu (TASK 03-00-00-005) kontrol etmek.
+- Amaç: iki arayüz modunu (VLT-IS-011 TASK 03-00-00-003, R-10, OD-53) ve menü çubuğunu (TASK 03-00-00-005) kontrol etmek.
 - Ön koşullar: test paketindeki VoltioVolt. Gerçek bir UPS gerekli değildir: simülatörü kullanın (T-17). `test.real_shutdown` kapalı kalsın.
 - Adımlar:
     1. VoltioVolt'u yeni bir veri klasörüyle başlatın. Kurulum sihirbazındaki "Arayüz" adımı Basit veya Uzman seçimini sorar. "Basit"i seçin ve sihirbazı bitirin.
     2. Basit ekran bir durum kartı (İyi, Dikkat veya Sorun ve bir cümle), altı kutu (giriş, çıkış, akü, kalan süre, yük, sıcaklık), otomatik kapatma durumu, bir grafik ve son 3 olayı gösterir. Sol gezinti bölmesi yoktur.
     3. Simülatörde 1 tuşuna basın ("Şimdi elektrik kesintisi"). Durum kartı "Dikkat" ve "Elektrik kesintisi: UPS aküyle çalışıyor." olur. 9 veya R tuşuna basın.
-    4. "Uzman kipi" düğmesine tıklayın. Tüm ekranların olduğu sol gezinti bölmesi açılır. Üst bölümdeki "Basit kip" düğmesine tıklayın: Basit ekran yeniden açılır. PIN sorulmaz.
-    5. Menü çubuğu: Görünüm menüsünü açın ve "Uzman kip", sonra "Basit kip" seçin. Alt tuşuna basın: menünün erişim tuşlarının altı çizilir. Araçlar > "Kurulum sihirbazı" sihirbazı açar. Yardım > "Belgeler" (veya F1) belgeleri web tarayıcısında açar. Yardım > "VoltioVolt hakkında" sürümü ve lisansı gösterir.
-    6. VoltioVolt'u yeniden başlatın: son kip kalır.
+    4. "Uzman mod" düğmesine tıklayın. Tüm ekranların olduğu sol gezinti bölmesi açılır. Üst bölümdeki "Basit mod" düğmesine tıklayın: Basit ekran yeniden açılır. PIN sorulmaz.
+    5. Menü çubuğu: Görünüm menüsünü açın ve "Uzman mod", sonra "Basit mod" seçin. Alt tuşuna basın: menünün erişim tuşlarının altı çizilir. Araçlar > "Kurulum sihirbazı" sihirbazı açar. Yardım > "Belgeler" (veya F1) belgeleri web tarayıcısında açar. Yardım > "VoltioVolt hakkında" sürümü ve lisansı gösterir.
+    6. VoltioVolt'u yeniden başlatın: son mod kalır.
     7. Dili İngilizce yapın ve 4. ile 5. adımı yeniden yapın.
-- Beklenen sonuç: varsayılan Basit kiptir. Kip PIN olmadan hemen değişir ve yeniden başlatmadan sonra kalır. Menü çubuğunda Dosya, Görünüm, Araçlar ve Yardım vardır.
+- Beklenen sonuç: varsayılan Basit moddur. Mod PIN olmadan hemen değişir ve yeniden başlatmadan sonra kalır. Menü çubuğunda Dosya, Görünüm, Araçlar ve Yardım vardır.
 - Gönderin: her adımın sonucu (tamam veya sorun). Ekran görüntülerine izin vardır; PIN ve Gizli bilgi olmadığından emin olun.
 
 ### T-19 Sahibin ekranlarında arayüz boyutu (VLT-IS-011)
@@ -562,7 +562,7 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
 - Amaç: arayüz boyutunu (VLT-IS-011 TASK 03-00-00-004, R-11, OD-54) Sahibin ekranlarında kontrol etmek.
 - Ön koşullar: test paketindeki VoltioVolt. Her ekranın boyutunu ve Windows ekran ölçeğini not edin (Ayarlar > Sistem > Ekran > Ölçek).
 - Adımlar:
-    1. Genel (Uzman kip) veya Ayarlar (Basit kip) ekranını açın. "Arayüz boyutu" "Otomatik (%…)" değerindedir ve yüzde Windows ekran ölçeğidir.
+    1. Genel (Uzman mod) veya Ayarlar (Basit mod) ekranını açın. "Arayüz boyutu" "Otomatik (%…)" değerindedir ve yüzde Windows ekran ölçeğidir.
     2. Ctrl+Artı tuşuna iki kez basın: arayüz hemen büyür. Ctrl+Eksi: küçülür. Ctrl+0: yeniden "Otomatik".
     3. Listeden her boyutu seçin: %80, %100, %125, %150, %200. Görünüm > "Arayüz boyutu" menüsü aynı seçimi gösterir.
     4. Her boyutta 9 Uzman ekranı ve Basit ekranı açın. Hiçbir metnin kesilmediğini ve yatay kaydırma çubuğu olmadığını kontrol edin. Kurulum sihirbazını açın: pencereye sığar.
@@ -588,9 +588,9 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
 - Beklenen sonuç: grafikler "Yenile" olmadan güncellenir. Gizli seriler ve yakınlaştırma kalır. Duraklat güncellemeleri durdurur.
 - Gönderin: her adımın sonucu (tamam veya sorun). Ekran görüntülerine izin vardır; Gizli bilgi ve seri numarası olmadığından emin olun.
 
-### Hizmet kipi (daha sonra)
+### Hizmet modu (daha sonra)
 
-Bu testler hizmet kipini (vltd, vlt-setup, yerel bir grup ve bir kullanıcı hakkı) gerektirir. Hizmet kipi kaynak kodunda kalır. Varsayılan pakette yoktur (OD-36). Bu testleri VLT-IS-008 taşınabilir paketi ile çalıştırmayın. T-02, T-03, T-04, T-05, T-06 ve T-07 metinleri daha sonraki bir sürüm için burada tutulur.
+Bu testler hizmet modunu (vltd, vlt-setup, yerel bir grup ve bir kullanıcı hakkı) gerektirir. Hizmet modu kaynak kodunda kalır. Varsayılan pakette yoktur (OD-36). Bu testleri VLT-IS-008 taşınabilir paketi ile çalıştırmayın. T-02, T-03, T-04, T-05, T-06 ve T-07 metinleri daha sonraki bir sürüm için burada tutulur.
 
 ### T-02 Linux'ta vltd geliştirme kurulumu
 

@@ -62,7 +62,7 @@ At the first start the setup wizard opens (window size 760 × 560). The steps ar
 2. UPS port: select ("UPS portu: seç"): select the COM port (Windows, for example `COM3`) or the port (Linux, for example `/dev/ttyUSB0`) with "Use" ("Kullan"). You can also select "Demo (simulator)" or "Test connection (simulator)".
 3. UPS port: scan ("UPS portu: tara"): optional. Scan the marked ports to find the UPS.
 4. Live values ("Canlı değerler"): check that the values from the UPS are correct.
-5. Shutdown Policy ("Kapatma Politikası"): the triggers, the countdown and the Simulation. This step also checks that your user can shut down the computer.
+5. Shutdown Policy ("Kapatma politikası"): the triggers, the countdown and the Simulation. This step also checks that your user can shut down the computer.
 6. Telegram: optional.
 7. E-mail: server ("E-posta: sunucu") and 8. E-mail: account and test ("E-posta: hesap ve test"): optional.
 9. Modem and router ("Modem ve yönlendirici"): optional.
@@ -87,8 +87,8 @@ A PIN is optional. A PIN prevents other people at this computer from changing th
 
 ### Simple mode and Expert mode
 
-- Simple mode ("Basit kip") is the default. It shows one screen with the health of the UPS, the automatic shutdown state, the input voltage and load of the last hour, the last events and a button to the settings.
-- Expert mode ("Uzman kipi") shows all screens: Dashboard, Device, UPS Control, History, Events, Shutdown Policy, Notifications, Security, General.
+- Simple mode ("Basit mod") is the default. It shows one screen with the health of the UPS, the automatic shutdown state, the input voltage and load of the last hour, the last events and a button to the settings.
+- Expert mode ("Uzman mod") shows all screens: Dashboard, Device, UPS Control, History, Events, Shutdown Policy, Notifications, Security, General.
 - Switch with the View menu ("Görünüm"), the "Expert mode" / "Simple mode" button, or in the wizard. The choice is saved.
 
 ### Interface size

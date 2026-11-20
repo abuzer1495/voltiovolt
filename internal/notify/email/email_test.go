@@ -200,7 +200,7 @@ func mailer(s Settings, pool *x509.CertPool, log *bytes.Buffer) *Mailer {
 		TLS: &tls.Config{RootCAs: pool}, Timeout: 5 * time.Second, Log: slog.New(slog.NewTextHandler(log, nil))})
 }
 
-var note = notify.Notification{Subject: "[VLT][CRITICAL] On battery", Text: "[VLT][KRİTİK] Akü ile çalışıyor\nMod: Akü ile çalışıyor", Severity: "CRITICAL", Type: "ON_BATTERY"}
+var note = notify.Notification{Subject: "[VLT][CRITICAL] On battery", Text: "[VLT][KRİTİK] Aküde\nMod: Aküde", Severity: "CRITICAL", Type: "ON_BATTERY"}
 
 func checkSent(t *testing.T, f *fakeSMTP) {
 	t.Helper()

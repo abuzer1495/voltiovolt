@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# VLT-IS-012 TASK 03-00-00-005: find the unknown test failure. Once each
+# day (and with workflow_dispatch) this workflow runs all Go tests 20 times
+# on Linux and on Windows. When a test fails, it uploads the full test
+# output. It is not a required check (step 4). Each action is pinned to a
+# full commit SHA; the version is in the comment.
+
+name: test-stability
+
+on:
+  schedule:
+    - cron: "17 2 * * *" # 02:17 UTC each day
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-stability-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: "1.27.4"
+  GOTOOLCHAIN: local
+
+jobs:
+  go-test-count-20:
+    name: go test -count=20 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - name: go version
+        run: go version
+      - name: go test -count=20 ./...
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -o pipefail
+          # -timeout is for each package binary: 20 runs of the longest
+          # package (internal/engine) take more than the default 10 minutes.
+          go test -count=20 -timeout 240m ./... 2>&1 | tee "$RUNNER_TEMP/go-test-count-20.txt"
+      - name: Failed tests (summary)
+        if: failure()
+        run: |
+          grep -E -e '^(--- FAIL|FAIL|panic:)' -e 'test timed out' "$RUNNER_TEMP/go-test-count-20.txt" | head -n 200 || true
+      - name: Upload the full test output
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-test-count-20-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/go-test-count-20.txt
+          retention-days: 30
+          if-no-files-found: error

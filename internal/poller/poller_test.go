@@ -83,12 +83,24 @@ func (s *recSink) OnState(st string) {
 
 // setup detects the simulator and returns a Poller and its sink. The run
 // stops when the virtual time passes until.
+// quietOpts is for the tests without a fault. The clock of the poller is
+// virtual, but the transport timeout is real time: with the short timeout
+// of testOpts, a slow test machine (seen on the Windows runner) can miss
+// three fast polls, the poller reconnects and starts the once group again
+// (VLT-IS-012 TASK 03-00-00-005). A long timeout costs nothing when the
+// simulator answers.
+var quietOpts = transport.Options{Timeout: 2 * time.Second, MinInterval: time.Nanosecond, FlushTime: time.Millisecond}
+
 func setup(t *testing.T, s *sim.Sim, until time.Duration) (*Poller, *recSink, *fakeClock, context.Context) {
+	return setupOpts(t, s, until, testOpts)
+}
+
+func setupOpts(t *testing.T, s *sim.Sim, until time.Duration, opts transport.Options) (*Poller, *recSink, *fakeClock, context.Context) {
 	t.Helper()
 	clk := &fakeClock{now: t0}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	tr := s.StreamTransport(testOpts)
+	tr := s.StreamTransport(opts)
 	p, err := detect(ctx, s, tr, clk)
 	if err != nil {
 		t.Fatal(err)
@@ -140,7 +152,7 @@ func TestPlanFor(t *testing.T) {
 // 500 ms between requests, fast group first.
 func TestTiming(t *testing.T) {
 	s := sim.New(sim.NewModel(sim.ProfileVoltronic))
-	p, sink, _, ctx := setup(t, s, 95*time.Second)
+	p, sink, _, ctx := setupOpts(t, s, 95*time.Second, quietOpts)
 	if err := p.Run(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
@@ -202,7 +214,7 @@ func TestTiming(t *testing.T) {
 
 func TestOnceEverySixHours(t *testing.T) {
 	s := sim.New(sim.NewModel(sim.ProfileQ1))
-	p, sink, _, ctx := setup(t, s, OncePeriod+5*time.Second)
+	p, sink, _, ctx := setupOpts(t, s, OncePeriod+5*time.Second, quietOpts)
 	if err := p.Run(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
@@ -213,7 +225,7 @@ func TestOnceEverySixHours(t *testing.T) {
 		}
 	}
 	if len(once) != 2 || once[1].Sub(once[0]) != OncePeriod {
-		t.Fatalf("once %v", once)
+		t.Fatalf("once %v (states %v)", once, sink.states)
 	}
 }
 

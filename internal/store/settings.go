@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"time"
 
 	"github.com/abuzer1495/voltiovolt/internal/redact"
 )
@@ -91,6 +92,11 @@ const (
 	// detection) or "tuncmatik-newtech-pro-ii" (VLT-IS-012 TASK
 	// 03-00-00-003).
 	SettingDeviceProfile = "device.profile"
+	// Battery Settings (VLT-IS-012 TASK 03-00-00-004): the date when the
+	// battery was installed ("" or YYYY-MM-DD) and the battery age for
+	// the Event BATTERY_REPLACE.
+	SettingBatteryInstalledOn  = "battery.installed_on"
+	SettingBatteryReplaceAfter = "battery.replace_after_months"
 	// SettingTestRealShutdown permits a real OS shutdown during a test
 	// connection (VLT-IS-010 OD-46). Default off. The GUI shows a WARNING.
 	SettingTestRealShutdown = "test.real_shutdown"
@@ -278,6 +284,29 @@ func floatRange(lo, hi float64) func(json.RawMessage) error {
 	}
 }
 
+// DateLayout is the layout of a date Setting (battery.installed_on).
+const DateLayout = "2006-01-02"
+
+// dateOrEmpty accepts "" or a date YYYY-MM-DD from 1990-01-01 to one day
+// after today (the clock of the computer can be a little wrong).
+func dateOrEmpty(v json.RawMessage) error {
+	var s string
+	if err := strictJSON(v, &s); err != nil {
+		return fmt.Errorf("value must be a text: %w", err)
+	}
+	if s == "" {
+		return nil
+	}
+	d, err := time.Parse(DateLayout, s)
+	if err != nil || d.Format(DateLayout) != s {
+		return errors.New("value must be a date YYYY-MM-DD or empty")
+	}
+	if d.Year() < 1990 || d.After(time.Now().AddDate(0, 0, 1)) {
+		return errors.New("the date must be from 1990 to today")
+	}
+	return nil
+}
+
 // notNull refuses the JSON value null before the check c. It is needed
 // for a check that accepts the empty text: null decodes to "".
 func notNull(c func(json.RawMessage) error) func(json.RawMessage) error {
@@ -442,6 +471,8 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingDeviceDTR, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},
 		{Key: SettingDeviceRTS, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},
 		{Key: SettingDeviceAllowedPorts, Type: TypeStrings, Default: json.RawMessage(`[]`), Check: serialPortList},
+		{Key: SettingBatteryInstalledOn, Type: TypeString, Default: json.RawMessage(`""`), Check: notNull(dateOrEmpty)},
+		{Key: SettingBatteryReplaceAfter, Type: TypeInt, Default: json.RawMessage(`36`), Check: intRange(12, 120)},
 		{Key: SettingDeviceProfile, Type: TypeString, Default: json.RawMessage(`""`), Check: notNull(oneOf("", "tuncmatik-newtech-pro-ii"))},
 		{Key: SettingTestRealShutdown, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
 

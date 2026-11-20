@@ -604,5 +604,16 @@
   "conn.portable.disconnected": "İzleme motoru yanıt vermiyor",
   "device.ports.probable": "Muhtemel UPS",
   "device.profile.legend": "UPS modeli",
-  "device.profile.other": "Başka UPS (otomatik algılama)"
+  "device.profile.other": "Başka UPS (otomatik algılama)",
+  "battery.title": "Akü değişimi",
+  "battery.help": "Çoğu UPS aküsü 3 ila 5 yıl dayanır. Aküyü taktığınız tarihi yazın.",
+  "battery.installed_on": "Akü takılma tarihi",
+  "battery.installed_on.optional": "Akü takılma tarihi (isteğe bağlı)",
+  "battery.months": "Akü değişimi süresi (ay)",
+  "battery.months.range": "{min} ile {max} arasında bir sayı yazın.",
+  "battery.saved": "Akü ayarları kaydedildi.",
+  "health.battery_replace": "Akünün değişmesi gerekebilir. {reason}",
+  "health.battery_replace.test_failed": "Son akü testi başarısız oldu.",
+  "health.battery_replace.age": "Akü {age} aylık; sınır {limit} ay.",
+  "plain.BATTERY_REPLACE": "Akü değişimi gerekebilir"
 }

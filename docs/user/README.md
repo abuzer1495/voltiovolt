@@ -61,7 +61,7 @@ At the first start the setup wizard opens (window size 760 × 560). The steps ar
 1. PIN ("PIN"): optional, see section 4.
 2. UPS port: select ("UPS portu: seç"): select the COM port (Windows, for example `COM3`) or the port (Linux, for example `/dev/ttyUSB0`) with "Use" ("Kullan"). You can also select "Demo (simulator)" or "Test connection (simulator)". A port with a known USB-to-serial chip has the mark "Probable UPS" ("Muhtemel UPS") and is at the top of the list; VoltioVolt sends nothing to a port for this mark. For a port with the Prolific chip 067B:2303 (the chip of the Tunçmatik Newtech Pro II) the wizard offers the profile "Tunçmatik Newtech Pro II (Megatec)"; select "Other UPS" ("Başka UPS") for the automatic detection.
 3. UPS port: scan ("UPS portu: tara"): optional. Scan the marked ports to find the UPS.
-4. Live values ("Canlı değerler"): check that the values from the UPS are correct.
+4. Live values ("Canlı değerler"): check that the values from the UPS are correct. Optional: the battery installation date ("Akü takılma tarihi") for the battery replace signal.
 5. Shutdown Policy ("Kapatma politikası"): the triggers, the countdown and the Simulation. This step also checks that your user can shut down the computer.
 6. Telegram: optional.
 7. E-mail: server ("E-posta: sunucu") and 8. E-mail: account and test ("E-posta: hesap ve test"): optional.
@@ -90,6 +90,12 @@ A PIN is optional. A PIN prevents other people at this computer from changing th
 - Simple mode ("Basit mod") is the default. It shows one screen with the health of the UPS, the automatic shutdown state, the input voltage and load of the last hour, the last events and a button to the settings.
 - Expert mode ("Uzman mod") shows all screens: Dashboard, Device, UPS Control, History, Events, Shutdown Policy, Notifications, Security, General.
 - Switch with the View menu ("Görünüm"), the "Expert mode" / "Simple mode" button, or in the wizard. The choice is saved.
+
+### Battery replace
+
+- VoltioVolt shows "The battery may need a replacement" ("Akünün değişmesi gerekebilir.") as a Problem in Simple mode, with the reason, when the last battery test of the UPS failed, or when the battery is older than the limit.
+- Write the battery installation date ("Akü takılma tarihi") in the wizard step "Live values" ("Canlı değerler") or on the Device screen, card "Battery replace" ("Akü değişimi"). Most UPS batteries last 3 to 5 years. The limit is 36 months by default (12 to 120).
+- After you replace the battery, write the new date. The signal clears. A passed battery test also clears a failed test.
 
 ### Interface size
 

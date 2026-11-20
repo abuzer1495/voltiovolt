@@ -193,6 +193,8 @@ type Engine struct {
 	nextID int
 	demo   func() bool
 	origin func() string
+	// battery is the BATTERY_REPLACE state (VLT-IS-012 TASK 03-00-00-004).
+	battery BatteryState
 }
 
 // SetDemo sets a function that reports whether the Event is from the
@@ -280,6 +282,9 @@ type State struct {
 	LowBattery bool     `json:"low_battery"`
 	CommLost   bool     `json:"comm_lost"`
 	Active     []string `json:"active"`
+	// Battery is the BATTERY_REPLACE state with its reasons (VLT-IS-012
+	// TASK 03-00-00-004).
+	Battery *BatteryState `json:"battery,omitempty"`
 }
 
 // State returns the active conditions.
@@ -291,6 +296,12 @@ func (e *Engine) State() State {
 		if e.conds[t].active {
 			s.Active = append(s.Active, t)
 		}
+	}
+	if e.battery.Active {
+		s.Active = append(s.Active, BatteryReplace)
+		b := e.battery
+		b.Reasons = append([]string(nil), b.Reasons...)
+		s.Battery = &b
 	}
 	return s
 }

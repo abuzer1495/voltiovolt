@@ -604,5 +604,16 @@
   "conn.portable.disconnected": "The monitoring engine does not answer",
   "device.ports.probable": "Probable UPS",
   "device.profile.legend": "UPS model",
-  "device.profile.other": "Other UPS (automatic detection)"
+  "device.profile.other": "Other UPS (automatic detection)",
+  "battery.title": "Battery replace",
+  "battery.help": "Most UPS batteries last 3 to 5 years. Write the date when you installed the battery.",
+  "battery.installed_on": "Battery installation date",
+  "battery.installed_on.optional": "Battery installation date (optional)",
+  "battery.months": "Replace the battery after (months)",
+  "battery.months.range": "Write a number from {min} to {max}.",
+  "battery.saved": "The battery Settings are saved.",
+  "health.battery_replace": "The battery may need a replacement. {reason}",
+  "health.battery_replace.test_failed": "The last battery test failed.",
+  "health.battery_replace.age": "The battery is {age} months old; the limit is {limit} months.",
+  "plain.BATTERY_REPLACE": "The battery may need a replacement"
 }

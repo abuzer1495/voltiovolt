@@ -12,6 +12,7 @@ import { canActivate, FIELDS } from '../policyform';
 import { app, refreshAuth, refreshPolicy } from '../state';
 import { createStore, useStore } from '../store';
 import { ModeView, Values, modeOf } from './dashboard';
+import { BatteryDateField } from './battery';
 import { Ports } from './device';
 import { Login, SetPin } from './pin';
 import { ModeChoice } from './simple';
@@ -467,6 +468,7 @@ export function Wizard({ first = false, portable = false, startAt, onDone }: { f
           <ModeView mode={modeOf(s.status)} />
           <Values s={s.status} />
           {s.status?.device?.state !== 'connected' ? <p class="note">{t('wizard.values.wait')}</p> : null}
+          <BatteryDateField elevated={elevated} />
         </section>
       ) : null}
 

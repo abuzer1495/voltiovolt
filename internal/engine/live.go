@@ -151,7 +151,28 @@ func (l *live) OnCycle(c poller.Cycle) {
 		l.events.SetThresholds(th)
 	}
 	l.events.Observe(ctx, obs)
+	l.checkBattery(ctx)
 	l.tick(ctx)
+}
+
+// checkBattery evaluates the Event BATTERY_REPLACE (VLT-IS-012 TASK
+// 03-00-00-004) from the battery Settings and the last real UPS battery
+// test. A new battery.installed_on clears the Event at the next poll.
+func (l *live) checkBattery(ctx context.Context) {
+	in, err := event.BatteryFromStore(ctx, l.d.st, time.Now())
+	if err != nil {
+		l.d.log.Error("battery Settings not read", "err", err)
+		return
+	}
+	l.events.Battery(ctx, in, func(active bool) {
+		v := []byte("0")
+		if active {
+			v = []byte("1")
+		}
+		if err := l.d.st.SetMeta(ctx, event.MetaBatteryActive, v); err != nil {
+			l.d.log.Error("battery state not stored", "err", err)
+		}
+	})
 }
 
 // OnState is the Poller sink for the connection state.
@@ -401,6 +422,19 @@ func (d *Daemon) startLive(ctx context.Context) error {
 	l := &live{d: d, writer: measure.Writer{DB: d.st.DB()}, events: event.New(d.st.DB(), th, d.log), pol: pol,
 		hub: ipc.NewHub(), last: map[string]measure.Point{}, ctl: &control.Controller{Audit: d.au, Log: d.log}, demo: sess, tmode: tmode}
 	l.events.SetDemo(sess.Active)
+	// BATTERY_REPLACE (VLT-IS-012 TASK 03-00-00-004): only a test of the
+	// real UPS counts; a demo or test connection result is not kept.
+	l.events.LoadBatteryActive(ctx, d.st)
+	l.ctl.OnTestEnd = func(r control.TestResult) {
+		if sess.Active() || tmode.Active() {
+			return
+		}
+		bctx := context.Background()
+		if err := event.SaveBatteryTest(bctx, d.st, r.Result, r.End); err != nil {
+			d.log.Error("battery test result not stored", "err", err)
+		}
+		l.checkBattery(bctx)
+	}
 	l.events.SetOrigin(func() string {
 		if sess.Active() {
 			return "demo"
@@ -452,5 +486,7 @@ func (d *Daemon) startLive(ctx context.Context) error {
 	}
 	d.live = l
 	l.run(context.Background())
+	// After run: the subscribers (hub, Notifications) get the Event.
+	l.checkBattery(ctx)
 	return nil
 }

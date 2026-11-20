@@ -32,7 +32,7 @@ func setupTray(app *application.App, win *application.WebviewWindow, m *gui.Mana
 		mu.Lock()
 		defer mu.Unlock()
 		tx := m.TrayTexts()
-		tip := gui.Tooltip(ts, tx)
+		tip := gui.TooltipWithVersion(ts, tx, gui.Version)
 		if ts.State == lastState && tip == lastTip && tx == lastTexts {
 			return
 		}

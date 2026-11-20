@@ -37,6 +37,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/shutdown"
 	"github.com/abuzer1495/voltiovolt/internal/transport"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
+	vltversion "github.com/abuzer1495/voltiovolt/internal/version"
 )
 
 //go:embed all:frontend
@@ -212,7 +213,7 @@ func run(dir string) error {
 	m.SetOpenURL(app.Browser.OpenURL)
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:      "main",
-		Title:     "VoltioVolt",
+		Title:     vltversion.WindowTitle(version),
 		Linux:     application.LinuxWindow{Icon: appicon.PNG(256)},
 		Width:     1100,
 		Height:    760,

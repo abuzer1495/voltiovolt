@@ -89,6 +89,13 @@ Always use the build tag `production`. It turns off the Wails development server
 
 Do not make a release or a tag by hand. The workflow `test-build` makes the packages and replaces the pre-release `test-latest` after each change on `main`. Its steps (package contents, SHA256SUMS.txt) are in [test-build.yml](../.github/workflows/test-build.yml).
 
+## 6.1 Version and release (VLT-IS-012 TASK 03-00-00-006, OD-57)
+
+- The version comes from the Git tag: `vX.Y.Z` or `vX.Y.Z-rc.N` gives the version `X.Y.Z` or `X.Y.Z-rc.N` (`internal/version`). A build without a release tag (test-build, a local build) has the version `0.0.0-test+<short SHA>` (local builds without `-ldflags`: `0.0.0-dev`).
+- The version is in About, in the tray tooltip (second line "VoltioVolt <version>"), in the version resource of VoltioVolt.exe, in `--version` of each binary (VoltioVolt, vltd, vlt-gui, vlt-setup, vlt-probe, vlt-simulator, vlt-sim) and, only for a release candidate, in the window title ("VoltioVolt 0.9.0-rc.1").
+- The workflow `release` ([release.yml](../.github/workflows/release.yml)) starts for a pushed tag `v*`. It builds the same packages as test-build (`VoltioVolt-<version>-windows-amd64.zip`, `VoltioVolt-<version>-linux-amd64.tar.gz`, `SHA256SUMS.txt`) with the same tests, and makes a DRAFT release "VoltioVolt <version>". The body is the section of the version in [CHANGELOG.md](../CHANGELOG.md) (`packaging/release/changelog-section.sh`). An rc version is a pre-release. The workflow never publishes a release and never changes a published release: the Owner publishes it (SEC-067).
+- Only the Owner, or the Builder with an Owner instruction, pushes a release tag.
+
 ## 7. Tests without hardware
 
 Do not run tests against a real UPS. Do not send CONTROL or CONFIG commands to real hardware.

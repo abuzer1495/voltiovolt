@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/abuzer1495/voltiovolt/internal/appicon"
+	"github.com/abuzer1495/voltiovolt/internal/version"
 )
 
 // iconSize is the size of the tray icon in pixels.
@@ -135,6 +136,12 @@ type TrayTexts struct {
 // DefaultTrayTexts are the English texts (the same as web/i18n/en.json).
 var DefaultTrayTexts = TrayTexts{Mains: "VLT: mains power", Battery: "VLT: on battery", Critical: "VLT: CRITICAL",
 	Offline: "VLT: no connection", Runtime: "runtime {minutes} min", Open: "Open", Lock: "Lock", Quit: "Quit"}
+
+// TooltipWithVersion is the tray tooltip with the version on a second
+// line, "VoltioVolt <version>" (VLT-IS-012 TASK 03-00-00-006 step 2).
+func TooltipWithVersion(ts TrayState, tx TrayTexts, v string) string {
+	return Tooltip(ts, tx) + "\n" + version.Line(version.Product, v)
+}
 
 // Tooltip is the tray tooltip: state and runtime (step 2.3).
 func Tooltip(ts TrayState, tx TrayTexts) string {

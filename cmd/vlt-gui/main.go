@@ -21,6 +21,7 @@ import (
 
 	"github.com/abuzer1495/voltiovolt/internal/appicon"
 	"github.com/abuzer1495/voltiovolt/internal/gui"
+	"github.com/abuzer1495/voltiovolt/internal/version"
 )
 
 //go:embed all:frontend
@@ -43,7 +44,13 @@ func cspHandler(h http.Handler) http.Handler {
 
 func main() {
 	addr := flag.String("addr", "", "vltd IPC address (default: the vltd endpoint)")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+	if *showVersion {
+		// VLT-IS-012 TASK 03-00-00-006 step 2.
+		fmt.Println(version.Line("vlt-gui", gui.Version))
+		return
+	}
 	if err := run(*addr); err != nil {
 		fmt.Fprintln(os.Stderr, "vlt-gui:", err)
 		os.Exit(1)

@@ -37,7 +37,7 @@ type config struct {
 }
 
 const usage = `Usage:
-  vlt-probe version
+  vlt-probe version | --version
   vlt-probe scan
   vlt-probe probe [--transport hid|serial] [--port NAME] [--dtr unchanged|on|off] [--rts unchanged|on|off]
   vlt-probe watch [--transport hid|serial] [--port NAME] [--minutes 1..30] [--dtr unchanged|on|off] [--rts unchanged|on|off]
@@ -49,6 +49,9 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 		return c, errors.New("no mode: use version, scan, probe or watch")
 	}
 	c.mode = args[0]
+	if c.mode == "--version" || c.mode == "-version" {
+		c.mode = "version" // VLT-IS-012 TASK 03-00-00-006 step 2
+	}
 	if c.mode == "version" {
 		if len(args) != 1 {
 			return c, errors.New("version has no flags")

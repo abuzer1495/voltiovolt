@@ -23,6 +23,10 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/sim/server"
 )
 
+// version is set by the build with -ldflags "-X main.version=..."
+// (VLT-IS-012 TASK 03-00-00-006).
+var version = "0.0.0-dev"
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -38,6 +42,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, newScreen
 		}
 		fmt.Fprintln(stderr, err)
 		return 2
+	}
+	if cfg.version {
+		// VLT-IS-012 TASK 03-00-00-006 step 2.
+		fmt.Fprintln(stdout, "vlt-simulator", version)
+		return 0
 	}
 	ln, err := server.ListenExclusive()
 	if err != nil {

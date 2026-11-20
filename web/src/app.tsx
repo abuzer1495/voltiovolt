@@ -72,6 +72,7 @@ export function App() {
   const [route, setRoute] = useState(currentRoute());
   const [unlock, setUnlock] = useState(false);
   const [portable, setPortable] = useState(false);
+  const [service, setService] = useState(false);
   const [wizDone, setWizDone] = useState(false);
   const [later, setLater] = useState(0);
   const [laterSession, setLaterSession] = useState(false);
@@ -94,6 +95,7 @@ export function App() {
     void api.about().then(async (a) => {
       const p = a.mode === 'portable';
       setPortable(p);
+      setService(a.mode === 'service');
       if (p) {
         try { setWizDone(await api.wizardCompleted()); } catch { /* leave false: first start */ }
       }
@@ -135,7 +137,7 @@ export function App() {
       <a class="skip" href="#main">{t('app.skip')}</a>
       <header class="top">
         <h1 class="brand">{t('app.name')}</h1>
-        <ConnState conn={s.conn} />
+        <ConnState conn={s.conn} service={service} status={s.status} />
         {connected && !simple ? (
           <button type="button" class="mode-switch" onClick={() => void setMode('simple')}>{t('mode.ui.to_simple')}</button>
         ) : null}
@@ -168,7 +170,7 @@ export function App() {
       ) : null}
       <main id="main" tabIndex={-1}>
         {!connected ? (
-          s.conn.state === 'connecting' ? <p role="status">{t('conn.connecting')}</p> : <ConnProblem conn={s.conn} />
+          s.conn.state === 'connecting' ? <p role="status">{t(service ? 'conn.connecting' : 'conn.portable.connecting')}</p> : <ConnProblem conn={s.conn} service={service} />
         ) : (
           <>
             {showPrompt ? (

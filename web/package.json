@@ -8,6 +8,7 @@
     "build": "vite build && node scripts/copy-frontend.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "layout": "node scripts/layout-check.mjs",
     "licenses": "node scripts/check-licenses.mjs"
   },
   "dependencies": {

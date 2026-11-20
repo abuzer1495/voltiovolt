@@ -330,6 +330,12 @@ jobs:
       - name: Front-end tests (CSP, i18n, components)
         working-directory: web
         run: npm test
+      - name: Wizard layout test (VLT-IS-012 TASK 03-00-00-001 step 2.4)
+        # Each wizard step at each size of VLT-RPT-011 section 4, in English
+        # and Turkish: no scroll, no cut control, no button on two lines.
+        # Google Chrome of the runner image, over the DevTools protocol.
+        working-directory: web
+        run: npm run layout
       - name: npm audit (high and critical)
         working-directory: web
         run: npm audit --audit-level=high

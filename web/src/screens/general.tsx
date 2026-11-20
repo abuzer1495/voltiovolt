@@ -81,7 +81,7 @@ export function General() {
       {about?.data_dir ? (
         <section class="card" aria-labelledby="data-dir-title">
           <h3 id="data-dir-title">{t('general.dataDir')}</h3>
-          <p><code>{about.data_dir}</code></p>
+          <p><code class="selectable">{about.data_dir}</code></p>
           <p id="data-dir-help">{t('general.dataDir.help')}</p>
           <HelpLine text={t('help.dataDir')} />
         </section>
@@ -89,7 +89,7 @@ export function General() {
       <section class="card" aria-labelledby="about-title">
         <h3 id="about-title">{t('general.about')}</h3>
         <dl class="kv">
-          <div><dt>{t('about.version')}</dt><dd>{about?.version ?? DASH}</dd></div>
+          <div><dt>{t('about.version')}</dt><dd class="selectable">{about?.version ?? DASH}</dd></div>
           <div><dt>{t('about.vltd')}</dt><dd>{about?.vltd_version || DASH}</dd></div>
           <div><dt>{t('about.protocol')}</dt><dd>{about?.protocol || DASH}</dd></div>
           <div><dt>{t('about.license')}</dt><dd>{about?.license ?? DASH}</dd></div>

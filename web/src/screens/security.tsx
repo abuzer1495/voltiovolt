@@ -106,7 +106,7 @@ export function AuditLog() {
             <th scope="col">{t('audit.result')}</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="selectable">
           {rows.map((r) => (
             <tr>
               <td>{r.seq}</td>

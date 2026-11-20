@@ -461,15 +461,15 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 The wizard starts when no PIN is set. In portable mode it also starts when the wizard-completed marker is not there (the user can Skip the PIN). The user can also start it from the General screen (then the PIN step is omitted). Steps, in order:
 
 1. Set the PIN. Service mode: no Back, no Skip. Portable mode (OD-37): the step is optional, with a "Skip" button. The text is: "A PIN prevents other people at this computer from changing the shutdown settings."
-2. Select the UPS port (the Device screen functions, with Scan).
+2. UPS port: select (the port list, "Use", "Refresh", Demo and Test connection). VLT-IS-012: "UPS port: scan" is a separate, optional step with the scan and its WARNING.
 3. Show the live values. The user confirms that they are correct.
 4. Shutdown Policy: show the defaults, run the Simulation, activate it. The Simulation includes the step "OS shutdown". If that step fails, the error is "This user cannot shut down the computer." and the policy cannot be activated (section 17.4).
-5. Notifications: Telegram, then e-mail (each step can be skipped).
+5. Notifications: Telegram, then "E-mail: server" and "E-mail: account and test" (VLT-IS-012; each step can be skipped).
 6. Question: "Are the modem and the router connected to the UPS?" If the answer is No, show: "During a power failure, the internet stops. Telegram and e-mail cannot send messages."
 7. Interface: the interface mode and the interface size (VLT-IS-011, section 19).
 8. Summary.
 
-The wizard is a dialog of 760 × 560 (scaled with the interface size), centered on the main window (VLT-IS-009, section 17.7).
+The wizard is a dialog of 760 × 560 (scaled with the interface size), centered on the main window (VLT-IS-009, section 17.7). No step scrolls (VLT-IS-012 Q-2): the steps are numbered on one row (the name is the tooltip and the screen-reader text), and the CI job gui-linux runs web/scripts/layout-check.mjs (each step at each size of VLT-RPT-011 section 4, English and Turkish, in headless Chrome). While a dialog is open, the page behind it does not scroll and the wheel over the dimmed area does nothing (web/src/dialog.ts).
 
 Each step has "Back" and "Skip" (except step 1 in service mode).
 

@@ -88,6 +88,24 @@ jobs:
             echo "$b: $n testOnly symbols"
             [ "$n" = 0 ]
           done
+      - name: Release notes check (VLT-IS-012 TASK 03-00-00-006 and 007)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          # Each version section of CHANGELOG.md gives a body for the draft
+          # release, with 40 lines or fewer; "Unreleased" stays.
+          grep -qx '## \[Unreleased\]' CHANGELOG.md
+          for v in $(sed -n 's/^## \[\([0-9][^]]*\)\].*/\1/p' CHANGELOG.md); do
+            n="$(sh packaging/release/changelog-section.sh "$v" CHANGELOG.md | wc -l)"
+            echo "$v: $n lines"
+            [ "$n" -ge 1 ] && [ "$n" -le 40 ]
+          done
+          # The script refuses a missing version.
+          if sh packaging/release/changelog-section.sh 99.99.99 CHANGELOG.md >/dev/null 2>&1; then
+            echo "changelog-section.sh accepted a missing version" >&2
+            exit 1
+          fi
+          test -s docs/user/surum-notlari.md
       - name: go test -race (Linux; the race detector needs cgo, test only)
         if: runner.os == 'Linux'
         env:

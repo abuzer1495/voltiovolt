@@ -67,6 +67,9 @@ func parse(args []string) (opts, error) {
 		return opts{}, errors.New("give exactly one subcommand")
 	}
 	o := opts{cmd: args[0]}
+	if o.cmd == "--version" || o.cmd == "-version" {
+		o.cmd = cmdVersion // VLT-IS-012 TASK 03-00-00-006 step 2
+	}
 	switch o.cmd {
 	case cmdVersion:
 		if len(args) != 1 {

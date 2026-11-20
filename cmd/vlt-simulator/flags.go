@@ -14,6 +14,7 @@ import (
 
 // config is the parsed command line of vlt-simulator.
 type config struct {
+	version       bool // --version: print the version and exit
 	lang          Lang
 	headless      bool
 	scenario      int // 0: none
@@ -29,8 +30,12 @@ func parseArgs(args []string, errw io.Writer) (config, error) {
 	scenario := fs.Int("scenario", 0, "with --headless: run one scenario (1 to 9)")
 	delay := fs.Duration("scenario-delay", 0, "with --headless --scenario: wait before the scenario, so VoltioVolt can connect first")
 	dialect := fs.String("dialect", "megatec", "dialect: megatec, voltronic-qs or voltronic")
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		return config{}, err
+	}
+	if *showVersion {
+		return config{version: true}, nil
 	}
 	if *lang != "" && !strings.EqualFold(*lang, "tr") && !strings.EqualFold(*lang, "en") {
 		return config{}, fmt.Errorf("unknown --lang %q (want tr or en)", *lang)

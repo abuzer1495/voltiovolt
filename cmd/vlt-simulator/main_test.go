@@ -468,3 +468,15 @@ func TestHeadlessScenarioDelay(t *testing.T) {
 	}
 	t.Fatalf("after delay: %+v raw=%q err=%v", st, raw, err)
 }
+
+// VLT-IS-012 TASK 03-00-00-006 step 2: --version prints the version and
+// does not listen.
+func TestVersionFlag(t *testing.T) {
+	var out, errw bytes.Buffer
+	if code := run(context.Background(), []string{"--version"}, &out, &errw, nil); code != 0 {
+		t.Fatalf("exit %d: %s", code, errw.String())
+	}
+	if got := strings.TrimSpace(out.String()); got != "vlt-simulator "+version {
+		t.Fatalf("%q", got)
+	}
+}

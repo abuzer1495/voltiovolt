@@ -158,3 +158,15 @@ func TestDashboardMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// VLT-IS-012 TASK 03-00-00-006 step 2: the tray tooltip has the version.
+func TestTooltipWithVersion(t *testing.T) {
+	if got := TooltipWithVersion(TrayState{State: TrayOffline}, DefaultTrayTexts, "0.9.0-rc.1"); got != "VLT: no connection\nVoltioVolt 0.9.0-rc.1" {
+		t.Fatalf("%q", got)
+	}
+	// Windows: NOTIFYICONDATA szTip has 128 characters with the NUL.
+	r := 999
+	if got := TooltipWithVersion(TrayState{State: TrayBattery, Runtime: &r}, DefaultTrayTexts, "0.0.0-test+77d1134"); len(got) > 127 {
+		t.Fatalf("tooltip too long: %d", len(got))
+	}
+}

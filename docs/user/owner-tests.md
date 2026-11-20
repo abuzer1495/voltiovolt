@@ -1,4 +1,4 @@
-# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009, VLT-IS-008 TASK 03-00-00-007, VLT-IS-009 TASK 03-00-00-007, VLT-IS-010 TASK 03-00-00-007)
+# Owner test plan / Owner test planı (VLT-IS-004 TASK 03-00-00-009, VLT-IS-005 TASK 03-00-00-009, VLT-IS-006 TASK 03-00-00-009, VLT-IS-007 TASK 03-00-00-009, VLT-IS-008 TASK 03-00-00-007, VLT-IS-009 TASK 03-00-00-007, VLT-IS-010 TASK 03-00-00-007, VLT-IS-011 TASK 03-00-00-007, VLT-IS-012 TASK 03-00-00-008)
 
 English first. Turkish: section T below.
 
@@ -255,6 +255,49 @@ WARNING: The UPS turns off its output during this test. All equipment on the UPS
     7. Minimize the window for 1 minute, then restore it: the chart continues and has the points of that minute.
 - Expected result: the charts update without "Refresh". Hidden series and zoom stay. Pause stops the updates.
 - Send: the result of each step (OK or the problem). Screenshots are permitted; check that no Secret and no serial number is in them.
+
+### T-21 Wizard at the Owner screen (VLT-IS-012)
+
+- Purpose: check the wizard and the dialogs (VLT-IS-012 TASK 03-00-00-001, R-13 to R-16, Q-2) on the screen of the Owner.
+- Preconditions: VoltioVolt from the test package or the draft release. Write down the screen size and the Windows display scale. Use a new data folder, or start the wizard from General ("Start the setup wizard").
+- Steps:
+    1. Open the setup wizard. It has 11 steps: the step numbers are at the top; hold the mouse on a number to see the name of the step.
+    2. Go through each step with "Next" or "Skip". At each step: the wizard has no scroll bar, and no label, button or text is cut. Each button text is on one line.
+    3. At each step, turn the mouse wheel over the wizard and over the dimmed area next to it. The main window behind the wizard does not move.
+    4. Steps "UPS port: select" and "UPS port: scan": the port list has "Use" ("Kullan") on one line. A port with the Prolific chip 067B:2303 has the mark "Probable UPS" ("Muhtemel UPS") and is first. The scan step can be skipped.
+    5. Steps "E-mail: server" and "E-mail: account and test": each step fits without a scroll bar.
+    6. Try to select text with the mouse on labels, buttons and step names: no text is selected. The text in input fields can be selected. Open and close a dialog: a selection is removed.
+    7. Close the wizard. The header shows "UPS'e bağlı (COM3)", "UPS bağlı değil", "Test bağlantısı" or "Demo". It never shows "vltd'ye bağlı".
+    8. Do steps 1 to 6 at the interface sizes 80 %, 100 % and 200 % (View > "Interface size").
+- Expected result: no scroll bar in the wizard, the main window does not move, no cut text, no selected text.
+- Send: the screen size and scale, and the result of each step (OK or the problem, with the step name and the size). Screenshots are permitted.
+
+### T-22 Battery replace signal (VLT-IS-012)
+
+- Purpose: check the Event BATTERY_REPLACE and the Simple mode health (VLT-IS-012 TASK 03-00-00-004, Q-1).
+- Preconditions: VoltioVolt is connected to the Reference UPS or uses "Test connection (simulator)" (T-17 steps 1 and 2). Leave `test.real_shutdown` off. If a PIN is set, unlock with the PIN.
+- Steps:
+    1. Expert mode: open Device. The card "Battery replace" ("Akü değişimi") has the help text "Most UPS batteries last 3 to 5 years. Write the date when you installed the battery."
+    2. Write an old date in "Battery installation date" (for example 2021-01-01). Keep "Replace the battery after (months)" at 36. Click "Save".
+    3. Within a few seconds: Events has BATTERY_REPLACE (WARNING). The Device card shows "The battery may need a replacement" with the battery age.
+    4. Simple mode: the status card is "Problem" ("Sorun") with the text "Akünün değişmesi gerekebilir." and the reason (the age and the limit).
+    5. Restart VoltioVolt: the signal stays. Events has no second BATTERY_REPLACE.
+    6. Write today's date and click "Save". Within a few seconds: BATTERY_REPLACE ends (INFO). Simple mode is "Good" again (if no other problem is active).
+    7. Optional: the wizard step "Live values" ("Canlı değerler") has the optional field "Battery installation date" ("Akü takılma tarihi").
+- Expected result: an old date gives BATTERY_REPLACE and "Problem"; a new date clears it.
+- Send: the result of each step (OK or the problem). Screenshots are permitted; check that no Secret and no serial number is in them.
+
+### Release candidate checklist
+
+Do these tests before v1.0. Send the result of each test.
+
+- T-01 vlt-probe Capture on the Reference UPS.
+- T-09 Real shutdown with the Reference UPS. WARNING: This test turns off the computer. Save all work. Close all applications. Make sure that the UPS battery is fully charged. Set trigger.on_battery_seconds to 30. Disconnect the UPS input power. Connect the input power again after the computer is off.
+- T-12 UPS output off and restore. WARNING: The UPS turns off its output during this test. All equipment on the UPS loses power. Connect only the test computer to the UPS. Save all work. Make sure that the battery is fully charged.
+- T-14 PIN set, lock, unlock, restart and Forgot PIN.
+- T-17 Simulator test.
+- T-18 Simple mode and Expert mode.
+- T-21 Wizard at the Owner screen.
 
 ### Service mode (later)
 
@@ -587,6 +630,49 @@ UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihaz
     7. Pencereyi 1 dakika simge durumuna küçültün, sonra geri açın: grafik devam eder ve o dakikanın noktalarını içerir.
 - Beklenen sonuç: grafikler "Yenile" olmadan güncellenir. Gizli seriler ve yakınlaştırma kalır. Duraklat güncellemeleri durdurur.
 - Gönderin: her adımın sonucu (tamam veya sorun). Ekran görüntülerine izin vardır; Gizli bilgi ve seri numarası olmadığından emin olun.
+
+### T-21 Sahibin ekranında sihirbaz (VLT-IS-012)
+
+- Amaç: sihirbazı ve iletişim kutularını (VLT-IS-012 TASK 03-00-00-001, R-13 ile R-16, Q-2) Sahibin ekranında kontrol etmek.
+- Ön koşullar: test paketindeki veya taslak sürümdeki VoltioVolt. Ekran boyutunu ve Windows ekran ölçeğini not edin. Yeni bir veri klasörü kullanın veya sihirbazı Genel ekranından başlatın ("Kurulum sihirbazını başlat").
+- Adımlar:
+    1. Kurulum sihirbazını açın. 11 adımı vardır: adım numaraları üsttedir; adımın adını görmek için fareyi bir numaranın üzerinde tutun.
+    2. Her adımı "İleri" veya "Atla" ile geçin. Her adımda: sihirbazda kaydırma çubuğu yoktur ve hiçbir etiket, düğme veya metin kesilmez. Her düğme metni tek satırdadır.
+    3. Her adımda fare tekerleğini sihirbazın üzerinde ve yanındaki karartılmış alanda çevirin. Sihirbazın arkasındaki ana pencere kaymaz.
+    4. "UPS portu: seç" ve "UPS portu: tara" adımları: port listesinde "Kullan" tek satırdadır. Prolific 067B:2303 yongası olan port "Muhtemel UPS" işaretini taşır ve en üsttedir. Tarama adımı atlanabilir.
+    5. "E-posta: sunucu" ve "E-posta: hesap ve test" adımları: her adım kaydırma çubuğu olmadan sığar.
+    6. Etiketlerde, düğmelerde ve adım adlarında fareyle metin seçmeyi deneyin: hiçbir metin seçilmez. Giriş alanlarındaki metin seçilebilir. Bir iletişim kutusunu açın ve kapatın: seçim kalkar.
+    7. Sihirbazı kapatın. Üst bölüm "UPS'e bağlı (COM3)", "UPS bağlı değil", "Test bağlantısı" veya "Demo" gösterir. Hiçbir zaman "vltd'ye bağlı" göstermez.
+    8. 1. ile 6. adımları %80, %100 ve %200 arayüz boyutlarında yapın (Görünüm > "Arayüz boyutu").
+- Beklenen sonuç: sihirbazda kaydırma çubuğu yoktur, ana pencere kaymaz, kesik metin yoktur, seçili metin yoktur.
+- Gönderin: ekran boyutu ve ölçeği ile her adımın sonucu (tamam veya sorun, adım adı ve boyutla). Ekran görüntülerine izin vardır.
+
+### T-22 Akü değişimi uyarısı (VLT-IS-012)
+
+- Amaç: BATTERY_REPLACE Olayını ve Basit mod durumunu (VLT-IS-012 TASK 03-00-00-004, Q-1) kontrol etmek.
+- Ön koşullar: VoltioVolt Referans UPS'e bağlıdır veya "Test bağlantısı (simülatör)" kullanır (T-17 1. ve 2. adım). `test.real_shutdown` kapalı kalsın. PIN belirlenmişse PIN ile kilidi açın.
+- Adımlar:
+    1. Uzman mod: Aygıt ekranını açın. "Akü değişimi" kartında şu yardım metni vardır: "Çoğu UPS aküsü 3 ila 5 yıl dayanır. Aküyü taktığınız tarihi yazın."
+    2. "Akü takılma tarihi" alanına eski bir tarih yazın (örneğin 2021-01-01). "Akü değişimi süresi (ay)" 36 kalsın. "Kaydet" düğmesine tıklayın.
+    3. Birkaç saniye içinde: Olaylar ekranında BATTERY_REPLACE (UYARI) vardır. Aygıt kartı akü yaşıyla "Akünün değişmesi gerekebilir." gösterir.
+    4. Basit mod: durum kartı "Sorun" olur; metin "Akünün değişmesi gerekebilir." ve nedendir (yaş ve sınır).
+    5. VoltioVolt'u yeniden başlatın: uyarı kalır. Olaylarda ikinci bir BATTERY_REPLACE yoktur.
+    6. Bugünün tarihini yazın ve "Kaydet" düğmesine tıklayın. Birkaç saniye içinde BATTERY_REPLACE sona erer (BİLGİ). Başka bir sorun yoksa Basit mod yeniden "İyi" olur.
+    7. İsteğe bağlı: sihirbazın "Canlı değerler" adımında isteğe bağlı "Akü takılma tarihi" alanı vardır.
+- Beklenen sonuç: eski bir tarih BATTERY_REPLACE ve "Sorun" verir; yeni bir tarih uyarıyı kaldırır.
+- Gönderin: her adımın sonucu (tamam veya sorun). Ekran görüntülerine izin vardır; Gizli bilgi ve seri numarası olmadığından emin olun.
+
+### Sürüm adayı kontrol listesi
+
+v1.0'dan önce bu testleri yapın. Her testin sonucunu gönderin.
+
+- T-01 Referans UPS ile vlt-probe Capture.
+- T-09 Referans UPS ile gerçek kapatma. UYARI: Bu test bilgisayarı kapatır. Tüm çalışmalarınızı kaydedin. Tüm uygulamaları kapatın. UPS bataryasının tam dolu olduğundan emin olun. trigger.on_battery_seconds değerini 30 yapın. UPS giriş gücünü kesin. Bilgisayar kapandıktan sonra giriş gücünü yeniden bağlayın.
+- T-12 UPS çıkışını kapatma ve yeniden açma. UYARI: Bu test sırasında UPS çıkışını kapatır. UPS'e bağlı tüm cihazların gücü kesilir. UPS'e yalnızca test bilgisayarını bağlayın. Tüm çalışmalarınızı kaydedin. Bataryanın tam dolu olduğundan emin olun.
+- T-14 PIN belirleme, kilitleme, kilit açma, yeniden başlatma ve PIN'i unuttum.
+- T-17 Simülatör testi.
+- T-18 Basit mod ve Uzman mod.
+- T-21 Sahibin ekranında sihirbaz.
 
 ### Hizmet modu (daha sonra)
 

@@ -7,7 +7,7 @@
 | [user/README.md](user/README.md) | User guide: download, install, setup wizard, PIN and Forgot PIN, Simple and Expert mode, interface size, help, Demo mode, test connection, History, Shutdown Policy, Notifications, data folder and Vault, uninstall |
 | [user/simulator.md](user/simulator.md) | vlt-simulator: start, keys, menu items, scenarios 1 to 9, connection to VoltioVolt (English and Turkish) |
 | [user/probe.md](user/probe.md) | vlt-probe: READ-only capture of a UPS (English and Turkish) |
-| [user/owner-tests.md](user/owner-tests.md) | Owner test plan T-01 to T-20 (English and Turkish) |
+| [user/owner-tests.md](user/owner-tests.md) | Owner test plan T-01 to T-22 and the release candidate checklist (English and Turkish) |
 | [user/surum-notlari.md](user/surum-notlari.md) | Release notes in Turkish (the English text is [CHANGELOG.md](../CHANGELOG.md)) |
 | [user/dev-service.md](user/dev-service.md) | Service mode (vltd, vlt-gui, vlt-setup): development install only, not in the default package |
 

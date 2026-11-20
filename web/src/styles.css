@@ -359,3 +359,7 @@ button { white-space: nowrap; flex-shrink: 0; }
    stay selectable. */
 body { -webkit-user-select: none; user-select: none; }
 input, textarea, select, [contenteditable="true"], .selectable, .selectable *, .selectable-values dd { -webkit-user-select: text; user-select: text; }
+
+/* VLT-IS-012 TASK 03-00-00-003: the UPS profile for the port to use. */
+.profile-choice { border: 1px solid var(--border); border-radius: calc(4 * var(--px)); padding: calc(6 * var(--px)) calc(10 * var(--px)); margin: calc(6 * var(--px)) 0; display: flex; flex-direction: column; gap: calc(4 * var(--px)); }
+.profile-choice legend { font-weight: 600; padding: 0 calc(4 * var(--px)); }

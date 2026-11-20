@@ -256,7 +256,10 @@ func TestHubDropsForSlowClient(t *testing.T) {
 func deviceScan(t *testing.T, ctx context.Context, e *env, c *typed.Client) {
 	t.Helper()
 	ps, err := c.DevicePorts(ctx)
-	if err != nil || len(ps) != 3 || ps[1].Product != "USB Serial" || !ps[1].IsUSB {
+	// The port with a known bridge chip (WCH 1A86:7523) has the mark
+	// "Probable UPS" and is first (VLT-IS-012 TASK 03-00-00-003).
+	if err != nil || len(ps) != 3 || ps[0].Name != "sim1" || ps[0].Product != "USB Serial" || !ps[0].IsUSB || !ps[0].ProbableUPS || ps[0].Bridge != "WCH CH340" ||
+		ps[1].Name != "sim0" || ps[1].ProbableUPS || ps[2].Name != "sim2" {
 		t.Fatalf("device.ports: %+v %v", ps, err)
 	}
 	for name, s := range e.sims {

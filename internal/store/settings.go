@@ -87,6 +87,10 @@ const (
 	// SettingDeviceAllowedPorts: the serial ports that "auto" can probe.
 	// Default: empty (SEC-099).
 	SettingDeviceAllowedPorts = "device.serial.allowed_ports"
+	// SettingDeviceProfile is the UPS profile: "" (Other UPS, automatic
+	// detection) or "tuncmatik-newtech-pro-ii" (VLT-IS-012 TASK
+	// 03-00-00-003).
+	SettingDeviceProfile = "device.profile"
 	// SettingTestRealShutdown permits a real OS shutdown during a test
 	// connection (VLT-IS-010 OD-46). Default off. The GUI shows a WARNING.
 	SettingTestRealShutdown = "test.real_shutdown"
@@ -274,6 +278,17 @@ func floatRange(lo, hi float64) func(json.RawMessage) error {
 	}
 }
 
+// notNull refuses the JSON value null before the check c. It is needed
+// for a check that accepts the empty text: null decodes to "".
+func notNull(c func(json.RawMessage) error) func(json.RawMessage) error {
+	return func(v json.RawMessage) error {
+		if string(bytes.TrimSpace(v)) == "null" {
+			return errors.New("value must not be null")
+		}
+		return c(v)
+	}
+}
+
 func oneOf(vals ...string) func(json.RawMessage) error {
 	return func(v json.RawMessage) error {
 		var s string
@@ -427,6 +442,7 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingDeviceDTR, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},
 		{Key: SettingDeviceRTS, Type: TypeString, Default: json.RawMessage(`"unchanged"`), Check: oneOf("unchanged", "on", "off")},
 		{Key: SettingDeviceAllowedPorts, Type: TypeStrings, Default: json.RawMessage(`[]`), Check: serialPortList},
+		{Key: SettingDeviceProfile, Type: TypeString, Default: json.RawMessage(`""`), Check: notNull(oneOf("", "tuncmatik-newtech-pro-ii"))},
 		{Key: SettingTestRealShutdown, Type: TypeBool, Default: json.RawMessage(`false`), Check: isBool},
 
 		// VLT-IS-004 TASK 03-00-00-005 step 3.

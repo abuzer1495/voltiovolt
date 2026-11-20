@@ -601,5 +601,8 @@
   "conn.ups.test": "Test bağlantısı",
   "conn.ups.demo": "Demo",
   "conn.portable.connecting": "Başlatılıyor …",
-  "conn.portable.disconnected": "İzleme motoru yanıt vermiyor"
+  "conn.portable.disconnected": "İzleme motoru yanıt vermiyor",
+  "device.ports.probable": "Muhtemel UPS",
+  "device.profile.legend": "UPS modeli",
+  "device.profile.other": "Başka UPS (otomatik algılama)"
 }

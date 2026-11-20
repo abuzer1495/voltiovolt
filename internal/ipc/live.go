@@ -167,7 +167,7 @@ func unavailable(what string) *wire.Error {
 var deviceSettingKeys = map[string]bool{
 	store.SettingDeviceTransport: true, store.SettingDeviceSerial: true,
 	store.SettingDeviceDTR: true, store.SettingDeviceRTS: true,
-	store.SettingDeviceAllowedPorts: true,
+	store.SettingDeviceAllowedPorts: true, store.SettingDeviceProfile: true,
 }
 
 // checkAll checks all values before a change, so that a bad value changes
@@ -224,7 +224,7 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		if err := checkAll(p.Settings); err != nil {
 			return nil, invalid(err.Error())
 		}
-		for _, k := range []string{store.SettingDeviceTransport, store.SettingDeviceSerial, store.SettingDeviceDTR, store.SettingDeviceRTS, store.SettingDeviceAllowedPorts} {
+		for _, k := range []string{store.SettingDeviceTransport, store.SettingDeviceSerial, store.SettingDeviceDTR, store.SettingDeviceRTS, store.SettingDeviceAllowedPorts, store.SettingDeviceProfile} {
 			v, ok := p.Settings[k]
 			if !ok {
 				continue
@@ -255,7 +255,13 @@ func (cn *conn) dispatchLive(ctx context.Context, req wire.Request) (any, *wire.
 		}
 		out := wire.DevicePortsResult{Ports: make([]wire.SerialPort, 0, len(l))}
 		for _, x := range l {
-			out.Ports = append(out.Ports, wire.SerialPort{Name: x.Name, IsUSB: x.IsUSB, VID: x.VID, PID: x.PID, Product: x.Product})
+			sp := wire.SerialPort{Name: x.Name, IsUSB: x.IsUSB, VID: x.VID, PID: x.PID, Product: x.Product, ProbableUPS: x.ProbableUPS, Bridge: x.Bridge}
+			if x.IsUSB {
+				for _, p := range device.ProfilesFor(x.VID, x.PID) {
+					sp.Profiles = append(sp.Profiles, wire.UPSProfile{ID: p.ID, Name: p.Name})
+				}
+			}
+			out.Ports = append(out.Ports, sp)
 		}
 		return out, nil
 

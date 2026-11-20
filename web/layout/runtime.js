@@ -37,9 +37,9 @@ const series = (name, from, to) => {
 };
 // Three ports: the longest real USB description of the Owner tests (R-17).
 const ports = [
+  { name: 'COM3', is_usb: true, vid: '067b', pid: '2303', product: 'Prolific USB-to-Serial Comm Port', probable_ups: true, bridge: 'Prolific PL2303', profiles: [{ id: 'tuncmatik-newtech-pro-ii', name: 'Tunçmatik Newtech Pro II (Megatec)' }] },
+  { name: 'COM4', is_usb: true, vid: '1a86', pid: '7523', product: 'USB-SERIAL CH340', probable_ups: true, bridge: 'WCH CH340' },
   { name: 'COM1', is_usb: false },
-  { name: 'COM3', is_usb: true, vid: '067b', pid: '2303', product: 'Prolific USB-to-Serial Comm Port' },
-  { name: 'COM4', is_usb: true, vid: '1a86', pid: '7523', product: 'USB-SERIAL CH340' },
 ];
 const H = {
   Connection: () => ({ state: 'connected', since: '' }),

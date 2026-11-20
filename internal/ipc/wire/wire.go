@@ -430,6 +430,16 @@ type (
 		VID     string `json:"vid,omitempty"`
 		PID     string `json:"pid,omitempty"`
 		Product string `json:"product,omitempty"`
+		// ProbableUPS is true for a known USB-to-serial bridge chip. The
+		// mark changes nothing else (VLT-IS-012 TASK 03-00-00-003, SEC-099).
+		ProbableUPS bool         `json:"probable_ups,omitempty"`
+		Bridge      string       `json:"bridge,omitempty"`
+		Profiles    []UPSProfile `json:"profiles,omitempty"`
+	}
+	// UPSProfile is a UPS profile that the wizard offers for a port.
+	UPSProfile struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
 	}
 	DevicePortsResult struct {
 		Ports []SerialPort `json:"ports"`

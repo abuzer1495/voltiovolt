@@ -61,13 +61,14 @@ func RealScanner() *Scanner {
 	}
 }
 
-// Ports lists the serial ports of the OS. It opens no port.
+// Ports lists the serial ports of the OS. It opens no port. Ports with a
+// known bridge chip have the mark "Probable UPS" and are first.
 func (s *Scanner) Ports(context.Context) ([]transport.SerialPortInfo, error) {
 	l, err := s.List()
 	if l == nil {
 		l = []transport.SerialPortInfo{}
 	}
-	return l, err
+	return MarkPorts(l), err
 }
 
 // Scan sends "Q1" CR to each marked port, one port after the other. The

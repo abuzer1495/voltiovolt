@@ -375,7 +375,7 @@ CI tests of vlt-setup only read the system (API presence, structure encoding, a 
 ### 14.3 SEC-099: no byte to a port that the user did not select
 
 1. Default `device.transport` "not_configured": no candidate, no port opened. "serial" uses only `device.serial_port`. "auto" uses HID 0665:5161 and only the ports in `device.serial.allowed_ports`. The OS port list is never a candidate list.
-2. device.ports opens no port. device.scan needs the elevated state and the text "SCAN PORTS", accepts only ports of the OS list (1 to 8) and sends only "Q1" CR.
+2. device.ports opens no port. The mark "Probable UPS" (VLT-IS-012 TASK 03-00-00-003) comes only from the VID and PID that the OS gives: it sends no byte, does not select a port and does not start a scan; it only puts the port first in the list (TestPortsMarkSendsNothing, TestMarkPortsOrderAndNothingElse). device.scan needs the elevated state and the text "SCAN PORTS", accepts only ports of the OS list (1 to 8) and sends only "Q1" CR.
 3. Tests: TestSEC099Lister, TestSEC099NotConfigured, TestScanOnlyMarkedPorts, TestPortBusy (internal/device), TestAllMethodsNoSecretInResponses (internal/ipc) with its part deviceScan (internal/ipc/live_test.go: device.ports sends nothing, a wrong text or a port outside the list sends nothing, an unmarked simulator port receives nothing), TestPushAccess (device.scan needs the elevated state), web test "scans only the marked ports after the confirmation text".
 4. The Builder tests use only the simulator and fakes. No test opens a real serial port.
 

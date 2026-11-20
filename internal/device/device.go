@@ -98,6 +98,8 @@ type Config struct {
 	DTR          transport.Line `json:"serial_dtr"`
 	RTS          transport.Line `json:"serial_rts"`
 	AllowedPorts []string       `json:"allowed_ports"`
+	// Profile is the UPS profile ("" = Other UPS: automatic detection).
+	Profile string `json:"profile"`
 }
 
 // DefaultConfig is the default of the Device Settings: not configured,
@@ -116,6 +118,7 @@ func ConfigFromStore(ctx context.Context, st *store.Store) (Config, error) {
 		store.SettingDeviceDTR:          &c.DTR,
 		store.SettingDeviceRTS:          &c.RTS,
 		store.SettingDeviceAllowedPorts: &c.AllowedPorts,
+		store.SettingDeviceProfile:      &c.Profile,
 	} {
 		s, err := st.GetSetting(ctx, key)
 		if err != nil {
@@ -124,6 +127,9 @@ func ConfigFromStore(ctx context.Context, st *store.Store) (Config, error) {
 		if err := json.Unmarshal(s.Value, out); err != nil {
 			return c, fmt.Errorf("device: setting %s: %w", key, err)
 		}
+	}
+	if p, ok := ProfileByID(c.Profile); ok {
+		c.DTR, c.RTS = p.DTR, p.RTS
 	}
 	return c, nil
 }
@@ -237,9 +243,13 @@ func (p Profile) Supports(cmd string) bool {
 // is skipped; the next command follows (step 2.3). It returns the valid
 // responses by command, and the supported commands in Probe List order.
 func Probe(ctx context.Context, s *Sender) (map[string]any, []string, error) {
+	return probe(ctx, s, ProbeList)
+}
+
+func probe(ctx context.Context, s *Sender, list []string) (map[string]any, []string, error) {
 	vals := map[string]any{}
 	var supported []string
-	for _, cmd := range ProbeList {
+	for _, cmd := range list {
 		v, _, err := s.Send(ctx, cmd)
 		if ctx.Err() != nil {
 			return vals, supported, ctx.Err()
@@ -362,12 +372,22 @@ func Detect(ctx context.Context, c Config, list Lister, clock Clock, log *slog.L
 			continue
 		}
 		s := &Sender{T: tr, Clock: clock}
-		vals, supported, err := Probe(ctx, s)
+		list := ProbeList
+		up, fixed := ProfileByID(c.Profile)
+		if fixed {
+			// A UPS profile: only the commands of its Dialect (VLT-IS-012
+			// TASK 03-00-00-003 step 3).
+			list = probeListFor(up.Dialect)
+		}
+		vals, supported, err := probe(ctx, s, list)
 		if err != nil {
 			tr.Close()
 			return Profile{}, nil, err
 		}
 		d, ok := SelectDialect(supported)
+		if fixed && ok {
+			d = up.Dialect
+		}
 		if !ok {
 			log.Info("device: no known Dialect", "transport", cand.Transport, "port", cand.Port, "answers", len(supported))
 			tr.Close()

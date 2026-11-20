@@ -228,6 +228,8 @@ func TestConfigFromStore(t *testing.T) {
 		{store.SettingDeviceAllowedPorts, `["COM3","COM3"]`},
 		{store.SettingDeviceAllowedPorts, `"COM3"`},
 		{store.SettingDeviceAllowedPorts, `["COM1","COM2","COM3","COM4","COM5","COM6","COM7","COM8","COM9","COM10","COM11","COM12","COM13","COM14","COM15","COM16","COM17"]`},
+		{store.SettingDeviceProfile, `"megatec"`},
+		{store.SettingDeviceProfile, `null`},
 	} {
 		for _, d := range store.DefaultSettings() {
 			if d.Key == bad.k && d.Check(json.RawMessage(bad.v)) == nil {
@@ -245,6 +247,8 @@ func TestConfigFromStore(t *testing.T) {
 		{store.SettingDeviceTransport, `"not_configured"`},
 		{store.SettingDeviceAllowedPorts, `[]`},
 		{store.SettingDeviceAllowedPorts, `["COM3","/dev/ttyUSB0"]`},
+		{store.SettingDeviceProfile, `""`},
+		{store.SettingDeviceProfile, `"tuncmatik-newtech-pro-ii"`},
 	} {
 		for _, d := range store.DefaultSettings() {
 			if d.Key == good.k {

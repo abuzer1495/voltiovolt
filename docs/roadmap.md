@@ -17,14 +17,19 @@ This roadmap follows OD-29, VLT-IS-008 01-30-00 and VLT-IS-011 OD-56. The Owner 
 | VLT-IS-009 | Fixes from the Owner tests: Forgot PIN, field help with official links, Demo mode, compact window |
 | VLT-IS-010 | vlt-simulator and the test connection, History series visibility |
 | VLT-IS-011 | PIN session fix, live History charts, Simple and Expert mode, interface size, Windows 11 look |
+| VLT-IS-012 | Release candidate 0.9.0-rc.1: wizard and dialog fixes, interface terms, Reference UPS profile, battery replace signal, daily test run, version and draft release workflow, CHANGELOG |
 
 The pre-release "Test build" (tag `test-latest`) is made by CI after each change on `main`.
+
+VLT-IS-012 (release candidate: version from the Git tag, CHANGELOG, draft release workflow, battery replace signal, Reference UPS profile) is merged. The release 0.9.0-rc.1 is done when the Owner publishes the draft release (SEC-067).
 
 ## Next
 
 | Step | Content | Release |
 |------|---------|---------|
-| VLT-IS-012 | Release candidate: version number, changelog, stable release flow | 0.9.0 (RC) |
+| 0.9.0-rc.1 | The Owner does the release candidate checklist of [user/owner-tests.md](user/owner-tests.md) and publishes the draft release | 0.9.0-rc.1 |
+| VLT-IS-013 | Security hardening | v1.0 |
+| v1.0 | The first stable release, after VLT-IS-013 | v1.0 |
 
 ## Later
 
@@ -34,4 +39,4 @@ The pre-release "Test build" (tag `test-latest`) is made by CI after each change
 | Analyzer, reports, scheduled tests, CONFIG commands, Telegram administration, WhatsApp, voice call, NUT server, encrypted backup, optional service mode with an installer | v1.0 |
 | VLT Agent, Wake-on-LAN, more than one UPS, web interface, MQTT and Home Assistant, USB 4G modem, Mega(USB) and SEC dialects | v2.0 |
 
-The step numbers after VLT-IS-012 are not fixed. The earlier table of VLT-IS-008 01-30-00 gave VLT-IS-010 to security hardening and VLT-IS-011 to 017 to the Analyzer; the Owner changed this order (VLT-IS-010 and VLT-IS-011 above, OD-56).
+The step numbers after VLT-IS-013 are not fixed. The earlier table of VLT-IS-008 01-30-00 gave VLT-IS-010 to security hardening and VLT-IS-011 to 017 to the Analyzer; the Owner changed this order (VLT-IS-010 and VLT-IS-011 above, OD-56).

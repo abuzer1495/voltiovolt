@@ -7,6 +7,7 @@ Other guides in this folder:
 - [simulator.md](simulator.md): the UPS simulator vlt-simulator.
 - [probe.md](probe.md): the capture tool vlt-probe.
 - [owner-tests.md](owner-tests.md): the Owner test plan.
+- [surum-notlari.md](surum-notlari.md): the release notes in Turkish ([CHANGELOG.md](../../CHANGELOG.md) in English).
 - [dev-service.md](dev-service.md): service mode (vltd), for development only.
 
 WARNING: VoltioVolt can shut down your computer. Use a test computer for the test builds. Save your work before a test.

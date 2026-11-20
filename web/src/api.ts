@@ -98,7 +98,14 @@ export interface Countdown {
 export interface StatusPush {
   ts: string;
   device: { state: string; config?: { transport?: string; serial_port?: string }; profile?: { port?: string } };
-  ups: { on_battery: boolean; low_battery: boolean; comm_lost: boolean; active: string[] };
+  ups: {
+    on_battery: boolean;
+    low_battery: boolean;
+    comm_lost: boolean;
+    active: string[];
+    /** battery: the BATTERY_REPLACE state (VLT-IS-012 TASK 03-00-00-004). */
+    battery?: { active: boolean; reasons: string[]; age_months?: number; replace_after_months: number; installed_on?: string };
+  };
   measurements: Record<string, Point>;
   countdown: Countdown;
   policy_active: boolean;

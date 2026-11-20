@@ -6,6 +6,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { api, errorCode, type DeviceStatus, type Line, type ScanResult, type SerialPort } from '../api';
 import { Confirm, errText, isWindows } from '../components';
 import { HelpLine } from '../help';
+import { BatteryReplace } from './battery';
 import { DASH, time } from '../format';
 import { t } from '../i18n';
 import { app } from '../state';
@@ -311,6 +312,7 @@ export function Device() {
       </section>
       <Ports elevated={elevated} onUsed={() => void load()} fromDemo={d?.config?.transport === 'demo'} fromTest={d?.config?.transport === 'test'} />
       <section class="card"><h3>{t('device.nominal')}</h3><KV obj={p?.nominal} /></section>
+      <BatteryReplace elevated={elevated} status={s.status} />
       <BatteryEstimate elevated={elevated} />
       <section class="card"><h3>{t('device.model')}</h3><KV obj={p?.info} /><KV obj={p?.model_data} /><KV obj={p?.firmware} /></section>
       {d ? <DeviceSettings cfg={{ ...DEFAULT_CFG, ...(d.config ?? {}) }} elevated={elevated} onSaved={() => void load()} /> : null}

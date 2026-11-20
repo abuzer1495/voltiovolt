@@ -48,7 +48,7 @@ func TestTemplatesTurkish(t *testing.T) {
 // two languages have the same keys.
 func TestTemplatesComplete(t *testing.T) {
 	types := []string{"ON_BATTERY", "ONLINE", "LOW_BATTERY", "BYPASS_ACTIVE", "AVR_ACTIVE", "UPS_FAULT", "TEST_STARTED", "UPS_SHUTDOWN_ACTIVE",
-		"UPS_WARNING_BITS_CHANGED", "OVERLOAD", "OVER_TEMPERATURE", "RUNTIME_LOW", "COMM_LOST", "COMM_RESTORED",
+		"UPS_WARNING_BITS_CHANGED", "OVERLOAD", "OVER_TEMPERATURE", "RUNTIME_LOW", "COMM_LOST", "COMM_RESTORED", "BATTERY_REPLACE",
 		TypeCountdownStart, TypeCountdownCancel, TypeShutdownRequest, TypeTest}
 	for _, l := range Languages {
 		tx := templates[l]

@@ -13,6 +13,7 @@ import { useStore } from '../store';
 import { LanguageSettings } from './general';
 import { History } from './history';
 import { ScaleChoice } from './scalechoice';
+import { batteryReason } from './battery';
 import { startWizard } from './wizard';
 
 export type Health = 'good' | 'attention' | 'problem';
@@ -38,7 +39,7 @@ export const TEMP_ATTENTION = 45;
  * - Attention: on battery, AVR, bypass, load >= 90 %, temperature >= 45 °C,
  *   communication lost (and the other WARNING conditions).
  * - Problem: battery low, UPS fault, overload >= 100 %, over temperature,
- *   a shutdown countdown, the UPS shutdown.
+ *   a shutdown countdown, the UPS shutdown, BATTERY_REPLACE (VLT-IS-012).
  */
 export function health(s: StatusPush | null, cd: Countdown | null): HealthInfo {
   const problem: HealthReason[] = [];
@@ -57,6 +58,8 @@ export function health(s: StatusPush | null, cd: Countdown | null): HealthInfo {
   if (active.has('OVERLOAD') || (load !== undefined && load >= LOAD_PROBLEM)) problem.push({ key: 'health.overload', vars: { n: num(load, 0) } });
   if (active.has('OVER_TEMPERATURE')) problem.push({ key: 'health.over_temp', vars: { n: num(temp, 0) } });
   if (active.has('UPS_SHUTDOWN_ACTIVE')) problem.push({ key: 'health.ups_shutdown' });
+  // VLT-IS-012 TASK 03-00-00-004 step 4: BATTERY_REPLACE gives "Problem".
+  if (active.has('BATTERY_REPLACE')) problem.push({ key: 'health.battery_replace', vars: { reason: batteryReason(s.ups?.battery) } });
   if (s.ups?.on_battery || active.has('ON_BATTERY')) attention.push({ key: 'health.on_battery' });
   if (active.has('AVR_ACTIVE')) attention.push({ key: 'health.avr' });
   if (active.has('BYPASS_ACTIVE')) attention.push({ key: 'health.bypass' });

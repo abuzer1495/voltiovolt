@@ -59,13 +59,17 @@ Only one VoltioVolt runs for each user. A second start shows the window of the f
 At the first start the setup wizard opens (window size 760 × 560). The steps are:
 
 1. PIN ("PIN"): optional, see section 4.
-2. UPS port ("UPS portu"): select the COM port (Windows, for example `COM3`) or the port (Linux, for example `/dev/ttyUSB0`), or USB HID. You can also select "Demo (simulator)" or "Test connection (simulator)".
-3. Live values ("Canlı değerler"): check that the values from the UPS are correct.
-4. Shutdown Policy ("Kapatma Politikası"): the triggers, the countdown and the Simulation. This step also checks that your user can shut down the computer.
-5. Telegram and 6. E-mail ("E-posta"): optional. You can Skip these steps.
-7. Modem and router ("Modem ve yönlendirici"): optional.
-8. Interface ("Arayüz"): the interface size and the interface mode.
-9. Summary ("Özet").
+2. UPS port: select ("UPS portu: seç"): select the COM port (Windows, for example `COM3`) or the port (Linux, for example `/dev/ttyUSB0`) with "Use" ("Kullan"). You can also select "Demo (simulator)" or "Test connection (simulator)".
+3. UPS port: scan ("UPS portu: tara"): optional. Scan the marked ports to find the UPS.
+4. Live values ("Canlı değerler"): check that the values from the UPS are correct.
+5. Shutdown Policy ("Kapatma Politikası"): the triggers, the countdown and the Simulation. This step also checks that your user can shut down the computer.
+6. Telegram: optional.
+7. E-mail: server ("E-posta: sunucu") and 8. E-mail: account and test ("E-posta: hesap ve test"): optional.
+9. Modem and router ("Modem ve yönlendirici"): optional.
+10. Interface ("Arayüz"): the interface size and the interface mode.
+11. Summary ("Özet").
+
+The steps are numbered at the top of the wizard. Each step fits in the wizard without a scroll bar.
 
 To run the wizard again, open the General screen and select "Start the setup wizard" ("Kurulum sihirbazını başlat").
 

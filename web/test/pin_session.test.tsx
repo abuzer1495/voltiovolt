@@ -130,6 +130,7 @@ describe('Owner sequence T-14 1.1-1.7 (VLT-IS-011 R-08)', () => {
     expect(root.textContent).toContain(t('wizard.port.selected', { port: t('device.transport.test') }));
     expect(root.querySelector('.wizard-unlock')).toBeNull();
     // 1.5 the policy: Simulation and activation, no PIN request
+    await click(byText(t('wizard.next'))); // scan (VLT-IS-012)
     await click(byText(t('wizard.next'))); // values
     await click(byText(t('wizard.next'))); // policy
     expect(root.textContent).toContain(t('wizard.policy.intro'));
@@ -143,7 +144,7 @@ describe('Owner sequence T-14 1.1-1.7 (VLT-IS-011 R-08)', () => {
     expect(root.querySelector('.wizard-unlock')).toBeNull();
     expect(fake.calls.some((c) => c.method === 'Login')).toBe(false);
     // 1.6 complete: the wizard ends, unlocked
-    for (let i = 0; i < 6 && !root.querySelector('.wizard-footer')?.textContent?.includes(t('wizard.finish')); i++) {
+    for (let i = 0; i < 8 && !root.querySelector('.wizard-footer')?.textContent?.includes(t('wizard.finish')); i++) {
       expect(root.querySelector('.wizard-unlock')).toBeNull();
       await click(byText(t('wizard.skip')));
     }

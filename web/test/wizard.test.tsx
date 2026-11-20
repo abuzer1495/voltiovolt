@@ -87,9 +87,12 @@ describe('first-run wizard', () => {
     const dlg = root.querySelector('.wizard-dialog') as HTMLElement;
     expect(dlg).toBeTruthy();
     expect(getComputedStyle(dlg).width === '760px' || dlg.classList.contains('wizard-dialog')).toBe(true);
-    const steps = [...root.querySelectorAll('.wizard-steps li')].map((li) => li.textContent);
+    // VLT-IS-012 Q-2: numbered steps; the name is the tooltip and the
+    // screen-reader text.
+    const steps = [...root.querySelectorAll('.wizard-steps li')].map((li) => li.getAttribute('title'));
     expect(steps).toEqual(STEPS.map((s) => t('wizard.step.' + s)));
-    expect(root.querySelector('.wizard-steps li[aria-current="step"]')?.textContent).toBe(t('wizard.step.pin'));
+    expect([...root.querySelectorAll('.wizard-steps li .sr-only')].map((x) => x.textContent)).toEqual(steps);
+    expect(root.querySelector('.wizard-steps li[aria-current="step"]')?.getAttribute('title')).toBe(t('wizard.step.pin'));
     expect(root.querySelector('.wizard-footer')).toBeTruthy();
   });
 
@@ -108,9 +111,13 @@ describe('first-run wizard', () => {
     await show(<Wizard first={false} />);
     expect(root.textContent).toContain(t('wizard.step.port'));
     await click(byText(t('wizard.skip')));
-    expect(root.textContent).toContain(t('wizard.step.values'));
+    expect(root.textContent).toContain(t('wizard.scan.intro'));
+    await click(byText(t('wizard.skip')));
+    expect(root.textContent).toContain(t('wizard.values.intro'));
     await click(byText(t('wizard.back')));
-    expect(root.textContent).toContain(t('wizard.step.port'));
+    expect(root.textContent).toContain(t('wizard.scan.intro'));
+    await click(byText(t('wizard.back')));
+    expect(root.textContent).toContain(t('wizard.port.intro'));
   });
 
   it('the modem question uses the required text, and No shows the warning', async () => {
@@ -119,8 +126,8 @@ describe('first-run wizard', () => {
     expect(t('wizard.modem.warn')).toBe('During a power failure, the internet stops. Telegram and e-mail cannot send messages.');
     app.set({ auth: { pin_set: true, elevated: true } as never, conn: { state: 'connected', since: '' } });
     await show(<Wizard first={false} />);
-    // skip to modem: port, values, policy, telegram, email, modem = 5 skips
-    for (const title of ['port', 'values', 'policy', 'telegram', 'email']) {
+    // skip to modem (VLT-IS-012: port and e-mail are two steps each)
+    for (const title of ['port', 'scan', 'values', 'policy', 'telegram', 'email', 'email2']) {
       expect(root.textContent).toContain(t('wizard.step.' + title));
       await click(byText(t('wizard.skip')));
     }
@@ -159,6 +166,7 @@ describe('first-run wizard', () => {
     app.set({ auth: { pin_set: true, elevated: true } as never, conn: { state: 'connected', since: '' } });
     await show(<Wizard first={false} />);
     await click(byText(t('wizard.skip'))); // port
+    await click(byText(t('wizard.skip'))); // scan
     await click(byText(t('wizard.skip'))); // values
     expect(root.textContent).toContain(t('wizard.step.policy'));
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });

@@ -144,7 +144,14 @@ function resultText(r: ScanResult | undefined): string {
 }
 
 /** Ports is the port list with the scan and "Use this port". */
-export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false }: { elevated: boolean; onUsed: () => void; fromDemo?: boolean; fromTest?: boolean }) {
+/**
+ * Ports is the port list. part "select" has the list with "Use" and
+ * "Refresh"; part "scan" has the optional scan with its WARNING; "all" has
+ * both (Device screen). VLT-IS-012 TASK 03-00-00-001 step 2.2.
+ */
+export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false, part = 'all' }: { elevated: boolean; onUsed: () => void; fromDemo?: boolean; fromTest?: boolean; part?: 'all' | 'select' | 'scan' }) {
+  const withUse = part !== 'scan';
+  const withScan = part !== 'select';
   const [ports, setPorts] = useState<SerialPort[] | null>(null);
   const [marked, setMarked] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, ScanResult>>({});
@@ -192,41 +199,49 @@ export function Ports({ elevated, onUsed, fromDemo = false, fromTest = false }: 
           <caption>{t('device.ports')}</caption>
           <thead>
             <tr>
-              <th scope="col">{t('device.ports.mark')}</th>
+              {withScan ? <th scope="col">{t('device.ports.mark')}</th> : null}
               <th scope="col">{t('device.ports.name')}</th>
               <th scope="col">{t('device.ports.desc')}</th>
-              <th scope="col">{t('device.ports.result')}</th>
-              <th scope="col">{t('device.ports.use')}</th>
+              {withScan ? <th scope="col">{t('device.ports.result')}</th> : null}
+              {withUse ? <th scope="col"><span aria-hidden="true">{t('device.ports.use.short')}</span><span class="sr-only">{t('device.ports.use')}</span></th> : null}
             </tr>
           </thead>
           <tbody>
             {ports.map((p) => (
               <tr>
-                <td>
-                  <input type="checkbox" aria-label={t('device.ports.mark.label', { name: p.name })} disabled={!elevated} checked={!!marked[p.name]}
-                    onChange={(e) => setMarked({ ...marked, [p.name]: (e.target as HTMLInputElement).checked })} />
-                </td>
+                {withScan ? (
+                  <td>
+                    <input type="checkbox" aria-label={t('device.ports.mark.label', { name: p.name })} disabled={!elevated} checked={!!marked[p.name]}
+                      onChange={(e) => setMarked({ ...marked, [p.name]: (e.target as HTMLInputElement).checked })} />
+                  </td>
+                ) : null}
                 <td><code>{p.name}</code></td>
                 <td>{desc(p)}</td>
-                <td>{resultText(results[p.name])}</td>
-                <td>
-                  <button type="button" aria-label={t('device.ports.use.label', { name: p.name })} disabled={!elevated} onClick={() => setUse(p.name)}>{t('device.ports.use')}</button>
-                </td>
+                {withScan ? <td>{resultText(results[p.name])}</td> : null}
+                {withUse ? (
+                  <td>
+                    <button type="button" aria-label={t('device.ports.use.label', { name: p.name })} disabled={!elevated} onClick={() => setUse(p.name)}>{t('device.ports.use.short')}</button>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
         </table>
       ) : null}
       <button type="button" onClick={() => void load()}>{t('common.refresh')}</button>
-      <div class="banner banner-warn" role="note">
-        <span aria-hidden="true" class="banner-icon">⚠</span>
-        <span>{t('device.scan.warning')}</span>
-      </div>
-      <form class="form" onSubmit={(e) => void scan(e)}>
-        <label for="scan-text">{t('device.scan.label', { text: SCAN_TEXT })}</label>
-        <input id="scan-text" disabled={!elevated} value={text} autoComplete="off" onInput={(e) => setText((e.target as HTMLInputElement).value)} />
-        <button type="submit" class="danger" disabled={!elevated || text !== SCAN_TEXT || list.length === 0}>{t('device.scan.button')}</button>
-      </form>
+      {withScan ? (
+        <>
+          <div class="banner banner-warn" role="note">
+            <span aria-hidden="true" class="banner-icon">⚠</span>
+            <span>{t('device.scan.warning')}</span>
+          </div>
+          <form class="form" onSubmit={(e) => void scan(e)}>
+            <label for="scan-text">{t('device.scan.label', { text: SCAN_TEXT })}</label>
+            <input id="scan-text" disabled={!elevated} value={text} autoComplete="off" onInput={(e) => setText((e.target as HTMLInputElement).value)} />
+            <button type="submit" class="danger" disabled={!elevated || text !== SCAN_TEXT || list.length === 0}>{t('device.scan.button')}</button>
+          </form>
+        </>
+      ) : null}
       {use ? (
         <Confirm text={fromDemo ? t('device.demo.leave') : fromTest ? t('device.test.leave') : t('device.ports.use.confirm', { name: use })}
           confirmLabel={fromDemo ? t('device.demo.leave.button') : fromTest ? t('device.test.leave.button') : t('device.ports.use.button')}
@@ -253,7 +268,7 @@ export function Device() {
       {err ? <p role="alert" class="msg msg-error">{err}</p> : null}
       <section class="card" aria-labelledby="dev-title">
         <h3 id="dev-title">{t('device.status')}</h3>
-        <dl class="kv">
+        <dl class="kv selectable-values">
           <div><dt>{t('device.state')}</dt><dd>{d?.state ? t('device.state.' + d.state) : DASH}</dd></div>
           <div><dt>{t('device.since')}</dt><dd>{time(d?.since)}</dd></div>
           <div><dt>{t('device.transport')}</dt><dd>{p?.transport ?? DASH}</dd></div>

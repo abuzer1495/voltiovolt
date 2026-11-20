@@ -1,17 +1,44 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useState } from 'preact/hooks';
-import type { ConnInfo } from './api';
+import type { ConnInfo, StatusPush } from './api';
+import { useClearSelection } from './dialog';
 import { t } from './i18n';
 import { confirmNative, native } from './native';
 import { useStore } from './store';
 
-/** ConnState shows the connection state with an icon and a text, always. */
-export function ConnState({ conn }: { conn: ConnInfo }) {
-  const icon = conn.state === 'connected' ? '●' : conn.state === 'connecting' ? '◌' : '✕';
+/**
+ * ConnState is the connection text of the header. Service mode: the IPC
+ * connection to vltd. Portable mode has no vltd (VLT-IS-012 R-16): the
+ * text is the state of the UPS link. "service" must be true for the vltd
+ * text; while the mode is not known, the portable text is used.
+ */
+export function ConnState({ conn, service = false, status }: { conn: ConnInfo; service?: boolean; status?: StatusPush | null }) {
+  let state = conn.state;
+  let text = t('conn.' + conn.state);
+  if (!service) {
+    if (conn.state !== 'connected') {
+      text = t('conn.portable.' + (conn.state === 'connecting' ? 'connecting' : 'disconnected'));
+    } else {
+      const dev = status?.device;
+      const transport = dev?.config?.transport;
+      const port = dev?.profile?.port || dev?.config?.serial_port || '';
+      if (transport === 'demo') {
+        text = t('conn.ups.demo');
+      } else if (transport === 'test') {
+        text = t('conn.ups.test');
+      } else if (dev?.state === 'connected') {
+        text = port ? t('conn.ups.connected', { port }) : t('conn.ups.connected.noport');
+      } else {
+        state = 'disconnected';
+        text = t('conn.ups.disconnected');
+      }
+    }
+  }
+  const icon = state === 'connected' ? '●' : state === 'connecting' ? '◌' : '✕';
   return (
-    <div class={`conn conn-${conn.state}`} role="status" aria-live="polite">
+    <div class={`conn conn-${state}`} role="status" aria-live="polite">
       <span aria-hidden="true" class="conn-icon">{icon}</span>
-      <span>{t('conn.' + conn.state)}</span>
+      <span>{text}</span>
     </div>
   );
 }
@@ -21,10 +48,10 @@ export function isWindows(): boolean {
 }
 
 /** ConnProblem shows the reason of a failed connection and the help text. */
-export function ConnProblem({ conn }: { conn: ConnInfo }) {
+export function ConnProblem({ conn, service = true }: { conn: ConnInfo; service?: boolean }) {
   return (
     <section class="card" aria-labelledby="conn-title">
-      <h2 id="conn-title">{t('conn.disconnected')}</h2>
+      <h2 id="conn-title">{t(service ? 'conn.disconnected' : 'conn.portable.disconnected')}</h2>
       {conn.reason ? <p role="alert">{t('conn.reason.' + conn.reason)}</p> : null}
       {conn.reason === 'access_denied' ? (
         <p class="help">{t(isWindows() ? 'conn.help.windows' : 'conn.help.linux')}</p>
@@ -54,6 +81,7 @@ export function Badge({ kind, icon, text }: { kind: 'ok' | 'warn' | 'crit' | 'in
 export function Confirm({ text, confirmLabel, onConfirm, onCancel }: { text: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) {
   const nat = useStore(native).dialogs;
   const [inline, setInline] = useState(!nat);
+  useClearSelection();
   useEffect(() => {
     if (!nat) return;
     let live = true;

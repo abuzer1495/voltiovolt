@@ -97,7 +97,7 @@ export interface Countdown {
 
 export interface StatusPush {
   ts: string;
-  device: { state: string; config?: { transport?: string } };
+  device: { state: string; config?: { transport?: string; serial_port?: string }; profile?: { port?: string } };
   ups: { on_battery: boolean; low_battery: boolean; comm_lost: boolean; active: string[] };
   measurements: Record<string, Point>;
   countdown: Countdown;

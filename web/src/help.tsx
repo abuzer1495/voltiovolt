@@ -2,6 +2,7 @@
 // Field help of VLT-IS-009 TASK 03-00-00-004 and OD-42.
 import { useState } from 'preact/hooks';
 import { api } from './api';
+import { clearSelection } from './dialog';
 import { t } from './i18n';
 
 /** Official help links (also in internal/gui OfficialHelpURLs and the CI check). */
@@ -46,7 +47,10 @@ export function HelpLine({
           class="help-q"
           aria-expanded={open}
           aria-label={t('help.more')}
-          onClick={() => setOpen(!open)}
+          onClick={() => {
+            clearSelection();
+            setOpen(!open);
+          }}
         >
           ?
         </button>

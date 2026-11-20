@@ -206,8 +206,8 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
 }
-.wizard-dialog > header h2 { margin: 0 0 calc(4 * var(--px)); font-size: var(--title-size); }
-.wizard-dialog > header .intro { margin: 0 0 calc(6 * var(--px)); color: var(--muted); }
+.wizard-dialog > header h2 { margin: 0; font-size: var(--title-size); }
+.wizard-dialog > header .intro { margin: calc(4 * var(--px)) 0 calc(2 * var(--px)); color: var(--muted); font-weight: 600; }
 .wizard-steps {
   display: flex;
   flex-wrap: wrap;
@@ -216,9 +216,12 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
   margin: 0;
   padding: 0;
 }
+.wizard-head { display: flex; align-items: center; justify-content: space-between; gap: calc(12 * var(--px)); flex-wrap: wrap; }
 .wizard-steps li {
   font-size: calc(12 * var(--px));
   line-height: 1.2;
+  min-width: calc(22 * var(--px));
+  text-align: center;
   padding: calc(3 * var(--px)) calc(6 * var(--px));
   border: 1px solid var(--border);
   border-radius: calc(10 * var(--px));
@@ -232,10 +235,18 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
 }
 .wizard-body {
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
   padding: calc(8 * var(--px)) calc(12 * var(--px));
   min-height: 0;
 }
+.wizard-body > .intro { margin: 0 0 calc(6 * var(--px)); }
+.wizard-body .table th, .wizard-body .table td { padding: calc(2 * var(--px)) calc(8 * var(--px)); }
+.wizard-body .form { gap: calc(6 * var(--px)); }
+.wizard-body .form button { margin-top: 0; }
+.wizard-body .form > .row { margin-bottom: 0; }
+.wizard-body .banner { margin-bottom: calc(6 * var(--px)); padding: calc(6 * var(--px)) calc(10 * var(--px)); }
+.wizard-body .field-help { margin-bottom: calc(4 * var(--px)); }
 .wizard-body .card { margin-bottom: calc(8 * var(--px)); padding: calc(8 * var(--px)) calc(10 * var(--px)); }
 .wizard-body .pin form { max-width: none; }
 .wizard-body .rules { margin: calc(4 * var(--px)) 0; padding-left: calc(18 * var(--px)); font-size: calc(13 * var(--px)); }
@@ -335,3 +346,16 @@ button.link { height: auto; padding: 0; border: 0; background: none; color: var(
 html[data-os="linux"] { --font: system-ui, "Noto Sans", sans-serif; }
 html[data-os="linux"] ::selection { background: Highlight; color: HighlightText; }
 html[data-os="linux"] button.primary { background: Highlight; color: HighlightText; border-color: Highlight; }
+
+/* VLT-IS-012 TASK 03-00-00-001 (R-13, R-14, R-15). */
+/* Step 1: while a modal dialog is open, the page behind it does not
+   scroll (dialog.ts sets the class). Dialog parts keep the wheel. */
+html.modal-open, html.modal-open body { overflow: hidden; }
+.wizard-overlay, .prompt-overlay { overscroll-behavior: contain; }
+.confirm, .help-panel { overscroll-behavior: contain; }
+/* Step 3: a button text stays on one line; the button becomes wider. */
+button { white-space: nowrap; flex-shrink: 0; }
+/* Step 4: interface text is not selectable. Values that a user can copy
+   stay selectable. */
+body { -webkit-user-select: none; user-select: none; }
+input, textarea, select, [contenteditable="true"], .selectable, .selectable *, .selectable-values dd { -webkit-user-select: text; user-select: text; }

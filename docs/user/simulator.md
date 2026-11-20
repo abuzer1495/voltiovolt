@@ -148,12 +148,12 @@ Ekranın dört bölümü vardır:
 
 Sırayla:
 
-1. Şebeke gücü (açık/kapalı)
+1. Şebeke (açık/kapalı)
 2. Giriş gerilimi
 3. Giriş frekansı
 4. Çıkış gerilimi (şebekede)
 5. Yük
-6. Akü şarjı
+6. Akü doluluğu
 7. Akü hızı
 8. Sıcaklık
 9. UPS tipi (on-line veya yedekleme)
@@ -178,7 +178,7 @@ Bir sayı tuşuna basın:
 | 3 | Düşük giriş gerilimi: 180 V |
 | 4 | Yüksek giriş gerilimi: 260 V |
 | 5 | Aşırı yük: % 110 |
-| 6 | Akü düşük: şarj % 15 ve şebeke kapalı |
+| 6 | Akü düşük: doluluk % 15 ve şebeke kapalı |
 | 7 | 30 saniyelik haberleşme kaybı (yanıt yok), sonra normal |
 | 8 | Yüksek sıcaklık: 55 C |
 | 9 | Normal değerlere dönüş (R ile aynı: varsayılan değerler) |
@@ -196,5 +196,5 @@ Test bağlantısından çıkmak için farklı bir taşıma seçin. Onay metni ş
 ### 7. Sahip testleri
 
 - [T-17 Simülatör testi](owner-tests.md#t-17-simülatör-testi-vlt-is-010)
-- [T-18 Basit kip ve Uzman kip](owner-tests.md#t-18-basit-kip-ve-uzman-kip-vlt-is-011)
+- [T-18 Basit mod ve Uzman mod](owner-tests.md#t-18-basit-mod-ve-uzman-mod-vlt-is-011)
 - [T-20 Simülatörle canlı Geçmiş grafikleri](owner-tests.md#t-20-simülatörle-canlı-geçmiş-grafikleri-vlt-is-011)

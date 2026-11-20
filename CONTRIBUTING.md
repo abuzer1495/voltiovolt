@@ -20,6 +20,7 @@ VLT is in pre-alpha (test builds only). The Owner approves all decisions. Read t
 
 1. One task, one branch, one pull request.
 2. Branch name: `vlt-is-<nnn>/<task-name>`. Example: `vlt-is-002/dialect`.
+   Work outside an instruction (PR-78-1, only on Owner request): `vlt-docs/<name>` for documentation, `vlt-fix/<name>` for a small fix. The same rules apply: one task, one pull request, CI must pass, squash merge.
 3. The pull request title starts with the instruction number and the task number.
 4. A pull request contains only the work of its task.
 5. Merge method: squash merge only.

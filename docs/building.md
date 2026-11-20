@@ -97,6 +97,7 @@ Do not run tests against a real UPS. Do not send CONTROL or CONFIG commands to r
 - `cmd/vlt-simulator`: the interactive simulator for the test connection ([user/simulator.md](user/simulator.md)). `vlt-simulator --headless --scenario N` runs a scenario without a screen.
 - Demo mode (`internal/demo`) runs a simulator in the VoltioVolt process.
 - The setting `test.real_shutdown` stays false in all tests.
+- The workflow `test-stability` ([test-stability.yml](../.github/workflows/test-stability.yml), VLT-IS-012 TASK 03-00-00-005) runs `go test -count=20 ./...` on Linux and on Windows once each day (and with "Run workflow"). If a test fails, it uploads the full test output as the artifact `go-test-count-20-<os>-<run>`. It is not a required check.
 
 ## 8. Checks before a pull request
 

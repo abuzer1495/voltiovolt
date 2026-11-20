@@ -12,6 +12,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/device"
 	"github.com/abuzer1495/voltiovolt/internal/dialect"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
+	"github.com/abuzer1495/voltiovolt/internal/measure"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 )
 
@@ -43,6 +44,14 @@ func TestDemoModeNoControlAndNoShutdown(t *testing.T) {
 	waitFor(t, 20*time.Second, "demo connected", func() bool {
 		st, err := c.DeviceStatus(ctx)
 		return err == nil && st.State == device.StateConnected && st.Config.Transport == device.TransportDemo
+	})
+	// The Manager sets StateConnected before the first fast poll. SetBeeper
+	// needs the last status (b0). Without this wait, UPSBeeperSet can
+	// return no_ups (ErrNoStatus) on a slow or a fast runner
+	// (VLT-IS-012 TASK 03-00-00-005, run 44792047687).
+	waitFor(t, 15*time.Second, "first demo status", func() bool {
+		_, rows, err := c.Measurements(ctx, measure.InputVoltage, time.Now().Add(-time.Minute), time.Now().Add(time.Minute), "raw")
+		return err == nil && len(rows) > 0
 	})
 	if listed != 0 {
 		t.Fatalf("lister calls %d", listed)

@@ -54,7 +54,7 @@ jobs:
             xvfb xdotool scrot dbus-x11 fonts-dejavu-core adwaita-icon-theme
           pkg-config --modversion gtk4 webkitgtk-6.0
           scrot -v
-          xdotool -V | head -1
+          command -v xdotool
       - name: Build the front end
         working-directory: web
         run: |
@@ -108,13 +108,14 @@ jobs:
           npm ci --ignore-scripts
           npm run build
       - name: Build VoltioVolt test binary (no production tag)
+        working-directory: cmd/voltiovolt
         shell: bash
         env:
           CGO_ENABLED: "0"
         run: |
           set -euo pipefail
-          go test -count=1 ./cmd/voltiovolt/
-          go build -trimpath -ldflags "-X main.version=ci-shot-${GITHUB_SHA::12}" -o "$RUNNER_TEMP/VoltioVolt.exe" ./cmd/voltiovolt
+          go test -count=1 .
+          go build -trimpath -ldflags "-X main.version=ci-shot-${GITHUB_SHA::12}" -o "$RUNNER_TEMP/VoltioVolt.exe" .
       - name: Capture screenshots
         shell: pwsh
         run: |

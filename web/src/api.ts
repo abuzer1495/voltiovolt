@@ -419,6 +419,8 @@ export const api = {
     call<{ authorization_url: string; redirect_uri: string }>('EmailOAuthStart', clientID, clientSecret ?? ''),
   emailOAuthDisconnect: () => call<void>('EmailOAuthDisconnect'),
   openOAuthURL: (url: string) => call<void>('OpenOAuthURL', url),
+  demoNav: () => call<{ active: boolean; screen: string }>('DemoNav'),
+  demoShotReady: () => call<void>('DemoShotReady'),
   /**
    * setSecret sends the text of an input field to the Go side (SEC-096).
    * The Go side sends it to vltd with secret.set and clears its buffer.

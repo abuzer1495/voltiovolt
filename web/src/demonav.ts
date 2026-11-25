@@ -6,6 +6,7 @@
 
 import { startWizard, type Step, STEPS } from './screens/wizard';
 import { setMode, type UIMode } from './mode';
+import { api } from './api';
 
 export type DemoNav = {
   route?: string;
@@ -57,4 +58,21 @@ export function applyDemoNav(): void {
 
 if (typeof window !== 'undefined') {
   window.applyVltDemoNav = applyDemoNav;
+}
+
+/** bootDemoNav asks the Go side whether this is a screenshot run, applies
+ * the hash, and signals that the window is ready to capture. */
+export async function bootDemoNav(): Promise<void> {
+  try {
+    const d = await api.demoNav();
+    if (!d?.active) return;
+    window.__VLT_DEMO_NAV__ = true;
+    const screen = (d.screen || 'dashboard').replace(/^#/, '');
+    if (screen === 'help') window.__VLT_DEMO_HELP__ = true;
+    if (screen) location.hash = '#' + screen;
+    applyDemoNav();
+    await api.demoShotReady();
+  } catch {
+    /* production, or the method is not present */
+  }
 }

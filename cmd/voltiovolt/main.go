@@ -228,7 +228,7 @@ func run(dir string, opt demoOpts) error {
 			Handler: cspHandler(application.BundledAssetFileServer(dist)),
 		},
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID: "com.voltiovolt.app",
+			UniqueID: demoInstanceID(opt),
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
 				if w := application.Get().Window.Current(); w != nil {
 					w.Show()
@@ -261,11 +261,25 @@ func run(dir string, opt demoOpts) error {
 	watchWindow(app, win)
 	if demoToolsEnabled && opt.any() {
 		win.SetSize(shotnav.Width, shotnav.Height)
-		win.RegisterHook(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+		m.SetDemoNav(shotnav.Hash(opt.Screen))
+		var readyOnce sync.Once
+		ready := func() { readyOnce.Do(func() { demoReadyTouch(opt.ReadyFile) }) }
+		m.SetDemoShotReady(ready)
+		// WindowRuntimeReady does not always fire under Xvfb. The front
+		// end calls DemoShotReady after it has applied the hash. This
+		// fallback still injects the hash and writes the file.
+		go func() {
+			time.Sleep(8 * time.Second)
 			if js := demoNavJS(opt.Screen); js != "" {
 				win.ExecJS(js)
 			}
-			demoReadyTouch(opt.ReadyFile)
+			time.Sleep(2 * time.Second)
+			ready()
+		}()
+		win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+			if js := demoNavJS(opt.Screen); js != "" {
+				win.ExecJS(js)
+			}
 		})
 	}
 	m.SetMinSizeFunc(func(w, h int) { win.SetMinSize(w, h) })

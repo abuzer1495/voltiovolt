@@ -54,3 +54,16 @@ func (a *API) TelegramChats() (json.RawMessage, error) {
 func (a *API) TelegramChatRemove(chatID int64) (json.RawMessage, error) {
 	return a.raw(wire.MethodTelegramChatsRemove, wire.TelegramChatParams{ChatID: chatID})
 }
+
+// EmailOAuthStart starts the Gmail OAuth loopback flow (SEC-045). clientSecret
+// is write-only and is cleared after the call.
+func (a *API) EmailOAuthStart(clientID, clientSecret string) (json.RawMessage, error) {
+	p := wire.EmailOAuthStartParams{ClientID: clientID, ClientSecret: clientSecret}
+	clientSecret = ""
+	return a.raw(wire.MethodEmailOAuthStart, p)
+}
+
+// EmailOAuthDisconnect revokes the Google refresh token and deletes Vault secrets.
+func (a *API) EmailOAuthDisconnect() (json.RawMessage, error) {
+	return a.raw(wire.MethodEmailOAuthDisconnect, nil)
+}

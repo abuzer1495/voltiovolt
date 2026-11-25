@@ -14,6 +14,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/ipc/client/typed"
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/notify"
+	"github.com/abuzer1495/voltiovolt/internal/notify/email"
 	"github.com/abuzer1495/voltiovolt/internal/store"
 )
 
@@ -213,3 +214,11 @@ func TestChannelsUnavailable(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+func (f *fakeChannels) StartEmailOAuth(context.Context, string, []byte) (string, string, error) {
+	return "https://accounts.google.com/o/oauth2/v2/auth?client_id=test", "http://127.0.0.1:1/", nil
+}
+func (f *fakeChannels) EmailOAuthStatus(context.Context) (email.OAuthStatus, error) {
+	return email.OAuthStatus{Auth: email.AuthPassword}, nil
+}
+func (f *fakeChannels) DisconnectEmailOAuth(context.Context) error { return nil }

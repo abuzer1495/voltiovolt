@@ -319,6 +319,16 @@ export interface ChannelInfo {
   settings?: Record<string, unknown>;
   pairing?: { code?: string; expires: string };
   chats: number;
+  oauth?: EmailOAuthStatus;
+}
+
+/** EmailOAuthStatus is the Gmail OAuth state (no tokens). */
+export interface EmailOAuthStatus {
+  auth: string;
+  connected: boolean;
+  client_id_set: boolean;
+  pending: boolean;
+  error?: string;
 }
 
 /** EmailPreset is a set of SMTP server Settings (the preset "Gmail"). */
@@ -405,6 +415,10 @@ export const api = {
   telegramPairStart: () => call<{ code: string; expires: string }>('TelegramPairStart'),
   telegramChats: () => call<{ chats: TelegramChat[] }>('TelegramChats'),
   telegramChatRemove: (chatID: number) => call<void>('TelegramChatRemove', chatID),
+  emailOAuthStart: (clientID: string, clientSecret?: string) =>
+    call<{ authorization_url: string; redirect_uri: string }>('EmailOAuthStart', clientID, clientSecret ?? ''),
+  emailOAuthDisconnect: () => call<void>('EmailOAuthDisconnect'),
+  openOAuthURL: (url: string) => call<void>('OpenOAuthURL', url),
   /**
    * setSecret sends the text of an input field to the Go side (SEC-096).
    * The Go side sends it to vltd with secret.set and clears its buffer.

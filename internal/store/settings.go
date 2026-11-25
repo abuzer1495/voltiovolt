@@ -71,12 +71,14 @@ const (
 
 	// e-mail Channel (VLT-IS-007 TASK 03-00-00-006 step 1). The password is
 	// the Secret S-04 in the Vault, not a Setting.
-	SettingEmailServer   = "email.smtp.server"
-	SettingEmailPort     = "email.smtp.port"
-	SettingEmailSecurity = "email.smtp.security" // tls (port 465) or starttls (port 587)
-	SettingEmailUser     = "email.smtp.user"
-	SettingEmailFrom     = "email.from"
-	SettingEmailTo       = "email.to"
+	SettingEmailServer        = "email.smtp.server"
+	SettingEmailPort          = "email.smtp.port"
+	SettingEmailSecurity      = "email.smtp.security" // tls (port 465) or starttls (port 587)
+	SettingEmailUser          = "email.smtp.user"
+	SettingEmailFrom          = "email.from"
+	SettingEmailTo            = "email.to"
+	SettingEmailAuth          = "email.auth" // password (default) or gmail_oauth
+	SettingEmailOAuthClientID = "email.oauth.client_id"
 
 	// Device Settings (VLT-IS-004 TASK 03-00-00-003 step 1).
 	// VLT-IS-006 TASK 03-00-00-004: transport default "not_configured";
@@ -462,6 +464,8 @@ func DefaultSettings() []SettingDef {
 		{Key: SettingEmailUser, Type: TypeString, Default: json.RawMessage(`""`), Check: plainText(254)},
 		{Key: SettingEmailFrom, Type: TypeString, Default: json.RawMessage(`""`), Check: emailFrom},
 		{Key: SettingEmailTo, Type: TypeStrings, Default: json.RawMessage(`[]`), Check: emailList},
+		{Key: SettingEmailAuth, Type: TypeString, Default: json.RawMessage(`"password"`), Check: oneOf("password", "gmail_oauth")},
+		{Key: SettingEmailOAuthClientID, Type: TypeString, Default: json.RawMessage(`""`), Check: plainText(254)},
 		// VLT-IS-004 TASK 03-00-00-003 step 1, changed by VLT-IS-006 TASK
 		// 03-00-00-004: default transport "not_configured" (OD-27, SEC-099),
 		// DTR and RTS "unchanged" (VLT-REF-001 section 2). A stored value of

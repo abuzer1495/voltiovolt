@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package email is the e-mail Channel (SMTP) of the Notification Router
-// (VLT-IS-007 TASK 03-00-00-006):
+// Package email is the e-mail Channel of the Notification Router
+// (VLT-IS-007 TASK 03-00-00-006, Gmail OAuth SEC-045):
 //
 //  1. Settings: server, port, security (TLS on port 465, or STARTTLS on port
-//     587), user name, sender address, receiver addresses (1 to 5).
-//  2. The password is the Secret S-04 (Vault ID "smtp.password"). It is read
-//     from the Vault only for the authentication of a send.
-//  3. The preset "Gmail": smtp.gmail.com, port 465, TLS (Gmail).
+//     587), user name, sender address, receiver addresses (1 to 5), and
+//     the authentication mode (SMTP password or Gmail OAuth).
+//  2. The SMTP password is the Secret S-04 (Vault ID "smtp.password"). It
+//     is read from the Vault only for the authentication of a send.
+//  3. The preset "Gmail": smtp.gmail.com, port 465, TLS (Gmail app
+//     password), or Sign in with Google (OAuth 2.0, RFC 8252).
 //  4. The server certificate is always verified (TLS 1.2 or later). If the
 //     server does not offer STARTTLS, or STARTTLS fails, nothing is sent and
 //     the password is not used.
 //  5. The subject has the format "[VLT][severity] Event".
+//  6. Gmail OAuth uses the Gmail API (scope gmail.send) and a loopback
+//     redirect on 127.0.0.1. The refresh token is Secret S-02 (Vault ID
+//     "gmail.oauth.refresh_token"). SMTP XOAUTH2 is not used: it would
+//     require the scope https://mail.google.com/ (full mailbox access).
 package email
 
 import (
@@ -30,9 +36,11 @@ import (
 	"net/smtp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/abuzer1495/voltiovolt/internal/notify"
+	"github.com/abuzer1495/voltiovolt/internal/notify/email/oauth"
 	"github.com/abuzer1495/voltiovolt/internal/redact"
 	"github.com/abuzer1495/voltiovolt/internal/store"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
@@ -55,6 +63,8 @@ type Settings struct {
 	User     string   `json:"user"`
 	From     string   `json:"from"`
 	To       []string `json:"to"`
+	Auth     string   `json:"auth"`      // password (default) or gmail_oauth
+	ClientID string   `json:"client_id"` // public Google OAuth client ID
 }
 
 // Preset is a set of server Settings.
@@ -89,10 +99,20 @@ type Config struct {
 	TLS     *tls.Config
 	Timeout time.Duration // default 30 s
 	Now     func() time.Time
+	// OAuth is the Google OAuth client (tests inject fake endpoints).
+	// When nil, the production Google endpoints are used.
+	OAuth *oauth.Client
 }
 
 // Mailer is the e-mail Channel.
-type Mailer struct{ cfg Config }
+type Mailer struct {
+	cfg       Config
+	mu        sync.Mutex
+	flow      *oauthFlow
+	oAuth     oauthState
+	access    string
+	accessExp time.Time
+}
 
 // New returns a Mailer.
 func New(cfg Config) *Mailer {
@@ -113,14 +133,22 @@ func (m *Mailer) Name() string { return notify.ChannelEmail }
 
 // Check tells if the Settings are complete and correct.
 func (s Settings) Check() error {
-	if s.Server == "" || s.From == "" || len(s.To) == 0 {
+	if s.From == "" || len(s.To) == 0 {
 		return ErrNotConfigured
 	}
-	if s.Port < 1 || s.Port > 65535 {
-		return fmt.Errorf("email: port %d is not correct", s.Port)
+	if s.Auth != "" && s.Auth != AuthPassword && s.Auth != AuthGmailOAuth {
+		return fmt.Errorf("email: auth %q is not correct", s.Auth)
 	}
-	if s.Security != SecurityTLS && s.Security != SecurityStartTLS {
-		return fmt.Errorf("email: security %q is not correct", s.Security)
+	if s.Auth != AuthGmailOAuth {
+		if s.Server == "" {
+			return ErrNotConfigured
+		}
+		if s.Port < 1 || s.Port > 65535 {
+			return fmt.Errorf("email: port %d is not correct", s.Port)
+		}
+		if s.Security != SecurityTLS && s.Security != SecurityStartTLS {
+			return fmt.Errorf("email: security %q is not correct", s.Security)
+		}
 	}
 	if len(s.To) > store.MaxEmailReceivers {
 		return fmt.Errorf("email: more than %d receivers", store.MaxEmailReceivers)
@@ -159,7 +187,13 @@ func (m *Mailer) Send(ctx context.Context, n notify.Notification) error {
 		return err
 	}
 	msg := m.message(s, n)
-	if err := m.send(ctx, s, msg); err != nil {
+	var errSend error
+	if s.Auth == AuthGmailOAuth {
+		errSend = m.sendGmail(ctx, msg)
+	} else {
+		errSend = m.send(ctx, s, msg)
+	}
+	if err := errSend; err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -285,6 +319,7 @@ func StoreSettings(st *store.Store) func(ctx context.Context) (Settings, error) 
 		}{
 			{store.SettingEmailServer, &s.Server}, {store.SettingEmailPort, &s.Port}, {store.SettingEmailSecurity, &s.Security},
 			{store.SettingEmailUser, &s.User}, {store.SettingEmailFrom, &s.From}, {store.SettingEmailTo, &s.To},
+			{store.SettingEmailAuth, &s.Auth}, {store.SettingEmailOAuthClientID, &s.ClientID},
 		} {
 			v, err := st.GetSetting(ctx, f.key)
 			if err != nil {

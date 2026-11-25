@@ -13,6 +13,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/ipc/wire"
 	"github.com/abuzer1495/voltiovolt/internal/notify"
 	"github.com/abuzer1495/voltiovolt/internal/notify/email"
+	emailoauth "github.com/abuzer1495/voltiovolt/internal/notify/email/oauth"
 	"github.com/abuzer1495/voltiovolt/internal/notify/telegram"
 	"github.com/abuzer1495/voltiovolt/internal/redact"
 	"github.com/abuzer1495/voltiovolt/internal/store"
@@ -29,20 +30,25 @@ type ChannelControl interface {
 	Pairing() (active bool, expires time.Time)
 	TelegramChats(ctx context.Context) ([]store.TelegramChat, error)
 	RemoveTelegramChat(ctx context.Context, id int64) error
+	StartEmailOAuth(ctx context.Context, clientID string, clientSecret []byte) (authURL, redirect string, err error)
+	EmailOAuthStatus(ctx context.Context) (email.OAuthStatus, error)
+	DisconnectEmailOAuth(ctx context.Context) error
 }
 
 // emailKeys maps the names of channels.settings.set to the Setting keys of
 // the e-mail Channel.
 var emailKeys = map[string]string{
-	"server":   store.SettingEmailServer,
-	"port":     store.SettingEmailPort,
-	"security": store.SettingEmailSecurity,
-	"user":     store.SettingEmailUser,
-	"from":     store.SettingEmailFrom,
-	"to":       store.SettingEmailTo,
+	"server":    store.SettingEmailServer,
+	"port":      store.SettingEmailPort,
+	"security":  store.SettingEmailSecurity,
+	"user":      store.SettingEmailUser,
+	"from":      store.SettingEmailFrom,
+	"to":        store.SettingEmailTo,
+	"auth":      store.SettingEmailAuth,
+	"client_id": store.SettingEmailOAuthClientID,
 }
 
-var emailOrder = []string{"server", "port", "security", "user", "from", "to"}
+var emailOrder = []string{"server", "port", "security", "user", "from", "to", "auth", "client_id"}
 
 // channelSecret is the Vault ID of the Secret of a Channel ("" = none).
 func channelSecret(name string) string {
@@ -84,6 +90,14 @@ func (cn *conn) channelInfo(ctx context.Context, name string) (wire.ChannelInfo,
 				return ci, err
 			}
 			ci.Settings[k] = s.Value
+		}
+		st, err := b.Channels.EmailOAuthStatus(ctx)
+		if err != nil {
+			return ci, err
+		}
+		ci.OAuth = &wire.EmailOAuthStatus{
+			Auth: st.Auth, Connected: st.Connected, ClientIDSet: st.ClientIDSet,
+			Pending: st.Pending, Error: st.Error,
 		}
 	case notify.ChannelTelegram:
 		if on, exp := b.Channels.Pairing(); on {
@@ -266,6 +280,37 @@ func (cn *conn) dispatchChannels(ctx context.Context, req wire.Request) (any, *w
 			return nil, internal()
 		}
 		cn.record(ctx, "telegram_chat_remove", target, "success", nil)
+		return wire.OKResult{OK: true}, nil
+
+	case wire.MethodEmailOAuthStart:
+		var p wire.EmailOAuthStartParams
+		if err := wire.Strict(req.Params, &p); err != nil {
+			return nil, bad(err)
+		}
+		secret := []byte(p.ClientSecret)
+		p.ClientSecret = ""
+		url, redirect, err := b.Channels.StartEmailOAuth(ctx, p.ClientID, secret)
+		clear(secret)
+		if err != nil {
+			cn.record(ctx, "email_oauth_start", "email", "failure", map[string]any{"reason": redact.Scrub(err.Error())})
+			return nil, &wire.Error{Code: wire.CodeInvalid, Message: redact.Scrub(err.Error())}
+		}
+		cn.record(ctx, "email_oauth_start", "email", "success", nil)
+		return wire.EmailOAuthStartResult{AuthorizationURL: url, RedirectURI: redirect}, nil
+
+	case wire.MethodEmailOAuthDisconnect:
+		if err := wire.Strict(req.Params, &wire.NoParams{}); err != nil {
+			return nil, bad(err)
+		}
+		err := b.Channels.DisconnectEmailOAuth(ctx)
+		if err != nil && !errors.Is(err, emailoauth.ErrRevoke) {
+			cn.record(ctx, "email_oauth_disconnect", "email", "failure", map[string]any{"reason": redact.Scrub(err.Error())})
+			return nil, &wire.Error{Code: wire.CodeSendFailed, Message: redact.Scrub(err.Error())}
+		}
+		cn.record(ctx, "email_oauth_disconnect", "email", "success", nil)
+		if errors.Is(err, emailoauth.ErrRevoke) {
+			return nil, &wire.Error{Code: wire.CodeSendFailed, Message: err.Error()}
+		}
 		return wire.OKResult{OK: true}, nil
 	}
 	return nil, &wire.Error{Code: wire.CodeUnknownMethod, Message: "unknown method"}

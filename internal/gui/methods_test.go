@@ -75,6 +75,9 @@ func methodCases(secret []byte) map[string]methodCase {
 		"TelegramPairStart":      {nil, wire.MethodTelegramPairStart},
 		"TelegramChats":          {nil, wire.MethodTelegramChatsList},
 		"TelegramChatRemove":     {[]any{int64(100)}, wire.MethodTelegramChatsRemove},
+		"EmailOAuthStart":        {[]any{"cid.apps.googleusercontent.com", ""}, wire.MethodEmailOAuthStart},
+		"EmailOAuthDisconnect":   {nil, wire.MethodEmailOAuthDisconnect},
+		"OpenOAuthURL":           {[]any{"https://accounts.google.com/o/oauth2/v2/auth?client_id=x"}, ""},
 		"StartAtLogon":           {nil, ""},
 		"SetStartAtLogon":        {[]any{false}, ""},
 		"WizardCompleted":        {nil, ""},
@@ -96,7 +99,8 @@ func allFake(t *testing.T) *fakeServer {
 		wire.MethodDevicePorts, wire.MethodDeviceScan,
 		wire.MethodUPSControlCaps, wire.MethodUPSTestStart, wire.MethodUPSTestCancel, wire.MethodUPSBeeperSet,
 		wire.MethodChannelsList, wire.MethodChannelsSettingsSet, wire.MethodChannelsTest, wire.MethodTelegramPairStart,
-		wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove, wire.MethodDemoPowerFail} {
+		wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove, wire.MethodEmailOAuthStart, wire.MethodEmailOAuthDisconnect,
+		wire.MethodDemoPowerFail} {
 		f.handle(m, func(json.RawMessage) (any, *wire.Error) { return map[string]any{"ok": true}, nil })
 	}
 	f.handle(wire.MethodSecretStatus, func(json.RawMessage) (any, *wire.Error) {

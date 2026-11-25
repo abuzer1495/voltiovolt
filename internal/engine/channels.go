@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/abuzer1495/voltiovolt/internal/notify/email"
 	"github.com/abuzer1495/voltiovolt/internal/store"
 )
 
@@ -29,4 +30,16 @@ func (c channelControl) TelegramChats(ctx context.Context) ([]store.TelegramChat
 
 func (c channelControl) RemoveTelegramChat(ctx context.Context, id int64) error {
 	return c.l.telegram.RemoveChat(ctx, id)
+}
+
+func (c channelControl) StartEmailOAuth(ctx context.Context, clientID string, clientSecret []byte) (string, string, error) {
+	return c.l.email.StartOAuth(ctx, clientID, clientSecret)
+}
+
+func (c channelControl) EmailOAuthStatus(ctx context.Context) (email.OAuthStatus, error) {
+	return c.l.email.Status(ctx)
+}
+
+func (c channelControl) DisconnectEmailOAuth(ctx context.Context) error {
+	return c.l.email.DisconnectOAuth(ctx)
 }

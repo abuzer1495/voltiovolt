@@ -345,12 +345,14 @@ var methodAccess = map[string]access{
 	wire.MethodUPSTestCancel:  elevated,
 	wire.MethodUPSBeeperSet:   elevated,
 	// VLT-IS-007 TASK 03-00-00-007 step 1: elevated for all changes.
-	wire.MethodChannelsList:        readOnly,
-	wire.MethodChannelsSettingsSet: elevated,
-	wire.MethodChannelsTest:        elevated,
-	wire.MethodTelegramPairStart:   elevated,
-	wire.MethodTelegramChatsList:   readOnly,
-	wire.MethodTelegramChatsRemove: elevated,
+	wire.MethodChannelsList:         readOnly,
+	wire.MethodChannelsSettingsSet:  elevated,
+	wire.MethodChannelsTest:         elevated,
+	wire.MethodTelegramPairStart:    elevated,
+	wire.MethodTelegramChatsList:    readOnly,
+	wire.MethodTelegramChatsRemove:  elevated,
+	wire.MethodEmailOAuthStart:      elevated,
+	wire.MethodEmailOAuthDisconnect: elevated,
 	// VLT-IS-009 TASK 03-00-00-005.
 	wire.MethodDemoPowerFail: elevated,
 }
@@ -750,7 +752,8 @@ func (cn *conn) dispatch(ctx context.Context, req wire.Request, pinSet, elev boo
 		return cn.dispatchUPS(ctx, req, elev)
 
 	case wire.MethodChannelsList, wire.MethodChannelsSettingsSet, wire.MethodChannelsTest,
-		wire.MethodTelegramPairStart, wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove:
+		wire.MethodTelegramPairStart, wire.MethodTelegramChatsList, wire.MethodTelegramChatsRemove,
+		wire.MethodEmailOAuthStart, wire.MethodEmailOAuthDisconnect:
 		return cn.dispatchChannels(ctx, req)
 
 	default:

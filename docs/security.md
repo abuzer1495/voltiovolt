@@ -13,8 +13,8 @@ This file is a summary of the security requirements of VLT-IS-001 Revision 00 (s
 | ID | Secret | Change |
 |----|--------|--------|
 | S-01 | Telegram bot token |  |
-| S-02 | Gmail OAuth refresh token and access token |  |
-| S-03 | Google OAuth client secret (created by the user) |  |
+| S-02 | Gmail OAuth refresh token (Vault ID `gmail.oauth.refresh_token`). The access token is held only in memory and is never written to disk. |  |
+| S-03 | Google OAuth client secret (created by the user, Vault ID `gmail.oauth.client_secret`) |  |
 | S-04 | Gmail app password (SMTP fallback) |  |
 | S-05 | WhatsApp Cloud API access token |  |
 | S-06 | SIP account password |  |
@@ -87,7 +87,7 @@ WARNING: CONTROL commands and CONFIG commands can stop power to the protected eq
 | SEC-042 | Telegram: accept requests only from paired chat IDs. Ignore all other chats. Write an audit entry for each. |  |
 | SEC-043 | Telegram: use two roles, Viewer and Admin. A CONTROL request needs the Admin role, an inline confirmation and the Remote code. The confirmation expires after 60 seconds. | VLT-IS-002 01-30-00 (SEC-043) |
 | SEC-044 | Telegram: delete the message that contains the Remote code after you read it. | Term change "Remote PIN" -> "Remote code" (VLT-IS-002 01-30-00, 00-10-00; OD-08). Refer to question in VLT-RPT-002. |
-| SEC-045 | Gmail: use OAuth 2.0 with PKCE and a loopback redirect to 127.0.0.1. Request only the scope https://www.googleapis.com/auth/gmail.send. |  |
+| SEC-045 | Gmail: use OAuth 2.0 with PKCE and a loopback redirect to 127.0.0.1. Request only the scope https://www.googleapis.com/auth/gmail.send. Implemented: PKCE S256, a state check, `http://127.0.0.1:<random>/`, Gmail API send (not SMTP XOAUTH2, which would need `https://mail.google.com/`), refresh token only in the Vault, never logged, write-only in the GUI, revoke on account removal, timeouts and clear errors. |  |
 | SEC-046 | Gmail: the "Disconnect" action revokes the token at Google. Then it deletes the token from the Vault. |  |
 | SEC-047 | SMTP fallback: use TLS on port 465 or STARTTLS on port 587. If STARTTLS fails, stop the send. |  |
 | SEC-048 | All outbound TLS connections: verify the certificate. Use TLS 1.2 or later. Do not add an option to disable verification. |  |

@@ -4,6 +4,10 @@ All notable changes to VoltioVolt are in this file. The format is [Keep a Change
 
 ## [Unreleased]
 
+### Added
+
+- Gmail OAuth 2.0 for native apps (RFC 8252, SEC-045): PKCE S256, a state check, and a loopback redirect on 127.0.0.1 with a random port. The only scope is `https://www.googleapis.com/auth/gmail.send` (Gmail API send). SMTP XOAUTH2 is not used, because it would need `https://mail.google.com/` (full mailbox access). The refresh token is stored only in the Vault (DPAPI, Secret Service, or a 0600 file). The access token stays in memory. The GUI fields are write-only. Removing the account revokes the token at Google and deletes the Vault secrets. SMTP with an app password remains available.
+
 ### Fixed
 
 - Windows: opening a serial port no longer asserts DTR and RTS when the profile is "DTR and RTS unchanged" (VLT-RPT-006). go.bug.st/serial turns both lines on if `InitialStatusBits` is nil, so VoltioVolt now always passes the bits at open and sets them again immediately after open. "unchanged" and "off" are off; "on" is on. The Known issue in 0.9.0-rc.1 is still accurate for that release. FIELD: the Owner should confirm the lines on the Reference UPS (T-01).

@@ -361,7 +361,7 @@ WARNING: An error in the Policy Engine can turn off a computer at the wrong time
 | History | uPlot charts for 1 h, 24 h, 7 d, 30 d, 1 y; a text table for each chart. Live update with Pause and Resume, series visibility saved in the Setting `ui.history.series_visibility` (VLT-IS-010, VLT-IS-011). Data with the source "demo" or "test" only with "Show other sources". |
 | Events | events.list with paging, filter by severity and type. |
 | Shutdown Policy | policy.get, edit with default and range per field, Simulation with steps, Activate only after a passed Simulation of the current version, Deactivate, shutdown.status. VLT-IS-006: the 3 ups_off Settings with their ranges, the WARNING "An incorrect delay can turn off the power before the computer has shut down. Data can be lost." and the text with the delay and restore values. |
-| Notifications | Desktop, Telegram (token, pairing, paired chats) and e-mail (SMTP, Gmail preset); minimum severity; "Send test message" (VLT-IS-007). |
+| Notifications | Desktop, Telegram (token, pairing, paired chats) and e-mail (SMTP or Gmail OAuth, Gmail preset); minimum severity; "Send test message" (VLT-IS-007, SEC-045). |
 | Security | Vault state and reason, SEC-005 notice for "reduced protection", Vault reset (type "RESET VAULT"), Change PIN, audit log with paging. |
 | General | Language (tr/en, Setting ui.language), theme follows the OS, interface mode and interface size, Set PIN and Remove PIN, start at logon, data folder path, "Start the setup wizard", About. |
 
@@ -446,7 +446,7 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 
 1. Settings: `email.smtp.server` (host name), `email.smtp.port` (default 465), `email.smtp.security` (`tls`: implicit TLS, port 465; `starttls`: port 587), `email.smtp.user`, `email.from`, `email.to` (1 to 5 plain addresses). The Channel sends only when the server, the sender and at least one receiver are set.
 2. The password is the Secret S-04 (Vault ID `smtp.password`). vltd reads it from the Vault only for SMTP AUTH PLAIN, after TLS is active.
-3. Preset "Gmail": smtp.gmail.com, port 465, TLS. The GUI shows the help text about the Google app password (TASK 03-00-00-007).
+3. Preset "Gmail": smtp.gmail.com, port 465, TLS (app password). Alternatively, Sign in with Google (OAuth 2.0 for native apps, SEC-045): PKCE S256, a state check, loopback on 127.0.0.1 with a random port, scope `https://www.googleapis.com/auth/gmail.send` (Gmail API send, not SMTP XOAUTH2). The refresh token is Secret S-02 (Vault ID `gmail.oauth.refresh_token`). The optional client secret is S-03 (`gmail.oauth.client_secret`). The access token stays in memory. Tests use a fake HTTP server; they never call Google.
 4. TLS 1.2 or later; the server certificate is verified with the system CAs. In the `starttls` mode, if the server does not offer STARTTLS or the STARTTLS handshake fails, vltd sends nothing and does not use the password.
 5. Message: subject "[VLT][severity] Event" (one line, Q-encoded), UTF-8 text, quoted-printable. Addresses and the subject cannot add header lines.
 6. Tests: a fake SMTP server (implicit TLS and STARTTLS, a test CA). No test connects to a real server.
@@ -454,7 +454,7 @@ WARNING: CONTROL commands can cut power to the protected equipment.
 ### 15.4 Channel screens and IPC methods (VLT-IS-007 TASK 03-00-00-007)
 
 1. IPC methods (elevated state for all changes; list and telegram.chats.list are read-only): `channels.list`, `channels.settings.set`, `channels.test`, `telegram.pair.start`, `telegram.chats.list`, `telegram.chats.remove`. Secret values go only through `secret.set`. `channels.list` shows only the set state and the hint, never the value. The pairing code is in the result of `telegram.pair.start` only, not in `channels.list` and not in the audit log.
-2. The VLT GUI screen "Notifications": one section for each Channel (on or off, minimum severity, "Send test message"). Telegram: write-only bot token, "Pair a chat", the code and the steps, the list of paired chats with "Remove". E-mail: SMTP Settings, the preset "Gmail" (smtp.gmail.com, port 465, TLS) with the help text "Use a Google app password, not your normal password. Google account, Security, 2-Step Verification, App passwords.", write-only SMTP password.
+2. The VLT GUI screen "Notifications": one section for each Channel (on or off, minimum severity, "Send test message"). Telegram: write-only bot token, "Pair a chat", the code and the steps, the list of paired chats with "Remove". E-mail: authentication mode (SMTP password or Sign in with Google), SMTP Settings, the preset "Gmail", write-only SMTP password or write-only Google client secret, status Connected / Not connected, and Disconnect (revokes the token).
 3. All user text is in en.json and tr.json.
 
 ## 16. First-run wizard (VLT-IS-007 TASK 03-00-00-008)

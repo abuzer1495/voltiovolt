@@ -78,7 +78,7 @@ To run the wizard again, open the General screen and select "Start the setup wiz
 
 A PIN is optional. A PIN prevents other people at this computer from changing the shutdown settings.
 
-1. Without a PIN, all functions are available. Secret fields (the Telegram bot token, the SMTP password) are always write-only: after you save a value, VoltioVolt shows only a hint.
+1. Without a PIN, all functions are available. Secret fields (the Telegram bot token, the SMTP password, the Google client secret) are always write-only: after you save a value, VoltioVolt shows only a hint. The Gmail OAuth refresh token is never shown.
 2. Set PIN ("PIN belirle") and Remove PIN ("PIN kaldır") are on the General screen. Remove PIN needs the current PIN.
 3. With a PIN, the window starts locked. A locked window still shows the Dashboard. Settings, Secrets, CONTROL commands and the activation of a Shutdown Policy need the unlocked state.
 4. Session: after you unlock, the session stays open while you use the window. Only changes and your keyboard and mouse input count as use; the automatic updates of the values do not. After 10 minutes without use (setting `auth.session_idle_minutes`, 1 to 120) or after 8 hours, VoltioVolt locks again. The "Lock" ("Kilitle") button locks at once. In the wizard, a step that needs the PIN asks for it inside the wizard.
@@ -146,7 +146,7 @@ vlt-simulator is a UPS simulator in a terminal window. It is in the package. It 
 
 1. Shutdown Policy: set the triggers (time on battery, charge, runtime, low battery flag, communication lost on battery) and the countdown. Run the Simulation ("Simülasyonu çalıştır"). Activate ("Etkinleştir") is possible only after a passed Simulation of the current version. During a countdown you can cancel the shutdown.
 2. Windows: a normal user can shut down the computer (VoltioVolt enables the shutdown privilege of your user). Linux: VoltioVolt asks logind on the system D-Bus. If your user cannot shut down the computer, the Simulation shows "This user cannot shut down the computer." and the policy cannot be activated.
-3. Notifications ("Bildirimler"): Desktop, Telegram (bot token from @BotFather, then pair a chat with `/start` and the 6-digit code) and E-mail (SMTP; for Gmail use an app password). Each channel has a minimum severity and "Send test message".
+3. Notifications ("Bildirimler"): Desktop, Telegram (bot token from @BotFather, then pair a chat with `/start` and the 6-digit code) and E-mail (SMTP with an app password, or Sign in with Google). For Google sign-in, create an OAuth client of type Desktop app in Google Cloud Console and enter the client ID. VoltioVolt requests only the permission to send e-mail (`gmail.send`), opens the Google page in your browser, and listens only on 127.0.0.1. The refresh token stays in the Vault. Disconnecting the account revokes the token at Google. Each channel has a minimum severity and "Send test message".
 
 ## 11. Data folder and Vault
 

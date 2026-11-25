@@ -615,5 +615,20 @@
   "health.battery_replace": "The battery may need a replacement. {reason}",
   "health.battery_replace.test_failed": "The last battery test failed.",
   "health.battery_replace.age": "The battery is {age} months old; the limit is {limit} months.",
-  "plain.BATTERY_REPLACE": "The battery may need a replacement"
+  "plain.BATTERY_REPLACE": "The battery may need a replacement",
+  "notify.email.auth": "Authentication",
+  "notify.email.auth.password": "SMTP password (or Gmail app password)",
+  "notify.email.auth.oauth": "Sign in with Google",
+  "notify.email.oauth.client_id": "Google client ID",
+  "notify.email.oauth.client_secret": "Google client secret (optional)",
+  "notify.email.oauth.signin": "Sign in with Google",
+  "notify.email.oauth.disconnect": "Disconnect Google account",
+  "notify.email.oauth.connected": "Signed in with Google.",
+  "notify.email.oauth.not_connected": "Not signed in with Google.",
+  "notify.email.oauth.pending": "Waiting for Google sign-in. Complete the sign-in in the browser, then return here.",
+  "notify.email.oauth.opened": "The Google sign-in page opened in your browser.",
+  "notify.email.oauth.help": "Create an OAuth client of type Desktop app in Google Cloud Console. VoltioVolt requests only the permission to send e-mail (gmail.send). The refresh token is stored in the Vault and is never shown.",
+  "help.email.oauth": "Sign in with Google uses OAuth 2.0 with PKCE. VoltioVolt opens a page on accounts.google.com and listens only on 127.0.0.1.",
+  "help.email.oauth.more": "The scope is https://www.googleapis.com/auth/gmail.send (Gmail API send). SMTP XOAUTH2 is not used, because it would need full mailbox access (https://mail.google.com/).",
+  "help.email.oauth.client_id.example": "….apps.googleusercontent.com"
 }

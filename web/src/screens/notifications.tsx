@@ -217,6 +217,8 @@ function EmailSection({
   onReload: () => void;
 }) {
   const s = ch.settings ?? {};
+  const oauth = ch.oauth;
+  const [auth, setAuth] = useState(String(s.auth ?? oauth?.auth ?? 'password'));
   const [server, setServer] = useState(String(s.server ?? ''));
   const [port, setPort] = useState(String(s.port ?? 465));
   const [security, setSecurity] = useState(String(s.security ?? 'tls'));
@@ -224,9 +226,12 @@ function EmailSection({
   const [from, setFrom] = useState(String(s.from ?? ''));
   const [to, setTo] = useState(Array.isArray(s.to) ? (s.to as string[]).join('\n') : '');
   const [gmail, setGmail] = useState(String(s.server ?? '') === 'smtp.gmail.com');
+  const [clientID, setClientID] = useState(String(s.client_id ?? ''));
+  const [clientSecret, setClientSecret] = useState('');
   const [msg, setMsg] = useState<Msg>(null);
   useEffect(() => {
     const ns = ch.settings ?? {};
+    setAuth(String(ns.auth ?? ch.oauth?.auth ?? 'password'));
     setServer(String(ns.server ?? ''));
     setPort(String(ns.port ?? 465));
     setSecurity(String(ns.security ?? 'tls'));
@@ -234,21 +239,30 @@ function EmailSection({
     setFrom(String(ns.from ?? ''));
     setTo(Array.isArray(ns.to) ? (ns.to as string[]).join('\n') : '');
     setGmail(String(ns.server ?? '') === 'smtp.gmail.com');
-  }, [ch.settings]);
+    setClientID(String(ns.client_id ?? ''));
+  }, [ch.settings, ch.oauth]);
+  useEffect(() => {
+    if (!ch.oauth?.pending) return;
+    const id = window.setInterval(() => onReload(), 1000);
+    return () => window.clearInterval(id);
+  }, [ch.oauth?.pending, onReload]);
+  const gmailOAuth = auth === 'gmail_oauth';
   function applyPreset(p: EmailPreset) {
     setServer(p.server);
     setPort(String(p.port));
     setSecurity(p.security);
     setGmail(p.name === 'gmail' || p.server === 'smtp.gmail.com');
   }
+  function receivers(): string[] {
+    return to.split(/\n/).map((x) => x.trim()).filter((x) => x !== '');
+  }
   async function save(e: Event) {
     e.preventDefault();
     setMsg(null);
-    const receivers = to.split(/\n/).map((x) => x.trim()).filter((x) => x !== '');
     const n = Number(port);
     try {
       await api.setChannel(ch.name, ch.enabled, ch.min_severity, {
-        server, port: n, security, user, from, to: receivers,
+        server, port: n, security, user, from, to: receivers(), auth, client_id: clientID,
       });
       setMsg({ kind: 'ok', text: t('notify.saved') });
       onReload();
@@ -256,31 +270,79 @@ function EmailSection({
       setMsg({ kind: 'error', text: message(x) });
     }
   }
+  async function signIn() {
+    setMsg(null);
+    try {
+      await api.setChannel(ch.name, ch.enabled, ch.min_severity, {
+        server, port: Number(port), security, user, from, to: receivers(), auth: 'gmail_oauth', client_id: clientID,
+      });
+      const r = await api.emailOAuthStart(clientID, clientSecret);
+      setClientSecret('');
+      await api.openOAuthURL(r.authorization_url);
+      setMsg({ kind: 'ok', text: t('notify.email.oauth.opened') });
+      onReload();
+    } catch (x) {
+      setClientSecret('');
+      setMsg({ kind: 'error', text: message(x) });
+    }
+  }
+  async function disconnect() {
+    setMsg(null);
+    try {
+      await api.emailOAuthDisconnect();
+      onReload();
+    } catch (x) {
+      setMsg({ kind: 'error', text: message(x) });
+      onReload();
+    }
+  }
   return (
     <>
-      {presets.map((p) => (
-        <button type="button" disabled={!elevated} onClick={() => applyPreset(p)}>
-          {t('notify.email.preset.' + p.name)}
-        </button>
-      ))}
-      {gmail ? <p class="note" role="note">{t('notify.email.gmail.help')}</p> : null}
-      {gmail ? (
-        <HelpLine text={t('help.email.gmail')} more={t('help.email.gmail.more')} href={HELP_LINKS.gmail} />
-      ) : (
-        <HelpLine text={t('help.email.server')} more={t('help.email.server.more')} />
-      )}
       <form class="form" onSubmit={save}>
-        <label for="email-server">{t('notify.email.server')}</label>
-        <input id="email-server" disabled={!elevated} value={server} autoComplete="off" placeholder={t('help.email.server.example')} onInput={(e) => setServer((e.target as HTMLInputElement).value)} />
-        <label for="email-port">{t('notify.email.port')}</label>
-        <input id="email-port" type="number" min="1" max="65535" disabled={!elevated} value={port} placeholder="465" onInput={(e) => setPort((e.target as HTMLInputElement).value)} />
-        <label for="email-security">{t('notify.email.security')}</label>
-        <select id="email-security" disabled={!elevated} value={security} onChange={(e) => setSecurity((e.target as HTMLSelectElement).value)}>
-          <option value="tls">{t('notify.email.security.tls')}</option>
-          <option value="starttls">{t('notify.email.security.starttls')}</option>
+        <label for="email-auth">{t('notify.email.auth')}</label>
+        <select id="email-auth" disabled={!elevated} value={auth} onChange={(e) => setAuth((e.target as HTMLSelectElement).value)}>
+          <option value="password">{t('notify.email.auth.password')}</option>
+          <option value="gmail_oauth">{t('notify.email.auth.oauth')}</option>
         </select>
-        <label for="email-user">{t('notify.email.user')}</label>
-        <input id="email-user" disabled={!elevated} value={user} autoComplete="username" placeholder={t('help.email.user.example')} onInput={(e) => setUser((e.target as HTMLInputElement).value)} />
+        <HelpLine text={t('help.email.oauth')} more={t('help.email.oauth.more')} />
+        {!gmailOAuth ? (
+          <>
+            {presets.map((p) => (
+              <button type="button" disabled={!elevated} onClick={() => applyPreset(p)}>
+                {t('notify.email.preset.' + p.name)}
+              </button>
+            ))}
+            {gmail ? <p class="note" role="note">{t('notify.email.gmail.help')}</p> : null}
+            {gmail ? (
+              <HelpLine text={t('help.email.gmail')} more={t('help.email.gmail.more')} href={HELP_LINKS.gmail} />
+            ) : (
+              <HelpLine text={t('help.email.server')} more={t('help.email.server.more')} />
+            )}
+            <label for="email-server">{t('notify.email.server')}</label>
+            <input id="email-server" disabled={!elevated} value={server} autoComplete="off" placeholder={t('help.email.server.example')} onInput={(e) => setServer((e.target as HTMLInputElement).value)} />
+            <label for="email-port">{t('notify.email.port')}</label>
+            <input id="email-port" type="number" min="1" max="65535" disabled={!elevated} value={port} placeholder="465" onInput={(e) => setPort((e.target as HTMLInputElement).value)} />
+            <label for="email-security">{t('notify.email.security')}</label>
+            <select id="email-security" disabled={!elevated} value={security} onChange={(e) => setSecurity((e.target as HTMLSelectElement).value)}>
+              <option value="tls">{t('notify.email.security.tls')}</option>
+              <option value="starttls">{t('notify.email.security.starttls')}</option>
+            </select>
+            <label for="email-user">{t('notify.email.user')}</label>
+            <input id="email-user" disabled={!elevated} value={user} autoComplete="username" placeholder={t('help.email.user.example')} onInput={(e) => setUser((e.target as HTMLInputElement).value)} />
+          </>
+        ) : (
+          <>
+            <p class="note" role="note">{t('notify.email.oauth.help')}</p>
+            <label for="email-client-id">{t('notify.email.oauth.client_id')}</label>
+            <input id="email-client-id" disabled={!elevated} value={clientID} autoComplete="off" placeholder={t('help.email.oauth.client_id.example')} onInput={(e) => setClientID((e.target as HTMLInputElement).value)} />
+            <label for="email-client-secret">{t('notify.email.oauth.client_secret')}</label>
+            <input id="email-client-secret" type="password" disabled={!elevated} value={clientSecret} autoComplete="new-password" onInput={(e) => setClientSecret((e.target as HTMLInputElement).value)} />
+            <p role="status">{oauth?.connected ? t('notify.email.oauth.connected') : oauth?.pending ? t('notify.email.oauth.pending') : t('notify.email.oauth.not_connected')}</p>
+            {oauth?.error ? <p role="alert" class="msg msg-error">{oauth.error}</p> : null}
+            <button type="button" disabled={!elevated || !!oauth?.pending} onClick={() => void signIn()}>{t('notify.email.oauth.signin')}</button>
+            <button type="button" disabled={!elevated || !oauth?.connected} onClick={() => void disconnect()}>{t('notify.email.oauth.disconnect')}</button>
+          </>
+        )}
         <label for="email-from">{t('notify.email.from')}</label>
         <input id="email-from" disabled={!elevated} value={from} autoComplete="off" onInput={(e) => setFrom((e.target as HTMLInputElement).value)} />
         <label for="email-to">{t('notify.email.to')}</label>
@@ -288,18 +350,20 @@ function EmailSection({
         <button type="submit" disabled={!elevated}>{t('common.save')}</button>
       </form>
       {msg ? <p role={msg.kind === 'error' ? 'alert' : 'status'} class={'msg msg-' + msg.kind}>{msg.text}</p> : null}
-      <SecretField
-        id="smtp.password"
-        label={t('notify.email.password')}
-        hint={ch.secret?.hint}
-        set={!!ch.secret?.set}
-        elevated={elevated}
-        onSaved={onReload}
-        placeholder={t('help.email.password.example')}
-        help={gmail ? t('help.email.gmail') : t('help.email.server')}
-        more={gmail ? t('help.email.gmail.more') : undefined}
-        href={gmail ? HELP_LINKS.gmail : undefined}
-      />
+      {!gmailOAuth ? (
+        <SecretField
+          id="smtp.password"
+          label={t('notify.email.password')}
+          hint={ch.secret?.hint}
+          set={!!ch.secret?.set}
+          elevated={elevated}
+          onSaved={onReload}
+          placeholder={t('help.email.password.example')}
+          help={gmail ? t('help.email.gmail') : t('help.email.server')}
+          more={gmail ? t('help.email.gmail.more') : undefined}
+          href={gmail ? HELP_LINKS.gmail : undefined}
+        />
+      ) : null}
     </>
   );
 }

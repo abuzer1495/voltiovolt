@@ -137,6 +137,10 @@ type Manager struct {
 	dataDir   string
 	firstRun  FirstRun
 	native    nativeState // VLT-IS-011 005: native parts of the window
+	// demoScreen and demoShotReady are used only by the CI screenshot
+	// tooling. They stay empty in a normal session.
+	demoScreen    string
+	demoShotReady func()
 }
 
 // OSNotification is a desktop Notification of vltd (VLT-IS-007 TASK

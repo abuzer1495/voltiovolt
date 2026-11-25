@@ -21,3 +21,5 @@ func demoNavJS(string) string { return "" }
 func demoReadyTouch(string) {}
 
 func withDemoStore(demoOpts) func(*engine.Config) { return func(*engine.Config) {} }
+
+func demoInstanceID(demoOpts) string { return "com.voltiovolt.app" }

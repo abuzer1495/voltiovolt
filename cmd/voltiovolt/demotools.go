@@ -32,3 +32,10 @@ func withDemoStore(o demoOpts) func(*engine.Config) {
 		}
 	}
 }
+
+func demoInstanceID(o demoOpts) string {
+	if o.any() {
+		return "com.voltiovolt.app.shot"
+	}
+	return "com.voltiovolt.app"
+}

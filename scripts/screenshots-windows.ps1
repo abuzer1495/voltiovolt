@@ -48,7 +48,15 @@ function Capture-Screen([string]$Lang, [string]$Screen) {
     Write-Host "capture $name"
     $p = Start-Process -FilePath $Bin -ArgumentList @("--data-dir", $data, "--demo", "--lang", $Lang, "--demo-screen", $Screen, "--demo-ready-file", $ready) -PassThru -RedirectStandardOutput (Join-Path $data "out.log") -RedirectStandardError (Join-Path $data "err.log")
     try {
-        Wait-Ready $ready $Wait
+        try {
+            Wait-Ready $ready $Wait
+        } catch {
+            Write-Host "---- out.log ----"
+            if (Test-Path (Join-Path $data "out.log")) { Get-Content (Join-Path $data "out.log") }
+            Write-Host "---- err.log ----"
+            if (Test-Path (Join-Path $data "err.log")) { Get-Content (Join-Path $data "err.log") }
+            throw
+        }
         Start-Sleep -Seconds 2
         $hwnd = [IntPtr]::Zero
         for ($i = 0; $i -lt 20; $i++) {

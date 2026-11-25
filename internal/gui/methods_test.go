@@ -78,6 +78,8 @@ func methodCases(secret []byte) map[string]methodCase {
 		"EmailOAuthStart":        {[]any{"cid.apps.googleusercontent.com", ""}, wire.MethodEmailOAuthStart},
 		"EmailOAuthDisconnect":   {nil, wire.MethodEmailOAuthDisconnect},
 		"OpenOAuthURL":           {[]any{"https://accounts.google.com/o/oauth2/v2/auth?client_id=x"}, ""},
+		"DemoNav":                {nil, ""},
+		"DemoShotReady":          {nil, ""},
 		"StartAtLogon":           {nil, ""},
 		"SetStartAtLogon":        {[]any{false}, ""},
 		"WizardCompleted":        {nil, ""},

@@ -7,6 +7,7 @@ All notable changes to VoltioVolt are in this file. The format is [Keep a Change
 ### Added
 
 - Gmail OAuth 2.0 for native apps (RFC 8252, SEC-045): PKCE S256, a state check, and a loopback redirect on 127.0.0.1 with a random port. The only scope is `https://www.googleapis.com/auth/gmail.send` (Gmail API send). SMTP XOAUTH2 is not used, because it would need `https://mail.google.com/` (full mailbox access). The refresh token is stored only in the Vault (DPAPI, Secret Service, or a 0600 file). The access token stays in memory. The GUI fields are write-only. Removing the account revokes the token at Google and deletes the Vault secrets. SMTP with an app password remains available.
+- A CI workflow `screenshots` (workflow_dispatch, and on release tags) that starts the GUI in Demo mode and captures the main window, the wizard steps, Simple and Expert mode, History, Device and Help, in English and Turkish. Linux uses Xvfb, xdotool (BSD-3-Clause) and scrot (MIT). Windows uses in-box PowerShell `CopyFromScreen`. The files are uploaded as the artifact `screenshots.zip` and are not committed (SEC-087). The flags `--demo`, `--demo-screen`, `--lang` and `--ui-mode` work only in test builds (not with the `production` tag).
 
 ### Fixed
 

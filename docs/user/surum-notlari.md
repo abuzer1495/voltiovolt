@@ -7,6 +7,7 @@ Bu dosya [CHANGELOG.md](../../CHANGELOG.md) dosyasının Türkçe kopyasıdır (
 ### Eklenenler
 
 - Yerel uygulamalar için Gmail OAuth 2.0 (RFC 8252, SEC-045): PKCE S256, state denetimi ve rastgele portlu 127.0.0.1 geri dönüşü. İstenen tek kapsam `https://www.googleapis.com/auth/gmail.send` (Gmail API ile gönderim). SMTP XOAUTH2 kullanılmaz; çünkü `https://mail.google.com/` (tam posta kutusu erişimi) gerekir. Yenileme belirteci yalnızca Kasada tutulur. Erişim belirteci bellekte kalır. Grafik arayüz alanları yalnız yazılır. Hesap kaldırıldığında belirteç Google'da iptal edilir ve Kasa sırları silinir. Uygulama parolası ile SMTP kullanılmaya devam eder.
+- `screenshots` CI işi: Demo kipinde arayüzün İngilizce ve Türkçe ekran görüntülerini alır ve `screenshots.zip` artifaktı olarak yükler. Görüntüler depoya eklenmez (SEC-087).
 
 ### Düzeltilenler
 

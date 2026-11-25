@@ -34,6 +34,7 @@ import (
 	"github.com/abuzer1495/voltiovolt/internal/logging"
 	"github.com/abuzer1495/voltiovolt/internal/policy"
 	"github.com/abuzer1495/voltiovolt/internal/portable"
+	"github.com/abuzer1495/voltiovolt/internal/shotnav"
 	"github.com/abuzer1495/voltiovolt/internal/shutdown"
 	"github.com/abuzer1495/voltiovolt/internal/transport"
 	"github.com/abuzer1495/voltiovolt/internal/vault"
@@ -61,6 +62,11 @@ func main() {
 	expectDialect := fs.String("expect-dialect", "megatec", "with --self-test --test-connection: megatec or voltronic")
 	expectEvent := fs.String("expect-event", "", "with --self-test --test-connection: wait for this Event (for example ON_BATTERY)")
 	dataDirFlag := fs.String("data-dir", "", "data folder (default: the portable data folder)")
+	demoFlag := fs.Bool("demo", false, "start in Demo mode (test builds only)")
+	demoScreen := fs.String("demo-screen", "", "open this screen in a test build (for screenshots)")
+	demoLang := fs.String("lang", "", "interface language in a test build: en or tr")
+	demoMode := fs.String("ui-mode", "", "simple or expert in a test build")
+	demoReady := fs.String("demo-ready-file", "", "write this file when the demo window is ready (test builds)")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		os.Exit(2)
 	}
@@ -73,6 +79,25 @@ func main() {
 		var err error
 		dir, err = portable.DataDir()
 		if err != nil {
+			fmt.Fprintln(os.Stderr, "VoltioVolt:", err)
+			os.Exit(1)
+		}
+	}
+	opt := demoOpts{Demo: *demoFlag, Screen: *demoScreen, Lang: *demoLang, Mode: *demoMode, ReadyFile: *demoReady}
+	if opt.any() && !demoToolsEnabled {
+		fmt.Fprintln(os.Stderr, "VoltioVolt: --demo, --demo-screen, --lang, --ui-mode and --demo-ready-file are only available in test builds")
+		os.Exit(2)
+	}
+	if opt.Lang != "" && opt.Lang != "en" && opt.Lang != "tr" {
+		fmt.Fprintln(os.Stderr, "VoltioVolt: --lang must be en or tr")
+		os.Exit(2)
+	}
+	if opt.Mode != "" && opt.Mode != "simple" && opt.Mode != "expert" {
+		fmt.Fprintln(os.Stderr, "VoltioVolt: --ui-mode must be simple or expert")
+		os.Exit(2)
+	}
+	if opt.any() {
+		if err := prepareDemo(dir, opt); err != nil {
 			fmt.Fprintln(os.Stderr, "VoltioVolt:", err)
 			os.Exit(1)
 		}
@@ -94,7 +119,7 @@ func main() {
 		}
 		return
 	}
-	if err := run(dir); err != nil {
+	if err := run(dir, opt); err != nil {
 		fmt.Fprintln(os.Stderr, "VoltioVolt:", err)
 		os.Exit(1)
 	}
@@ -136,15 +161,19 @@ func startEngine(dir string, log *slog.Logger, closer io.Closer, listen func() (
 	return d, nil
 }
 
-func run(dir string) error {
+func run(dir string, opt demoOpts) error {
 	log, closer, err := logging.Open(dir)
 	if err != nil {
 		return fmt.Errorf("logging: %w", err)
 	}
 	ln := ipc.NewPipeListener()
+	var engOpts []func(*engine.Config)
+	if demoToolsEnabled && opt.any() {
+		engOpts = append(engOpts, withDemoStore(opt))
+	}
 	d, err := startEngine(dir, log, closer, func() (net.Listener, ipc.PeerCheck, error) {
 		return ln, ipc.InProcessCheck, nil
-	})
+	}, engOpts...)
 	if err != nil {
 		ln.Close()
 		return err
@@ -230,6 +259,15 @@ func run(dir string) error {
 		})
 	})
 	watchWindow(app, win)
+	if demoToolsEnabled && opt.any() {
+		win.SetSize(shotnav.Width, shotnav.Height)
+		win.RegisterHook(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+			if js := demoNavJS(opt.Screen); js != "" {
+				win.ExecJS(js)
+			}
+			demoReadyTouch(opt.ReadyFile)
+		})
+	}
 	m.SetMinSizeFunc(func(w, h int) { win.SetMinSize(w, h) })
 	setupNative(app, win, m, func() { confirmAndQuit(app, stopAll) })
 	setupTray(app, win, m, api, func() { confirmAndQuit(app, stopAll) })

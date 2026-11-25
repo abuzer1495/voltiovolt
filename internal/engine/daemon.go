@@ -53,6 +53,10 @@ type Config struct {
 	// 03-00-00-005). Empty: https://api.telegram.org. Tests give a fake
 	// server.
 	TelegramAPI string
+	// PrepareStore runs after the Vault is open and before the Device
+	// Manager starts. Tests and the screenshot tooling use it to write
+	// Settings while the MAC key is available. Nil: skip.
+	PrepareStore func(ctx context.Context, st *store.Store) error
 }
 
 // daemon runs the start sequence and the stop sequence of step 1 and 2.
@@ -131,6 +135,11 @@ func (d *Daemon) Start(ctx context.Context) (err error) {
 	vr := d.au.VerifyAtStart(ctx)
 	d.log.Info("audit chain verification", "ok", vr.OK, "rows", vr.Rows)
 
+	if d.cfg.PrepareStore != nil {
+		if err := d.cfg.PrepareStore(ctx, d.st); err != nil {
+			return fmt.Errorf("prepare store: %w", err)
+		}
+	}
 	if err := d.startLive(ctx); err != nil {
 		return err
 	}

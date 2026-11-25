@@ -36,7 +36,7 @@ export function HelpLine({
   more?: string;
   href?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(typeof window !== 'undefined' && !!(window as Window & { __VLT_DEMO_HELP__?: boolean }).__VLT_DEMO_HELP__);
   const canMore = !!(more || href);
   return (
     <div class="field-help">

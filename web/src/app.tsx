@@ -20,6 +20,7 @@ import { ui, setMode } from './mode';
 import { Simple } from './screens/simple';
 import { ScaleNotice } from './screens/scalechoice';
 import { watchScale } from './scale';
+import { applyDemoNav } from './demonav';
 import { onWizard, watchNative } from './native';
 import { NavIcon } from './navicons';
 import { app, lock, refreshAuth, start, watchInput } from './state';
@@ -110,6 +111,7 @@ export function App() {
   useEffect(() => {
     const f = () => setRoute(currentRoute());
     window.addEventListener('hashchange', f);
+    applyDemoNav();
     return () => window.removeEventListener('hashchange', f);
   }, []);
   const connected = s.conn.state === 'connected';

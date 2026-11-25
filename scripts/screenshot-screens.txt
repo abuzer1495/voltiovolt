@@ -1,0 +1,17 @@
+simple
+expert
+history
+device
+help
+wizard
+wizard/pin
+wizard/port
+wizard/scan
+wizard/values
+wizard/policy
+wizard/telegram
+wizard/email
+wizard/email2
+wizard/modem
+wizard/interface
+wizard/summary

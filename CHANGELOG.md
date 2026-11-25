@@ -4,6 +4,10 @@ All notable changes to VoltioVolt are in this file. The format is [Keep a Change
 
 ## [Unreleased]
 
+### Added
+
+- A CI workflow `screenshots` (workflow_dispatch, and on release tags) that starts the GUI in Demo mode and captures the main window, the wizard steps, Simple and Expert mode, History, Device and Help, in English and Turkish. Linux uses Xvfb, xdotool (BSD-3-Clause) and scrot (MIT). Windows uses in-box PowerShell `CopyFromScreen`. The files are uploaded as the artifact `screenshots.zip` and are not committed (SEC-087). The flags `--demo`, `--demo-screen`, `--lang` and `--ui-mode` work only in test builds (not with the `production` tag).
+
 ## [0.9.0-rc.1] – 2026-11-20
 
 ### Added

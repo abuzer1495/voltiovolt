@@ -2,6 +2,12 @@
 
 Bu dosya [CHANGELOG.md](../../CHANGELOG.md) dosyasının Türkçe kopyasıdır (VLT-IS-012 TASK 03-00-00-007).
 
+## [Unreleased]
+
+### Eklenenler
+
+- `screenshots` CI işi: Demo kipinde arayüzün İngilizce ve Türkçe ekran görüntülerini alır ve `screenshots.zip` artifaktı olarak yükler. Görüntüler depoya eklenmez (SEC-087).
+
 ## [0.9.0-rc.1] – 2026-11-20
 
 ### Eklenenler

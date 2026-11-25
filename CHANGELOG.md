@@ -4,6 +4,10 @@ All notable changes to VoltioVolt are in this file. The format is [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows: opening a serial port no longer asserts DTR and RTS when the profile is "DTR and RTS unchanged" (VLT-RPT-006). go.bug.st/serial turns both lines on if `InitialStatusBits` is nil, so VoltioVolt now always passes the bits at open and sets them again immediately after open. "unchanged" and "off" are off; "on" is on. The Known issue in 0.9.0-rc.1 is still accurate for that release. FIELD: the Owner should confirm the lines on the Reference UPS (T-01).
+
 ## [0.9.0-rc.1] – 2026-11-20
 
 ### Added

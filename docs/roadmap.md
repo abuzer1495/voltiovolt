@@ -35,7 +35,7 @@ VLT-IS-012 (release candidate: version from the Git tag, CHANGELOG, draft releas
 
 | Content | Release |
 |---------|---------|
-| Security hardening: Gmail OAuth, SEC-094 again, code signing, review of all SEC rules | v1.0 |
+| Security hardening: Gmail OAuth (SEC-045, done), SEC-094 again, code signing, review of all SEC rules | v1.0 |
 | Analyzer, reports, scheduled tests, CONFIG commands, Telegram administration, WhatsApp, voice call, NUT server, encrypted backup, optional service mode with an installer | v1.0 |
 | VLT Agent, Wake-on-LAN, more than one UPS, web interface, MQTT and Home Assistant, USB 4G modem, Mega(USB) and SEC dialects | v2.0 |
 

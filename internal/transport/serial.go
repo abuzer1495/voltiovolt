@@ -21,8 +21,10 @@ type Line string
 
 // Line values (VLT-IS-006 TASK 03-00-00-004 step 1).
 const (
-	// LineUnchanged: the Transport does not set the line at open and after
-	// open. This is the default.
+	// LineUnchanged is the default. On Linux the Transport does not set
+	// the line at open or after open. On Windows the serial library turns
+	// DTR and RTS on when InitialStatusBits is nil (VLT-RPT-006), so
+	// "unchanged" is applied as off at open: the lines are not asserted.
 	LineUnchanged Line = "unchanged"
 	LineOn        Line = "on"
 	LineOff       Line = "off"
@@ -88,20 +90,56 @@ func ListSerialDetailed() ([]SerialPortInfo, error) {
 
 // initialBits gives the lines to set at open. go.bug.st/serial v1.8.0
 // (serial_unix.go lines 249 to 268) does not touch the lines when the value
-// is nil. On Windows (serial_windows.go lines 399 to 410) the library sets
-// DTR and RTS on when the value is nil: there "unchanged" is not possible
-// (VLT-RPT-006 section 7), so on Windows VLT gives the lines at open when
-// both are set. On Linux the library fails the open if the device has no
-// modem lines (a pty, error "getting modem bits status"), so on Linux VLT
-// sets a line after open and gives a warning if that fails.
+// is nil. On Windows (serial_windows.go lines 399 to 410, DCB fDtrControl
+// and fRtsControl) a nil value turns DTR and RTS on, so VLT always passes
+// InitialStatusBits on Windows. LineOn is on; LineOff and LineUnchanged
+// (and the empty value) are off, so the default "DTR and RTS unchanged"
+// does not assert the lines (VLT-RPT-006). On Linux the library fails the
+// open if the device has no modem lines (a pty, error "getting modem bits
+// status"), so on Linux VLT leaves InitialStatusBits nil and sets an
+// explicit on or off line after open, with a warning if that fails.
 func initialBits(goos string, so SerialOptions) *serial.ModemOutputBits {
 	if goos != "windows" {
 		return nil
 	}
-	if so.DTR == LineUnchanged || so.RTS == LineUnchanged || so.DTR == "" || so.RTS == "" {
-		return nil
+	return &serial.ModemOutputBits{DTR: lineAsserted(so.DTR), RTS: lineAsserted(so.RTS)}
+}
+
+// lineAsserted is the level written on Windows at open. Only LineOn is
+// asserted; "unchanged" and "off" stay off.
+func lineAsserted(l Line) bool { return l == LineOn }
+
+// setModemLine is SetDTR or SetRTS after open. A failure is a warning; the
+// port stays open.
+func setModemLine(set func(bool) error, name string, on bool, so SerialOptions) {
+	if err := set(on); err != nil && so.Warn != nil {
+		want := LineOff
+		if on {
+			want = LineOn
+		}
+		so.Warn(fmt.Sprintf("cannot set %s %s: %v", name, want, err))
 	}
-	return &serial.ModemOutputBits{DTR: so.DTR == LineOn, RTS: so.RTS == LineOn}
+}
+
+// applyLinesAfterOpen sets DTR and RTS immediately after open. On Windows
+// it always applies the resolved values (unchanged -> off), so the lines
+// cannot stay on if the library ignored InitialStatusBits. On Linux it
+// sets only an explicit on or off line (unchanged is left to the kernel).
+func applyLinesAfterOpen(p interface {
+	SetDTR(bool) error
+	SetRTS(bool) error
+}, goos string, so SerialOptions) {
+	if goos == "windows" {
+		setModemLine(p.SetDTR, "DTR", lineAsserted(so.DTR), so)
+		setModemLine(p.SetRTS, "RTS", lineAsserted(so.RTS), so)
+		return
+	}
+	if so.DTR == LineOn || so.DTR == LineOff {
+		setModemLine(p.SetDTR, "DTR", so.DTR == LineOn, so)
+	}
+	if so.RTS == LineOn || so.RTS == LineOff {
+		setModemLine(p.SetRTS, "RTS", so.RTS == LineOn, so)
+	}
 }
 
 func isBusy(err error) bool {
@@ -154,20 +192,7 @@ func NewSerial(name string, so SerialOptions, opts Options) *Stream {
 		if err != nil {
 			return nil, wrapSerialOpenError(name, err)
 		}
-		// A line with "unchanged" is never set. With one line "unchanged"
-		// and one line set, only the set line changes after open.
-		if mode.InitialStatusBits == nil {
-			if so.DTR == LineOn || so.DTR == LineOff {
-				if err := p.SetDTR(so.DTR == LineOn); err != nil && so.Warn != nil {
-					so.Warn(fmt.Sprintf("cannot set DTR %s: %v", so.DTR, err))
-				}
-			}
-			if so.RTS == LineOn || so.RTS == LineOff {
-				if err := p.SetRTS(so.RTS == LineOn); err != nil && so.Warn != nil {
-					so.Warn(fmt.Sprintf("cannot set RTS %s: %v", so.RTS, err))
-				}
-			}
-		}
+		applyLinesAfterOpen(p, runtime.GOOS, so)
 		return &serialPort{p: p}, nil
 	}
 	return NewStream(open, opts)

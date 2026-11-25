@@ -615,5 +615,20 @@
   "health.battery_replace": "Akünün değişmesi gerekebilir. {reason}",
   "health.battery_replace.test_failed": "Son akü testi başarısız oldu.",
   "health.battery_replace.age": "Akü {age} aylık; sınır {limit} ay.",
-  "plain.BATTERY_REPLACE": "Akü değişimi gerekebilir"
+  "plain.BATTERY_REPLACE": "Akü değişimi gerekebilir",
+  "notify.email.auth": "Kimlik doğrulama",
+  "notify.email.auth.password": "SMTP parolası (veya Gmail uygulama parolası)",
+  "notify.email.auth.oauth": "Google ile oturum aç",
+  "notify.email.oauth.client_id": "Google istemci kimliği",
+  "notify.email.oauth.client_secret": "Google istemci gizli anahtarı (isteğe bağlı)",
+  "notify.email.oauth.signin": "Google ile oturum aç",
+  "notify.email.oauth.disconnect": "Google hesabının bağlantısını kes",
+  "notify.email.oauth.connected": "Google ile oturum açıldı.",
+  "notify.email.oauth.not_connected": "Google ile oturum açılmadı.",
+  "notify.email.oauth.pending": "Google oturum açması bekleniyor. Tarayıcıda oturum açmayı tamamlayın, sonra buraya dönün.",
+  "notify.email.oauth.opened": "Google oturum açma sayfası tarayıcınızda açıldı.",
+  "notify.email.oauth.help": "Google Cloud Console'da Desktop app türünde bir OAuth istemcisi oluşturun. VoltioVolt yalnızca e-posta gönderme iznini (gmail.send) ister. Yenileme belirteci Kasada tutulur ve hiçbir zaman gösterilmez.",
+  "help.email.oauth": "Google ile oturum açma, PKCE ile OAuth 2.0 kullanır. VoltioVolt accounts.google.com sayfasını açar ve yalnızca 127.0.0.1 üzerinde dinler.",
+  "help.email.oauth.more": "Kapsam https://www.googleapis.com/auth/gmail.send (Gmail API ile gönderim). SMTP XOAUTH2 kullanılmaz; çünkü tam posta kutusu erişimi (https://mail.google.com/) gerekir.",
+  "help.email.oauth.client_id.example": "….apps.googleusercontent.com"
 }

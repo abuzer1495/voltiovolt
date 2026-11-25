@@ -217,12 +217,14 @@ const (
 
 	// VLT-IS-007 TASK 03-00-00-007: Notification Channels. All changes
 	// need the elevated state.
-	MethodChannelsList        = "channels.list"
-	MethodChannelsSettingsSet = "channels.settings.set"
-	MethodChannelsTest        = "channels.test"
-	MethodTelegramPairStart   = "telegram.pair.start"
-	MethodTelegramChatsList   = "telegram.chats.list"
-	MethodTelegramChatsRemove = "telegram.chats.remove"
+	MethodChannelsList         = "channels.list"
+	MethodChannelsSettingsSet  = "channels.settings.set"
+	MethodChannelsTest         = "channels.test"
+	MethodTelegramPairStart    = "telegram.pair.start"
+	MethodTelegramChatsList    = "telegram.chats.list"
+	MethodTelegramChatsRemove  = "telegram.chats.remove"
+	MethodEmailOAuthStart      = "email.oauth.start"
+	MethodEmailOAuthDisconnect = "email.oauth.disconnect"
 
 	// VLT-IS-009 TASK 03-00-00-005: Simulate power failure in demo mode.
 	MethodDemoPowerFail = "device.demo.power_fail"
@@ -260,6 +262,7 @@ var Methods = []string{
 	MethodUPSControlCaps, MethodUPSTestStart, MethodUPSTestCancel, MethodUPSBeeperSet,
 	MethodChannelsList, MethodChannelsSettingsSet, MethodChannelsTest,
 	MethodTelegramPairStart, MethodTelegramChatsList, MethodTelegramChatsRemove,
+	MethodEmailOAuthStart, MethodEmailOAuthDisconnect,
 	MethodDemoPowerFail,
 }
 
@@ -492,6 +495,7 @@ type ChannelInfo struct {
 	Settings    map[string]json.RawMessage `json:"settings,omitempty"`
 	Pairing     *TelegramPairResult        `json:"pairing,omitempty"` // an active pairing code (telegram)
 	Chats       int                        `json:"chats"`             // paired chats (telegram)
+	OAuth       *EmailOAuthStatus          `json:"oauth,omitempty"`   // e-mail Channel
 }
 
 // EmailPreset is a set of SMTP server Settings (the preset "Gmail").
@@ -509,7 +513,8 @@ type ChannelsListResult struct {
 }
 
 // ChannelSettingsParams are the params of channels.settings.set. Settings
-// is for the e-mail Channel: server, port, security, user, from, to.
+// is for the e-mail Channel: server, port, security, user, from, to,
+// auth, client_id.
 type ChannelSettingsParams struct {
 	Channel     string                     `json:"channel"`
 	Enabled     *bool                      `json:"enabled,omitempty"`
@@ -527,6 +532,28 @@ type ChannelParams struct {
 type TelegramPairResult struct {
 	Code    string `json:"code,omitempty"`
 	Expires string `json:"expires"`
+}
+
+// EmailOAuthStatus is the Gmail OAuth state (no tokens).
+type EmailOAuthStatus struct {
+	Auth        string `json:"auth"`
+	Connected   bool   `json:"connected"`
+	ClientIDSet bool   `json:"client_id_set"`
+	Pending     bool   `json:"pending"`
+	Error       string `json:"error,omitempty"`
+}
+
+// EmailOAuthStartParams are the params of email.oauth.start. ClientSecret
+// is write-only: the server must clear it after use.
+type EmailOAuthStartParams struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret,omitempty"`
+}
+
+// EmailOAuthStartResult is the result of email.oauth.start.
+type EmailOAuthStartResult struct {
+	AuthorizationURL string `json:"authorization_url"`
+	RedirectURI      string `json:"redirect_uri"`
 }
 
 // TelegramChat is one paired chat.
